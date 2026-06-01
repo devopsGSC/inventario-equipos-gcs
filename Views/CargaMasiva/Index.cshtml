@@ -1,0 +1,96 @@
+@{ ViewData["Title"] = "Carga masiva de equipos"; }
+
+<div class="page-header">
+  <div class="page-title">Carga masiva de equipos</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+  <!-- Paso 1: Plantilla -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span style="background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:8px">1</span>Descarga la plantilla</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13.5px;color:var(--dark-text2);margin-bottom:16px;line-height:1.6">
+        Descarga la plantilla oficial de Excel. Tiene el formato exacto que necesita el sistema con instrucciones integradas y validaciones de datos.
+      </p>
+      <div style="background:var(--surface2);border:1px solid #e5eaf2;border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px">
+        <div style="font-weight:600;margin-bottom:8px">Columnas incluidas:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+          <div>✓ NombreEquipo <span style="color:var(--red-text)">*</span></div>
+          <div>✓ TipoEquipo <span style="color:var(--red-text)">*</span></div>
+          <div>✓ Marca <span style="color:var(--red-text)">*</span></div>
+          <div>✓ Modelo <span style="color:var(--red-text)">*</span></div>
+          <div>✓ NumeroSerie <span style="color:var(--red-text)">*</span></div>
+          <div>✓ Accesorios</div>
+          <div>✓ Costo</div>
+          <div>✓ FechaCompra</div>
+          <div>✓ FechaGarantia</div>
+        </div>
+        <div style="margin-top:10px;color:var(--red-text);font-size:11.5px"><span style="color:var(--red-text)">*</span> Campo obligatorio</div>
+      </div>
+      <a asp-action="Plantilla" class="btn btn-primary" style="width:100%;justify-content:center">
+        <i class="bi bi-file-earmark-excel"></i> Descargar plantilla Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- Paso 2: Subir -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span style="background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:8px">2</span>Sube tu archivo completado</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13.5px;color:var(--dark-text2);margin-bottom:16px;line-height:1.6">
+        Una vez que hayas completado la plantilla con tus equipos, súbela aquí. El sistema procesará cada fila y te mostrará un reporte de resultados.
+      </p>
+      <form asp-action="Previsualizar" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <div id="dropzone"
+          style="border:2px dashed #dde2ec;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px"
+          onclick="document.getElementById('archivoInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--blue-bg)'"
+          ondragleave="this.style.borderColor='#dde2ec';this.style.background=''"
+          ondrop="handleDrop(event)">
+          <i class="bi bi-cloud-upload" style="font-size:32px;color:var(--dark-text2);display:block;margin-bottom:8px"></i>
+          <div style="font-size:13.5px;font-weight:500" id="dropLabel">Arrastra tu Excel aquí o haz clic para seleccionar</div>
+          <div class="text-muted" style="font-size:12px;margin-top:4px">Solo archivos .xlsx</div>
+        </div>
+        <input type="file" id="archivoInput" name="archivo" accept=".xlsx"
+               style="display:none" onchange="archivoSeleccionado(this)"/>
+
+        <div class="alert alert-warning" style="font-size:12.5px;margin-bottom:16px">
+          <i class="bi bi-info-circle-fill"></i>
+          Los equipos se registrarán con estado <strong>Bodega</strong>. Las series duplicadas serán omitidas automáticamente.
+        </div>
+
+        <button type="submit" id="btnProcesar" class="btn btn-primary" style="width:100%;justify-content:center" disabled>
+          <i class="bi bi-upload"></i> Procesar archivo
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function archivoSeleccionado(input) {
+  if (input.files.length > 0) {
+    const name = input.files[0].name;
+    document.getElementById('dropLabel').textContent = '✓ ' + name;
+    document.getElementById('dropzone').style.borderColor = 'var(--accent)';
+    document.getElementById('dropzone').style.background = 'var(--blue-bg)';
+    document.getElementById('btnProcesar').disabled = false;
+  }
+}
+function handleDrop(e) {
+  e.preventDefault();
+  const dt = e.dataTransfer;
+  if (dt.files.length > 0) {
+    document.getElementById('archivoInput').files = dt.files;
+    archivoSeleccionado(document.getElementById('archivoInput'));
+  }
+  e.currentTarget.style.borderColor = '#dde2ec';
+  e.currentTarget.style.background = '';
+}
+</script>

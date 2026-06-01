@@ -1,0 +1,53 @@
+@model List<Empleado>
+@{ ViewData["Title"] = "Empleados"; }
+
+<div class="page-header">
+  <div class="page-title">Empleados</div>
+  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Registrar empleado</a>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-body" style="padding:14px 20px">
+    <form method="get" style="display:flex;gap:10px">
+      <div class="search-box" style="flex:1">
+        <i class="bi bi-search"></i>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre, código o DUI..." value="@ViewBag.Buscar"/>
+      </div>
+      <button type="submit" class="btn btn-secondary">Buscar</button>
+      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string))
+      { <a asp-action="Index" class="btn btn-secondary">Limpiar</a> }
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Código</th><th>Nombre</th><th>DUI</th><th>Cargo</th><th>Departamento</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var e in Model)
+        {
+          <tr>
+            <td class="mono">@e.CodigoEmpleado</td>
+            <td><a asp-action="Details" asp-route-id="@e.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@e.Nombre</a></td>
+            <td class="mono">@e.DUI</td>
+            <td>@e.Cargo</td>
+            <td>@e.Departamento?.Nombre</td>
+            <td>
+              @if (e.Activo) { <span class="badge badge-green">Activo</span> }
+              else { <span class="badge badge-baja">Inactivo</span> }
+            </td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
+                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+              </div>
+            </td>
+          </tr>
+        }
+        @if (!Model.Any())
+        { <tr><td colspan="7"><div class="empty-state"><i class="bi bi-people"></i>No hay empleados registrados.</div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+</div>

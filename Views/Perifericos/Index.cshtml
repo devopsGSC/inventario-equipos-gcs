@@ -1,0 +1,72 @@
+@model List<Periferico>
+@{ ViewData["Title"] = "Periféricos"; }
+
+<div class="page-header">
+  <div class="page-title">Periféricos</div>
+  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar periférico</a>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-body" style="padding:14px 20px">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap">
+      <input type="hidden" name="estado" value="@ViewBag.Estado"/>
+      <div class="search-box" style="flex:1;min-width:200px">
+        <i class="bi bi-search"></i>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por serie, marca o modelo..." value="@ViewBag.Buscar"/>
+      </div>
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string) || !string.IsNullOrEmpty(ViewBag.Estado as string))
+      { <a asp-action="Index" class="btn btn-secondary">Limpiar</a> }
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;padding:14px 20px;display:flex;gap:10px;flex-wrap:wrap">
+  <a asp-action="Index" class="btn btn-secondary btn-sm @(ViewBag.Estado==null?"btn-active":"")">Todos (@Model.Count)</a>
+  <a asp-action="Index" asp-route-estado="Disponible" class="btn btn-secondary btn-sm">Disponibles</a>
+  <a asp-action="Index" asp-route-estado="Asignado"   class="btn btn-secondary btn-sm">Asignados</a>
+  <a asp-action="Index" asp-route-estado="Baja"       class="btn btn-secondary btn-sm">Baja</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Tipo</th><th>Marca / Modelo</th><th>No. Serie</th><th>Estado</th><th>Equipo actual</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var p in Model)
+        {
+          var asignacion = p.EquiposPerifericos?.FirstOrDefault(ep => ep.FechaDesvinculacion == null);
+          <tr>
+            <td>@p.TipoPeriferico?.Nombre</td>
+            <td><div style="font-weight:500">@p.Marca</div><div class="text-muted">@p.Modelo</div></td>
+            <td class="mono">@p.NumeroSerie</td>
+            <td>
+              @{
+                var (cls, lbl) = p.Estado switch {
+                  "Disponible" => ("badge-green",   "Disponible"),
+                  "Asignado"   => ("badge-asignado","Asignado"),
+                  "Baja"       => ("badge-baja",    "Baja"),
+                  _            => ("badge-bodega",  p.Estado)
+                };
+              }
+              <span class="badge @cls">@lbl</span>
+            </td>
+            <td class="text-muted">
+              @if (asignacion?.Equipo != null)
+              { <a asp-controller="Equipos" asp-action="Details" asp-route-id="@asignacion.EquipoId" style="color:var(--accent);text-decoration:none">@asignacion.Equipo.NombreEquipo</a> }
+              else { <span>—</span> }
+            </td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
+                <a asp-action="Edit"    asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+              </div>
+            </td>
+          </tr>
+        }
+        @if (!Model.Any())
+        { <tr><td colspan="6"><div class="empty-state"><i class="bi bi-plug"></i>No hay periféricos registrados.</div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+</div>

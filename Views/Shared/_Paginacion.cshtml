@@ -1,0 +1,68 @@
+@model InventarioTI.ViewModels.PaginacionViewModel
+@* 
+   Uso: <partial name="_Paginacion" model="ViewBag.Paginacion" />
+   Requiere que la URL base tenga los mismos query params excepto "pagina"
+*@
+@if (Model != null && Model.TotalPaginas > 1)
+{
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid #eef0f6;flex-wrap:wrap;gap:8px">
+    <div class="text-muted" style="font-size:12.5px">
+      Mostrando @Model.RegistroDesde – @Model.RegistroHasta de @Model.TotalRegistros registros
+    </div>
+    <div style="display:flex;gap:4px;align-items:center">
+      @{
+        // Construir URL base conservando todos los query params excepto "pagina"
+        var query = Context.Request.Query
+            .Where(q => q.Key != "pagina")
+            .Select(q => $"{q.Key}={Uri.EscapeDataString(q.Value.ToString())}");
+        var baseUrl = Context.Request.Path + "?" + string.Join("&", query);
+        if (query.Any()) baseUrl += "&";
+        else baseUrl += "?";
+      }
+
+      @* Anterior *@
+      @if (Model.TienePaginaAnterior)
+      {
+        <a href="@(baseUrl)pagina=@(Model.PaginaActual - 1)"
+           style="padding:5px 10px;border:1px solid #dde2ec;border-radius:6px;font-size:12.5px;text-decoration:none;color:var(--dark-text);background:var(--surface)">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+      }
+      else
+      {
+        <span style="padding:5px 10px;border:1px solid #eef0f6;border-radius:6px;font-size:12.5px;color:var(--dark-text2);background:var(--surface2)">
+          <i class="bi bi-chevron-left"></i>
+        </span>
+      }
+
+      @* Números *@
+      @foreach (var p in Model.Paginas())
+      {
+        if (p == Model.PaginaActual)
+        {
+          <span style="padding:5px 11px;border-radius:6px;font-size:12.5px;font-weight:600;background:var(--accent);color:#fff">@p</span>
+        }
+        else
+        {
+          <a href="@(baseUrl)pagina=@p"
+             style="padding:5px 11px;border:1px solid #dde2ec;border-radius:6px;font-size:12.5px;text-decoration:none;color:var(--dark-text);background:var(--surface)">@p</a>
+        }
+      }
+
+      @* Siguiente *@
+      @if (Model.TienePaginaSiguiente)
+      {
+        <a href="@(baseUrl)pagina=@(Model.PaginaActual + 1)"
+           style="padding:5px 10px;border:1px solid #dde2ec;border-radius:6px;font-size:12.5px;text-decoration:none;color:var(--dark-text);background:var(--surface)">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      }
+      else
+      {
+        <span style="padding:5px 10px;border:1px solid #eef0f6;border-radius:6px;font-size:12.5px;color:var(--dark-text2);background:var(--surface2)">
+          <i class="bi bi-chevron-right"></i>
+        </span>
+      }
+    </div>
+  </div>
+}

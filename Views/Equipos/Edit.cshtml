@@ -1,0 +1,235 @@
+@model Equipo
+@{ 
+  ViewData["Title"] = "Editar equipo";
+  var accsActuales = (Model.Accesorios ?? "").Split(',').Select(a => a.Trim()).Where(a => a != "").ToList();
+  var accsConocidos = new[] { "Cargador", "Funda" };
+}
+
+<div class="page-header">
+  <div>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Detalle</a>
+    <div class="page-title" style="margin-top:4px">Editar: @Model.NombreEquipo</div>
+  </div>
+</div>
+
+<style>
+.chip-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; background:var(--blue-bg); color:var(--blue-text); border:1px solid #bfdbfe; }
+.chip .chip-remove { cursor:pointer; font-size:14px; line-height:1; color:var(--blue-text); opacity:.6; }
+.chip .chip-remove:hover { opacity:1; }
+.tipo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
+.tipo-opt { border:1px solid #dde2ec; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:8px; transition:all .15s; background:var(--surface); }
+.tipo-opt:hover { border-color:var(--accent); background:var(--blue-bg); }
+.tipo-opt.selected { border-color:var(--accent); background:var(--blue-bg); color:var(--blue-text); font-weight:500; }
+.tipo-opt i { font-size:16px; }
+.nuevo-input-wrap { display:none; margin-top:8px; }
+.nuevo-input-wrap.show { display:flex; gap:8px; }
+</style>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form asp-action="Edit" method="post" id="formEquipo">
+      @Html.AntiForgeryToken()
+      <input type="hidden" asp-for="Id"/>
+      <input type="hidden" asp-for="Estado"/>
+      <input type="hidden" asp-for="FechaRegistro"/>
+
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label class="form-label">Nombre del equipo</label>
+          <input asp-for="NombreEquipo" class="form-control"/>
+          <span asp-validation-for="NombreEquipo" class="field-error"></span>
+        </div>
+
+        <!-- TIPO DE EQUIPO -->
+        <div class="form-group span-2">
+          <label class="form-label">Tipo de equipo</label>
+          <input type="hidden" asp-for="TipoEquipoId" id="tipoId"/>
+          <div class="tipo-grid" id="tipoGrid">
+            @foreach (var t in ((ViewBag.Tipos as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>) ?? [])
+                .Where(t => t.Text != "Desktop" && t.Text != "Monitor" && t.Text != "Impresora"))
+            {
+              var icon = t.Text switch {
+                "Laptop"   => "bi-laptop",
+                "Teléfono" => "bi-phone",
+                "Tablet"   => "bi-tablet",
+                _          => ""
+              };
+              var sel = t.Value == Model.TipoEquipoId.ToString() ? "selected" : "";
+              <div class="tipo-opt @sel" data-id="@t.Value" data-nombre="@t.Text" onclick="seleccionarTipo(this)">
+                @if (!string.IsNullOrEmpty(icon)) { <i class="bi @icon"></i> }
+                @t.Text
+              </div>
+            }
+            <div class="tipo-opt" data-id="nuevo" onclick="mostrarNuevoTipo()">
+              <i class="bi bi-plus-circle"></i> Otro tipo...
+            </div>
+          </div>
+          <div class="nuevo-input-wrap" id="nuevoTipoWrap">
+            <input type="text" id="nuevoTipoNombre" class="form-control" placeholder="Nombre del nuevo tipo"/>
+            <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoTipo()">Agregar</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarNuevoTipo()">Cancelar</button>
+          </div>
+          <span class="field-error" id="tipoError"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Número de serie</label>
+          <input asp-for="NumeroSerie" class="form-control"/>
+          <span asp-validation-for="NumeroSerie" class="field-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Marca</label>
+          <input asp-for="Marca" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Modelo</label>
+          <input asp-for="Modelo" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Costo</label>
+          <input asp-for="Costo" class="form-control" type="number" step="0.01"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de compra</label>
+          <input asp-for="FechaCompra" class="form-control" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Garantía hasta</label>
+          <input asp-for="FechaGarantia" class="form-control" type="date"/>
+        </div>
+
+        <!-- ACCESORIOS -->
+        <div class="form-group span-2">
+          <label class="form-label">Accesorios</label>
+          <input type="hidden" name="Accesorios" id="accesoriosHidden" value="@Model.Accesorios"/>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+            @foreach (var acc in new[] { "Cargador", "Funda" })
+            {
+              var activo = accsActuales.Contains(acc);
+              <button type="button" class="btn btn-secondary btn-sm acc-btn @(activo?"acc-activo":"")" 
+                      data-acc="@acc" onclick="toggleAccesorio('@acc', this)"
+                      style="@(activo ? "background:var(--blue-bg);border-color:var(--accent);color:var(--blue-text)" : "")">
+                <i class="bi @(activo ? "bi-check" : "bi-plus")"></i> @acc
+              </button>
+            }
+            <button type="button" class="btn btn-secondary btn-sm" onclick="mostrarNuevoAcc()">
+              <i class="bi bi-plus-circle"></i> Otro...
+            </button>
+          </div>
+          <div class="nuevo-input-wrap" id="nuevoAccWrap">
+            <input type="text" id="nuevoAccNombre" class="form-control" placeholder="Nombre del accesorio"/>
+            <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoAcc()">Agregar</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarNuevoAcc()">Cancelar</button>
+          </div>
+          <div class="chip-list" id="chipList"></div>
+          <div class="input-note" style="margin-top:6px">Selecciona de la lista o agrega accesorios personalizados</div>
+        </div>
+      </div>
+
+      <div class="gap-2">
+        <button type="submit" class="btn btn-primary" onclick="return validar()"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ---- TIPO ----
+function seleccionarTipo(el) {
+  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('tipoId').value = el.dataset.id;
+  document.getElementById('nuevoTipoWrap').classList.remove('show');
+}
+function mostrarNuevoTipo() {
+  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector('[data-id="nuevo"]').classList.add('selected');
+  document.getElementById('nuevoTipoWrap').classList.add('show');
+  document.getElementById('nuevoTipoNombre').focus();
+}
+function cancelarNuevoTipo() {
+  document.getElementById('nuevoTipoWrap').classList.remove('show');
+  document.querySelector('[data-id="nuevo"]').classList.remove('selected');
+}
+async function agregarNuevoTipo() {
+  const nombre = document.getElementById('nuevoTipoNombre').value.trim();
+  if (!nombre) return;
+  const res = await fetch('/Equipos/NuevoTipo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nombre)
+  });
+  if (!res.ok) return;
+  const data = await res.json();
+  if (!document.querySelector(`[data-id="${data.id}"]`)) {
+    const div = document.createElement('div');
+    div.className = 'tipo-opt';
+    div.dataset.id = data.id;
+    div.dataset.nombre = data.nombre;
+    div.onclick = function() { seleccionarTipo(this); };
+    div.innerHTML = data.nombre;
+    document.getElementById('tipoGrid').insertBefore(div, document.querySelector('[data-id="nuevo"]'));
+  }
+  document.getElementById('tipoId').value = data.id;
+  document.getElementById('nuevoTipoWrap').classList.remove('show');
+  document.getElementById('nuevoTipoNombre').value = '';
+  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector(`[data-id="${data.id}"]`).classList.add('selected');
+}
+document.getElementById('nuevoTipoNombre').addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();agregarNuevoTipo();} });
+
+// ---- ACCESORIOS ----
+let accesorios = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accsActuales));
+
+function actualizarHidden() {
+  document.getElementById('accesoriosHidden').value = accesorios.join(', ');
+}
+function renderChips() {
+  const known = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accsConocidos));
+  const list = document.getElementById('chipList');
+  list.innerHTML = '';
+  const extras = accesorios.filter(a => !known.includes(a));
+  extras.forEach(acc => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${acc} <span class="chip-remove" onclick="quitarAcc('${acc}')">×</span>`;
+    list.appendChild(chip);
+  });
+  document.querySelectorAll('.acc-btn').forEach(btn => {
+    const en = accesorios.includes(btn.dataset.acc);
+    btn.style.background = en ? 'var(--blue-bg)' : '';
+    btn.style.borderColor = en ? 'var(--accent)' : '';
+    btn.style.color = en ? 'var(--blue-text)' : '';
+    btn.innerHTML = `<i class="bi ${en ? 'bi-check' : 'bi-plus'}"></i> ${btn.dataset.acc}`;
+  });
+  actualizarHidden();
+}
+function toggleAccesorio(nombre) {
+  if (accesorios.includes(nombre)) accesorios = accesorios.filter(a => a !== nombre);
+  else accesorios.push(nombre);
+  renderChips();
+}
+function quitarAcc(nombre) { accesorios = accesorios.filter(a => a !== nombre); renderChips(); }
+function mostrarNuevoAcc() { document.getElementById('nuevoAccWrap').classList.add('show'); document.getElementById('nuevoAccNombre').focus(); }
+function cancelarNuevoAcc() { document.getElementById('nuevoAccWrap').classList.remove('show'); document.getElementById('nuevoAccNombre').value = ''; }
+function agregarNuevoAcc() {
+  const nombre = document.getElementById('nuevoAccNombre').value.trim();
+  if (!nombre || accesorios.includes(nombre)) { cancelarNuevoAcc(); return; }
+  accesorios.push(nombre); renderChips(); cancelarNuevoAcc();
+}
+document.getElementById('nuevoAccNombre').addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();agregarNuevoAcc();} });
+
+function validar() {
+  const tipoId = document.getElementById('tipoId').value;
+  if (!tipoId || tipoId === 'nuevo') {
+    document.getElementById('tipoError').textContent = 'Seleccione un tipo de equipo.';
+    return false;
+  }
+  return true;
+}
+
+// Inicializar chips de accesorios personalizados al cargar
+renderChips();
+</script>

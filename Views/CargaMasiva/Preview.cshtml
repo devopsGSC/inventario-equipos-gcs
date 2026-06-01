@@ -1,0 +1,102 @@
+@model List<InventarioTI.Controllers.EquipoPrevio>
+@{
+    ViewData["Title"] = "Previsualización de carga";
+    int validos    = Model.Count(p => p.EstadoPreview == "Valido");
+    int duplicados = Model.Count(p => p.EstadoPreview == "Duplicado" || p.EstadoPreview == "NombreDuplicado");
+    int errores    = Model.Count(p => p.EstadoPreview == "Error");
+}
+
+<div class="page-header">
+  <div class="page-title">Previsualización de carga</div>
+  <a asp-action="Index" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Cancelar</a>
+</div>
+
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card accent">
+    <div class="stat-label">Total en archivo</div>
+    <div class="stat-value">@Model.Count</div>
+  </div>
+  <div class="stat-card" style="border-color:#a7f3d0">
+    <div class="stat-label">Listos para registrar</div>
+    <div class="stat-value" style="color:var(--green-text)">@validos</div>
+  </div>
+  <div class="stat-card" style="border-color:#fde68a">
+    <div class="stat-label">Serán omitidos</div>
+    <div class="stat-value" style="color:var(--amber)">@duplicados</div>
+    <div class="stat-sub">series o nombres duplicados</div>
+  </div>
+  <div class="stat-card" style="border-color:#fecaca">
+    <div class="stat-label">Con errores</div>
+    <div class="stat-value" style="color:var(--red-text)">@errores</div>
+    <div class="stat-sub">campos faltantes</div>
+  </div>
+</div>
+
+@if (validos == 0)
+{
+  <div class="alert alert-danger" style="margin-bottom:16px">
+    <i class="bi bi-x-circle-fill"></i> No hay equipos válidos para registrar. Corrige los errores en el archivo y vuelve a subirlo.
+  </div>
+}
+else
+{
+  <div class="alert alert-success" style="margin-bottom:16px">
+    <i class="bi bi-info-circle-fill"></i>
+    Se registrarán <strong>@validos equipo(s)</strong> en estado Bodega.
+    @if (duplicados > 0) { <span>@duplicados serán omitidos por duplicados.</span> }
+    @if (errores > 0) { <span>@errores tienen errores y no se procesarán.</span> }
+  </div>
+}
+
+<div class="card" style="margin-bottom:20px">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Fila</th><th>Nombre</th><th>Tipo</th><th>Marca / Modelo</th><th>No. Serie</th><th>Estado</th><th>Detalle</th></tr>
+      </thead>
+      <tbody>
+        @foreach (var p in Model)
+        {
+          var (rowStyle, badgeCls, icon) = p.EstadoPreview switch {
+            "Valido"          => ("", "badge-green",   "bi-check-circle-fill"),
+            "Duplicado"       => ("", "badge-garantia","bi-skip-forward-fill"),
+            "NombreDuplicado" => ("", "badge-garantia","bi-skip-forward-fill"),
+            _                 => ("background:#fff5f5", "badge-baja","bi-x-circle-fill")
+          };
+          var estadoLabel = p.EstadoPreview switch {
+            "Valido"          => "Válido",
+            "Duplicado"       => "Duplicado",
+            "NombreDuplicado" => "Nombre duplicado",
+            _                 => "Error"
+          };
+          <tr style="@rowStyle">
+            <td class="mono text-muted">@p.Fila</td>
+            <td style="font-weight:500">@p.NombreEquipo</td>
+            <td>@p.TipoEquipo</td>
+            <td class="text-muted">@p.Marca @p.Modelo</td>
+            <td class="mono">@p.NumeroSerie</td>
+            <td><span class="badge @badgeCls"><i class="bi @icon"></i> @estadoLabel</span></td>
+            <td style="font-size:12.5px;color:var(--dark-text2)">@p.MensajePreview</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@if (validos > 0)
+{
+  <form asp-action="Confirmar" method="post">
+    @Html.AntiForgeryToken()
+    <div class="gap-2">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg"></i> Confirmar y registrar @validos equipo(s)
+      </button>
+      <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+}
+else
+{
+  <a asp-action="Index" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Volver y corregir</a>
+}

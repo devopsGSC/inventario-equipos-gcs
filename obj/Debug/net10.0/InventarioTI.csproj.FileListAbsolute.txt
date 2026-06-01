@@ -1,0 +1,9 @@
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.csproj.AssemblyReference.cache
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.AssemblyInfoInputs.cache
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.AssemblyInfo.cs
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.csproj.CoreCompileInputs.cache
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.RazorAssemblyInfo.cache
+C:\Users\RolandoEzequielSanch\Proyectos\InventarioTI\obj\Debug\net10.0\InventarioTI.RazorAssemblyInfo.cs
