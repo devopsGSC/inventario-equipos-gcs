@@ -1,0 +1,12 @@
+@model string
+@{
+  var (cls, icon) = Model switch {
+    "Bodega"     => ("badge-bodega",   "bi-archive"),
+    "Asignado"   => ("badge-asignado", "bi-person-check"),
+    "Prestamo"   => ("badge-prestamo", "bi-arrow-left-right"),
+    "EnGarantia" => ("badge-garantia", "bi-shield-check"),
+    "Baja"       => ("badge-baja",     "bi-x-circle"),
+    _            => ("badge-bodega",   "bi-circle")
+  };
+}
+<span class="badge @cls"><i class="bi @icon"></i> @Model</span>

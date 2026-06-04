@@ -1,0 +1,93 @@
+@model List<Equipo>
+@{ ViewData["Title"] = "Equipos"; }
+
+<div class="page-header">
+  <div class="page-title">
+    Equipos
+    @if (!string.IsNullOrEmpty(ViewBag.Estado as string))
+    { <span class="badge badge-bodega" style="font-size:13px;margin-left:8px">@ViewBag.Estado</span> }
+  </div>
+  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar equipo</a>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:14px 20px">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input type="hidden" name="estado" value="@ViewBag.Estado"/>
+
+      <div class="search-box" style="flex:1;min-width:200px">
+        <i class="bi bi-search"></i>
+        <input type="text" name="buscar" class="form-control"
+               placeholder="Buscar por nombre, serie o marca..." value="@ViewBag.Buscar"/>
+      </div>
+
+      <select name="tipo" class="form-control" style="width:160px">
+        <option value="">Todos los tipos</option>
+        @foreach (var t in ViewBag.Tipos as List<string> ?? [])
+        {
+          <option value="@t" selected="@(ViewBag.Tipo == t ? "selected" : null)">@t</option>
+        }
+      </select>
+
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string) ||
+           !string.IsNullOrEmpty(ViewBag.Estado as string) ||
+           !string.IsNullOrEmpty(ViewBag.Tipo as string))
+      {
+        <a asp-action="Index" class="btn btn-secondary">Limpiar</a>
+      }
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Equipo</th><th>Tipo</th><th>No. Serie</th><th>Estado</th><th>Garantía</th><th>Registrado</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var e in Model)
+        {
+          var garantiaVence = e.FechaGarantia.HasValue &&
+              e.FechaGarantia.Value <= DateTime.Today.AddDays(30) &&
+              e.FechaGarantia.Value >= DateTime.Today;
+          <tr>
+            <td>
+              <div style="font-weight:500">@e.NombreEquipo</div>
+              <div class="text-muted">@e.Marca — @e.Modelo</div>
+            </td>
+            <td>@e.TipoEquipo?.Nombre</td>
+            <td class="mono">@e.NumeroSerie</td>
+            <td><partial name="_EstadoBadge" model="@e.Estado" /></td>
+            <td>
+              @if (e.FechaGarantia.HasValue)
+              {
+                <span class="@(garantiaVence ? "badge badge-garantia" : "text-muted")">
+                  @(garantiaVence ? "⚠ " : "")@e.FechaGarantia.Value.ToString("dd/MM/yyyy")
+                </span>
+              }
+              else { <span class="text-muted">—</span> }
+            </td>
+            <td class="text-muted" style="font-size:12px">@e.FechaRegistro.ToString("dd/MM/yyyy")</td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
+                <a asp-action="Edit"    asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+              </div>
+            </td>
+          </tr>
+        }
+        @if (!Model.Any())
+        {
+          <tr><td colspan="7">
+            <div class="empty-state"><i class="bi bi-inbox"></i>No hay equipos que mostrar.</div>
+          </td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
+</div>

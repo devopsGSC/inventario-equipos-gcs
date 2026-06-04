@@ -1,0 +1,300 @@
+@model MovimientoCreateViewModel
+@{ ViewData["Title"] = "Registrar movimiento"; var eq = Model.Equipo!; }
+
+<div class="page-header">
+  <div>
+    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@Model.EquipoId" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @eq.NombreEquipo</a>
+    <div class="page-title" style="margin-top:4px">Registrar movimiento</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-body">
+      <form asp-action="Registrar" method="post" id="frmMov">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="EquipoId"/>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de movimiento</label>
+          @{
+            var estadoActual = eq.Estado;
+            var tiposDisponibles = estadoActual switch {
+              "Bodega"     => new[] { ("Asignacion","Asignación permanente","bi-person-check"), ("Prestamo","Préstamo temporal","bi-arrow-left-right"), ("EntradaGarantia","Entrada a garantía","bi-shield-check"), ("Baja","Dar de baja","bi-x-circle") },
+              "Asignado"   => new[] { ("Devolucion","Devolución a bodega","bi-arrow-return-left") },
+              "Prestamo"   => new[] { ("Devolucion","Devolución a bodega","bi-arrow-return-left") },
+              "EnGarantia" => new[] { ("SalidaGarantia","Salida de garantía","bi-shield-x") },
+              _            => Array.Empty<(string,string,string)>()
+            };
+          }
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px" id="tipo-grid">
+            @foreach (var (val, label, icon) in tiposDisponibles)
+            {
+              <label class="tipo-option" style="border:1px solid #dde2ec;border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px">
+                <input type="radio" name="TipoMovimiento" value="@val" style="display:none" onchange="onTipo('@val')"/>
+                <i class="bi @icon" style="font-size:20px;color:var(--dark-text2)"></i>
+                <span style="font-size:13.5px;font-weight:500">@label</span>
+              </label>
+            }
+          </div>
+          <span asp-validation-for="TipoMovimiento" class="field-error"></span>
+        </div>
+
+        <div id="sec-empleado" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Empleado</label>
+            <select asp-for="EmpleadoId" class="form-control" id="sel-empleado">
+              <option value="">— Seleccionar empleado —</option>
+              @foreach (var emp in Model.Empleados)
+              {
+                <option value="@emp.Id">@emp.Nombre (@emp.CodigoEmpleado) — @emp.Departamento?.Nombre</option>
+              }
+            </select>
+            <span asp-validation-for="EmpleadoId" class="field-error"></span>
+          </div>
+        </div>
+
+        <div id="sec-fechafin" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Fecha estimada de devolución <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+            <input asp-for="FechaFinEstimada" class="form-control" type="date"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Fecha del movimiento</label>
+          <input name="FechaInicio" class="form-control" type="datetime-local" 
+                 value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" asp-for="Observaciones">Observaciones (opcional)</label>
+          <textarea asp-for="Observaciones" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+
+        <!-- Firma digital — solo visible para Asignación y Préstamo -->
+        <div id="sec-firma" style="display:none">
+          <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+            Firma del colaborador
+          </div>
+          <input type="hidden" name="firmaEmpleado" id="firmaInput"/>
+          <div style="border:1px solid #dde2ec;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:6px">
+            <canvas id="firmaCanvas" style="display:block;width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>
+          </div>
+          <div class="gap-2" style="margin-bottom:16px">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="limpiarFirma()">
+              <i class="bi bi-eraser"></i> Limpiar
+            </button>
+            <span class="text-muted" style="font-size:12px" id="firmaStatus">Sin firma</span>
+          </div>
+        </div>
+
+        <!-- Periféricos — solo visible para Asignación y Préstamo -->
+        <div id="sec-perifericos" style="display:none">
+          <div style="margin:4px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+            Periféricos a entregar
+          </div>
+          <input type="hidden" name="perifericosIds" id="perifericosIds"/>
+          <div id="perifList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
+            <span class="text-muted" id="sinPerifericos" style="font-size:12.5px;align-self:center">Sin periféricos adjuntos</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalPerif()">
+            <i class="bi bi-plus"></i> Adjuntar periférico
+          </button>
+          <div class="input-note" style="margin-top:6px">Los periféricos adjuntos quedarán en estado "Asignado" junto con el equipo.</div>
+        </div>
+
+        <!-- Modal selector periféricos -->
+        <div id="perifModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center">
+          <div style="background:var(--surface);border-radius:12px;padding:24px;width:500px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div style="font-size:15px;font-weight:600">Seleccionar periférico</div>
+              <button type="button" onclick="cerrarModalPerif()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--dark-text2)">×</button>
+            </div>
+            <input type="text" id="buscarPerif" class="form-control" placeholder="Buscar por tipo, marca o serie..." oninput="filtrarPerif()" style="margin-bottom:12px"/>
+            <div id="perifOpciones" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+
+        <div class="gap-2">
+          <button type="submit" class="btn btn-primary" onclick="prepararFirma()"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
+          <a asp-controller="Equipos" asp-action="Details" asp-route-id="@Model.EquipoId" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Equipo</div></div>
+    <div class="card-body">
+      <div style="margin-bottom:12px"><partial name="_EstadoBadge" model="@eq.Estado" /></div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px">@eq.NombreEquipo</div>
+      <div class="text-muted" style="margin-bottom:14px">@eq.Marca — @eq.Modelo</div>
+      <div class="form-label">No. de serie</div>
+      <div class="mono" style="margin-bottom:10px">@eq.NumeroSerie</div>
+      <div class="form-label">Tipo</div>
+      <div style="margin-bottom:10px">@eq.TipoEquipo?.Nombre</div>
+      @if (!string.IsNullOrEmpty(eq.Accesorios))
+      {
+        <div class="form-label">Accesorios</div>
+        <div style="font-size:12.5px">@eq.Accesorios</div>
+      }
+    </div>
+  </div>
+</div>
+
+<script>
+function onTipo(val) {
+  document.querySelectorAll('.tipo-option').forEach(el => {
+    el.style.borderColor = '#dde2ec';
+    el.style.background = '';
+  });
+  const sel = document.querySelector(`input[value="${val}"]`).closest('.tipo-option');
+  sel.style.borderColor = 'var(--accent)';
+  sel.style.background = 'var(--blue-bg)';
+
+  document.getElementById('sec-empleado').style.display =
+    (val === 'Asignacion' || val === 'Prestamo') ? 'block' : 'none';
+  document.getElementById('sec-fechafin').style.display =
+    val === 'Prestamo' ? 'block' : 'none';
+
+  // Mostrar firma para Asignacion, Prestamo y Devolucion
+  const secFirma = document.getElementById('sec-firma');
+  const secPerif = document.getElementById('sec-perifericos');
+  const esSalida = (val === 'Asignacion' || val === 'Prestamo');
+  secFirma.style.display = (esSalida || val === 'Devolucion') ? 'block' : 'none';
+  secPerif.style.display = esSalida ? 'block' : 'none';
+  if (secFirma.style.display === 'block') initCanvas();
+}
+
+// ── Canvas de firma ──────────────────────────────────
+const canvas = document.getElementById('firmaCanvas');
+const ctx    = canvas.getContext('2d');
+let drawing  = false;
+let hasFirma = false;
+
+function initCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth   = 2;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+}
+window.addEventListener('load', initCanvas);
+window.addEventListener('resize', initCanvas);
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', e => {
+  drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y);
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  hasFirma = true; actualizarStatus();
+});
+canvas.addEventListener('mouseup',    () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); drawing = true; ctx.beginPath();
+  const p = getPos(e); ctx.moveTo(p.x, p.y);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault(); if (!drawing) return;
+  const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  hasFirma = true; actualizarStatus();
+}, { passive: false });
+canvas.addEventListener('touchend', () => drawing = false);
+
+function actualizarStatus() {
+  const st = document.getElementById('firmaStatus');
+  st.textContent = hasFirma ? '✓ Firma capturada' : 'Sin firma';
+  st.style.color = hasFirma ? 'var(--green-text)' : '';
+}
+
+function limpiarFirma() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  hasFirma = false; actualizarStatus();
+  document.getElementById('firmaInput').value = '';
+}
+
+function prepararFirma() {
+  if (hasFirma)
+    document.getElementById('firmaInput').value = canvas.toDataURL('image/png');
+}
+
+// ── Periféricos ──────────────────────────────────────
+let perifs = [], todosPerifs = [];
+
+async function abrirModalPerif() {
+  document.getElementById('perifModal').style.display = 'flex';
+  if (!todosPerifs.length) {
+    const res = await fetch('/Perifericos/Disponibles');
+    todosPerifs = await res.json();
+  }
+  renderOpcionesPerif(todosPerifs);
+}
+function cerrarModalPerif() { document.getElementById('perifModal').style.display = 'none'; }
+function filtrarPerif() {
+  const q = document.getElementById('buscarPerif').value.toLowerCase();
+  renderOpcionesPerif(todosPerifs.filter(p =>
+    p.marca.toLowerCase().includes(q) ||
+    p.modelo.toLowerCase().includes(q) ||
+    p.numeroSerie.toLowerCase().includes(q) ||
+    p.tipo.toLowerCase().includes(q)));
+}
+function renderOpcionesPerif(lista) {
+  const cont = document.getElementById('perifOpciones');
+  cont.innerHTML = '';
+  const yaIds = perifs.map(p => p.id);
+  const disp  = lista.filter(p => !yaIds.includes(p.id));
+  if (!disp.length) {
+    cont.innerHTML = '<div class="text-muted" style="font-size:13px;padding:10px">No hay periféricos disponibles.</div>';
+    return;
+  }
+  disp.forEach(p => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #dde2ec;border-radius:8px';
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:500;font-size:13.5px">${p.tipo} — ${p.marca} ${p.modelo}</div>
+        <div style="font-size:11.5px;color:var(--dark-text2);font-family:monospace">${p.numeroSerie}</div>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm">Adjuntar</button>`;
+    div.querySelector('button').onclick = () => {
+      perifs.push(p);
+      renderChipsPerif();
+      cerrarModalPerif();
+    };
+    cont.appendChild(div);
+  });
+}
+function quitarPerif(id) {
+  perifs = perifs.filter(p => p.id !== id);
+  renderChipsPerif();
+}
+function renderChipsPerif() {
+  const cont = document.getElementById('perifList');
+  cont.innerHTML = '';
+  if (!perifs.length) {
+    cont.innerHTML = '<span class="text-muted" style="font-size:12.5px;align-self:center">Sin periféricos adjuntos</span>';
+  } else {
+    perifs.forEach(p => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<i class="bi bi-display" style="font-size:13px"></i> ${p.tipo} — ${p.marca} ${p.modelo} <span class="chip-remove" onclick="quitarPerif(${p.id})">×</span>`;
+      cont.appendChild(chip);
+    });
+  }
+  document.getElementById('perifericosIds').value = perifs.map(p => p.id).join(',');
+}
+</script>

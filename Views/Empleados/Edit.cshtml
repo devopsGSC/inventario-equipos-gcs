@@ -1,0 +1,50 @@
+@model Empleado
+@{ ViewData["Title"] = "Editar empleado"; }
+<div class="page-header">
+  <div>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Detalle</a>
+    <div class="page-title" style="margin-top:4px">Editar: @Model.Nombre</div>
+  </div>
+</div>
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <form asp-action="Edit" method="post">
+      @Html.AntiForgeryToken()
+      <input type="hidden" asp-for="Id"/>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" asp-for="CodigoEmpleado"></label>
+          <input asp-for="CodigoEmpleado" class="form-control"/>
+          <span asp-validation-for="CodigoEmpleado" class="field-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" asp-for="DUI"></label>
+          <input asp-for="DUI" class="form-control"/>
+          <span asp-validation-for="DUI" class="field-error"></span>
+        </div>
+        <div class="form-group span-2">
+          <label class="form-label" asp-for="Nombre"></label>
+          <input asp-for="Nombre" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" asp-for="Cargo"></label>
+          <input asp-for="Cargo" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" asp-for="DepartamentoId"></label>
+          <select asp-for="DepartamentoId" asp-items="ViewBag.Departamentos" class="form-control"></select>
+        </div>
+        <div class="form-group span-2">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px">
+            <input asp-for="Activo" type="checkbox" style="width:16px;height:16px"/>
+            Empleado activo
+          </label>
+        </div>
+      </div>
+      <div class="gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>

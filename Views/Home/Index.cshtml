@@ -1,0 +1,155 @@
+@model DashboardViewModel
+@{ ViewData["Title"] = "Inventario y gestión de equipos"; }
+
+<div class="stats-grid">
+  <div class="stat-card accent">
+    <div class="stat-label">Total equipos</div>
+    <div class="stat-value">@Model.TotalEquipos</div>
+    <div class="stat-sub">en inventario</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En bodega</div>
+    <div class="stat-value" style="color:var(--gray)">@Model.EnBodega</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Asignados</div>
+    <div class="stat-value" style="color:var(--blue)">@Model.Asignados</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En préstamo</div>
+    <div class="stat-value" style="color:var(--purple)">@Model.EnPrestamo</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En garantía</div>
+    <div class="stat-value" style="color:var(--amber)">@Model.EnGarantia</div>
+  </div>
+  @if (Model.GarantiasProximas > 0)
+  {
+    <div class="stat-card" style="border-color:#fde68a; background:var(--amber-bg)">
+      <div class="stat-label" style="color:var(--amber-text)">Garantías por vencer</div>
+      <div class="stat-value" style="color:var(--amber)">@Model.GarantiasProximas</div>
+      <div class="stat-sub" style="color:var(--amber-text)">próximos 30 días</div>
+    </div>
+  }
+</div>
+
+<div class="card" style="margin-bottom:24px">
+  <div class="card-header">
+    <div class="card-title"><i class="bi bi-search" style="margin-right:6px"></i>Buscar equipo por número de serie</div>
+  </div>
+  <div class="card-body">
+    <form method="get" asp-controller="Home" asp-action="Index">
+      <div class="big-search">
+        <input type="text" name="serie" class="form-control" placeholder="Ej: 5CD540164K" value="@Model.SerieBuscada"/>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+      </div>
+    </form>
+
+    @if (Model.SerieBuscada != null)
+    {
+      @if (Model.ResultadoBusqueda == null)
+      {
+        <div class="alert alert-danger" style="margin-top:16px"><i class="bi bi-x-circle-fill"></i> No se encontró ningún equipo con la serie "@Model.SerieBuscada".</div>
+      }
+      else
+      {
+        var eq = Model.ResultadoBusqueda;
+        var mov = eq.Movimientos.FirstOrDefault();
+        <div class="result-card">
+          <div class="rc-name">@eq.NombreEquipo — @eq.Marca @eq.Modelo</div>
+          <div class="rc-serie">Serie: @eq.NumeroSerie</div>
+          <div class="result-grid">
+            <div class="result-field"><label>Tipo</label><p>@eq.TipoEquipo?.Nombre</p></div>
+            <div class="result-field"><label>Estado</label><p>@eq.Estado</p></div>
+            @if (mov?.Empleado != null)
+            {
+              <div class="result-field"><label>Responsable</label><p>@mov.Empleado.Nombre (@mov.Empleado.CodigoEmpleado)</p></div>
+              <div class="result-field"><label>Departamento</label><p>@mov.Empleado.Departamento?.Nombre</p></div>
+              <div class="result-field"><label>Cargo</label><p>@mov.Empleado.Cargo</p></div>
+              <div class="result-field"><label>Desde</label><p>@mov.FechaInicio.ToString("dd/MM/yyyy")</p></div>
+            }
+          </div>
+          <div style="margin-top:16px">
+            <a asp-controller="Equipos" asp-action="Details" asp-route-id="@eq.Id" class="btn btn-secondary btn-sm">
+              <i class="bi bi-arrow-right"></i> Ver detalle completo
+            </a>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Últimos equipos registrados</div>
+      <a asp-controller="Equipos" asp-action="Create" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Nuevo</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Equipo</th><th>Tipo</th><th>Estado</th></tr></thead>
+        <tbody>
+          @foreach (var e in Model.UltimosRegistros)
+          {
+            <tr>
+              <td>
+                <a asp-controller="Equipos" asp-action="Details" asp-route-id="@e.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@e.NombreEquipo</a>
+                <div class="mono text-muted">@e.NumeroSerie</div>
+              </td>
+              <td>@e.TipoEquipo?.Nombre</td>
+              <td><partial name="_EstadoBadge" model="@e.Estado" /></td>
+            </tr>
+          }
+          @if (!Model.UltimosRegistros.Any())
+          { <tr><td colspan="3"><div class="empty-state"><i class="bi bi-inbox"></i>Sin equipos registrados</div></td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Últimos movimientos</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Equipo</th><th>Movimiento</th><th>Colaborador</th><th>Fecha</th></tr></thead>
+        <tbody>
+          @foreach (var m in Model.UltimosMovimientos)
+          {
+            var (badgeCls, badgeLbl) = m.TipoMovimiento switch {
+              "Asignacion"      => ("badge-asignado", "Asignación"),
+              "Prestamo"        => ("badge-prestamo",  "Préstamo"),
+              "Devolucion"      => ("badge-green",     "Devolución"),
+              "EntradaGarantia" => ("badge-garantia",  "En garantía"),
+              "SalidaGarantia"  => ("badge-green",     "Sale garantía"),
+              "Baja"            => ("badge-baja",      "Baja"),
+              "Reactivacion"    => ("badge-green",     "Reactivación"),
+              _                 => ("badge-bodega",    m.TipoMovimiento)
+            };
+            <tr>
+              <td>
+                <a asp-controller="Equipos" asp-action="Details" asp-route-id="@m.EquipoId"
+                   style="color:var(--accent);text-decoration:none;font-weight:500">
+                  @m.Equipo?.NombreEquipo
+                </a>
+                <div class="mono text-muted">@m.Equipo?.NumeroSerie</div>
+              </td>
+              <td><span class="badge @badgeCls">@badgeLbl</span></td>
+              <td>
+                @if (m.Empleado != null)
+                {
+                  <div style="font-weight:500;font-size:13px">@m.Empleado.Nombre</div>
+                  <div class="text-muted">@m.Empleado.CodigoEmpleado</div>
+                }
+                else { <span class="text-muted">—</span> }
+              </td>
+              <td class="text-muted">@m.FechaInicio.ToString("dd/MM/yyyy")</td>
+            </tr>
+          }
+          @if (!Model.UltimosMovimientos.Any())
+          { <tr><td colspan="4"><div class="empty-state"><i class="bi bi-clock-history"></i>Sin movimientos</div></td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

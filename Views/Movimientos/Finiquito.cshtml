@@ -1,0 +1,240 @@
+@model Movimiento
+@using InventarioTI.Models
+@{
+    ViewData["Title"] = "Finiquito de Tecnología";
+    var eq  = Model.Equipo!;
+    var emp = Model.Empleado!;
+    var movAnt      = ViewBag.MovAnterior as Movimiento;
+    var perifsDevueltos = ViewBag.PerifsDevueltos as List<EquipoPeriferico> ?? new();
+
+    // Precargar periféricos devueltos como texto para los campos del finiquito
+    var monitorPerif  = perifsDevueltos.FirstOrDefault(ep => ep.Periferico?.TipoPeriferico?.Nombre == "Monitor");
+    var telPerif      = perifsDevueltos.FirstOrDefault(ep => ep.Periferico?.TipoPeriferico?.Nombre == "Teléfono" ||
+                                                              ep.Periferico?.TipoPeriferico?.Nombre == "Teléfono Móvil");
+    var otrosPerifs   = string.Join(", ", perifsDevueltos
+        .Where(ep => ep.Periferico?.TipoPeriferico?.Nombre != "Monitor")
+        .Select(ep => $"{ep.Periferico?.TipoPeriferico?.Nombre} {ep.Periferico?.Marca} {ep.Periferico?.Modelo}".Trim()));
+
+    // Determinar tipo equipo para precargar en sección correcta
+    bool esTelefono = eq.TipoEquipo?.Nombre == "Teléfono";
+}
+
+<div class="page-header">
+  <div>
+    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@eq.Id" class="text-muted" style="text-decoration:none;font-size:13px">
+      <i class="bi bi-arrow-left"></i> @eq.NombreEquipo
+    </a>
+    <div class="page-title" style="margin-top:4px">Finiquito de Tecnología</div>
+  </div>
+</div>
+
+<div class="alert alert-success" style="max-width:960px">
+  <i class="bi bi-check-circle-fill"></i>
+  Devolución registrada. Los datos del equipo y empleado ya están precargados — completa los campos faltantes y genera el Finiquito.
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Completar información del finiquito</div></div>
+    <div class="card-body">
+      <form method="post" asp-action="DescargarFiniquito">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="movimientoId" value="@Model.Id"/>
+
+        <!-- Motivo -->
+        <div class="form-group">
+          <label class="form-label">Motivo de recepción del activo</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+            @foreach (var (val, label) in new[]{("fin_laboral","Fin Relación Laboral"),("renovacion","Renovación"),("robo","Documentación Robo")})
+            {
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;padding:8px 14px;border:1px solid #dde2ec;border-radius:8px" id="mot-@val">
+                <input type="radio" name="motivo" value="@val" @(val=="fin_laboral"?"checked":"") onchange="highlightMotivo()"/>
+                @label
+              </label>
+            }
+          </div>
+        </div>
+
+        <!-- Specs equipo (solo si no es teléfono) -->
+        @if (!esTelefono)
+        {
+          <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+            Especificaciones adicionales del equipo
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Memoria RAM</label>
+              <input type="text" name="ram" class="form-control" placeholder="Ej: 16 GB"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Disco Duro</label>
+              <input type="text" name="disco" class="form-control" placeholder="Ej: 500 GB SSD"/>
+            </div>
+            <div class="form-group span-2">
+              <label class="form-label">Procesador</label>
+              <input type="text" name="procesador" class="form-control" placeholder="Ej: Intel Ultra 7"/>
+            </div>
+          </div>
+        }
+
+        <!-- Receptor -->
+        <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Receptor por parte de TI
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Nombre receptor</label>
+            <input type="text" name="receptorNombre" class="form-control"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Centro recepción</label>
+            <input type="text" name="receptorCentro" class="form-control" value="GCS Santa Elena"/>
+          </div>
+        </div>
+
+        <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Especificaciones del Teléfono Móvil (si aplica)
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Número</label>
+            <input type="text" name="telNumero" class="form-control"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Marca</label>
+            <input type="text" name="telMarca" class="form-control"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modelo</label>
+            <input type="text" name="telModelo" class="form-control"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">IMEI</label>
+            <input type="text" name="telImei" class="form-control"/>
+          </div>
+        </div>
+
+        <!-- Firma — viene del paso anterior -->
+        @{
+          var firmaGuardada = TempData.Peek("FirmaEmpleado") as string ?? Model.FirmaEmpleado;
+        }
+        <input type="hidden" name="firmaEmpleado" value="@firmaGuardada"/>
+
+        <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Firma del colaborador
+        </div>
+        @if (!string.IsNullOrEmpty(firmaGuardada))
+        {
+          <div style="border:1px solid #dde2ec;border-radius:8px;padding:10px;background:#fff;display:inline-block;margin-bottom:8px">
+            <img src="@firmaGuardada" style="max-height:80px;display:block"/>
+          </div>
+          <div class="text-muted" style="font-size:12px;margin-bottom:16px">
+            <i class="bi bi-check-circle-fill" style="color:var(--green-text)"></i> Firma capturada en el paso anterior
+          </div>
+        }
+        else
+        {
+          <div class="alert alert-warning" style="margin-bottom:16px;font-size:13px">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            No se capturó firma en el paso anterior. El PDF se generará sin firma — puedes dibujala aquí:
+          </div>
+          <input type="hidden" name="firmaEmpleadoExtra" id="firmaEmpleadoExtraInput"/>
+          <div style="border:1px solid #dde2ec;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:6px">
+            <canvas id="firmaCanvasExtra" style="display:block;width:100%;height:120px;cursor:crosshair;touch-action:none"></canvas>
+          </div>
+          <div class="gap-2" style="margin-bottom:16px">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="limpiarFirmaExtra()">
+              <i class="bi bi-eraser"></i> Limpiar
+            </button>
+            <span class="text-muted" style="font-size:12px" id="firmaExtraStatus">Sin firma</span>
+          </div>
+        }
+
+        <div class="gap-2" style="margin-top:8px">
+          <button type="submit" class="btn btn-primary" onclick="prepararFirmaExtra()">
+            <i class="bi bi-file-earmark-pdf"></i> Generar y descargar PDF
+          </button>
+          <a asp-controller="Equipos" asp-action="Details" asp-route-id="@eq.Id" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Resumen -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Resumen</div></div>
+    <div class="card-body">
+      <div style="margin-bottom:14px">
+        <div class="form-label">Colaborador</div>
+        <div style="font-weight:600">@emp.Nombre</div>
+        <div class="text-muted">@emp.CodigoEmpleado — @emp.Cargo</div>
+        <div class="text-muted">@emp.Departamento?.Nombre</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div class="form-label">Equipo</div>
+        <div style="font-weight:600">@eq.NombreEquipo</div>
+        <div class="text-muted">@eq.Marca @eq.Modelo</div>
+        <div class="mono text-muted" style="font-size:11px">@eq.NumeroSerie</div>
+      </div>
+      @if (!string.IsNullOrEmpty(eq.Accesorios))
+      {
+        <div style="margin-bottom:14px">
+          <div class="form-label">Accesorios</div>
+          <div style="font-size:13px">@eq.Accesorios</div>
+        </div>
+      }
+      @if (perifsDevueltos.Any())
+      {
+        <div style="margin-bottom:14px">
+          <div class="form-label">Periféricos devueltos</div>
+          @foreach (var ep in perifsDevueltos)
+          {
+            <div style="font-size:13px">@ep.Periferico?.TipoPeriferico?.Nombre — @ep.Periferico?.Marca @ep.Periferico?.Modelo</div>
+          }
+        </div>
+      }
+      <div>
+        <div class="form-label">Fecha del movimiento</div>
+        <div>@Model.FechaInicio.ToString("dd/MM/yyyy")</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function highlightMotivo() {
+  document.querySelectorAll('[id^="mot-"]').forEach(el => {
+    el.style.borderColor = '#dde2ec'; el.style.background = '';
+  });
+  const sel = document.querySelector('input[name="motivo"]:checked');
+  if (sel) { const lbl = sel.closest('label'); lbl.style.borderColor='var(--accent)'; lbl.style.background='var(--blue-bg)'; }
+}
+highlightMotivo();
+
+// Canvas de firma de respaldo (solo si no vino firma del paso anterior)
+const canvasExtra = document.getElementById('firmaCanvasExtra');
+if (canvasExtra) {
+  const ctx2 = canvasExtra.getContext('2d');
+  let drawing2 = false, hasFirma2 = false;
+  function initExtra() {
+    const rect = canvasExtra.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvasExtra.width = rect.width * dpr; canvasExtra.height = rect.height * dpr;
+    ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx2.strokeStyle='#111'; ctx2.lineWidth=2; ctx2.lineCap='round'; ctx2.lineJoin='round';
+  }
+  window.addEventListener('load', initExtra);
+  function getPos2(e) { const r=canvasExtra.getBoundingClientRect(), s=e.touches?e.touches[0]:e; return {x:s.clientX-r.left,y:s.clientY-r.top}; }
+  canvasExtra.addEventListener('mousedown', e => { drawing2=true; ctx2.beginPath(); const p=getPos2(e); ctx2.moveTo(p.x,p.y); });
+  canvasExtra.addEventListener('mousemove', e => { if(!drawing2)return; const p=getPos2(e); ctx2.lineTo(p.x,p.y); ctx2.stroke(); hasFirma2=true; document.getElementById('firmaExtraStatus').textContent='✓ Firma capturada'; document.getElementById('firmaExtraStatus').style.color='var(--green-text)'; });
+  canvasExtra.addEventListener('mouseup', ()=>drawing2=false);
+  canvasExtra.addEventListener('mouseleave', ()=>drawing2=false);
+  canvasExtra.addEventListener('touchstart', e=>{e.preventDefault();drawing2=true;ctx2.beginPath();const p=getPos2(e);ctx2.moveTo(p.x,p.y);},{passive:false});
+  canvasExtra.addEventListener('touchmove', e=>{e.preventDefault();if(!drawing2)return;const p=getPos2(e);ctx2.lineTo(p.x,p.y);ctx2.stroke();hasFirma2=true;},{passive:false});
+  canvasExtra.addEventListener('touchend', ()=>drawing2=false);
+  window.limpiarFirmaExtra = function() { const r=canvasExtra.getBoundingClientRect(); ctx2.clearRect(0,0,r.width,r.height); hasFirma2=false; document.getElementById('firmaExtraStatus').textContent='Sin firma'; document.getElementById('firmaExtraStatus').style.color=''; document.getElementById('firmaEmpleadoExtraInput').value=''; };
+  window.prepararFirmaExtra = function() { if(hasFirma2) { const inp=document.getElementById('firmaEmpleadoExtraInput'); inp.name='firmaEmpleado'; inp.value=canvasExtra.toDataURL('image/png'); } };
+} else {
+  window.prepararFirmaExtra = function() {};
+}
+</script>
