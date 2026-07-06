@@ -162,17 +162,20 @@ function validar() {
   return true;
 }
 async function eliminarTipo(id, span) {
-  if (!confirm('¿Eliminar este tipo de periférico? Solo se puede si ningún periférico lo está usando.')) return;
+  if (!(await customConfirm('¿Eliminar este tipo de periférico? Solo se puede si ningún periférico lo está usando.'))) return;
+  setBtnLoading(span, true, '');
   try {
     const res = await fetch(`/Perifericos/EliminarTipo/${id}`, { method: 'DELETE' });
-    if (res.status === 403) { alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
+    if (res.status === 403) { setBtnLoading(span, false); alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
     if (res.ok) {
       span.closest('.tipo-opt').remove();
     } else {
+      setBtnLoading(span, false);
       const msg = await res.text();
       alert('No se pudo eliminar: ' + msg);
     }
   } catch(e) {
+    setBtnLoading(span, false);
     alert('Error de conexión.');
   }
 }

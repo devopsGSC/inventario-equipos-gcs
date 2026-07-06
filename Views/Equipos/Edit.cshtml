@@ -289,10 +289,11 @@ async function agregarNuevoTipo() {
 }
 
 async function eliminarTipo(id, el) {
-  if (!confirm('¿Eliminar este tipo de equipo?')) return;
+  if (!(await customConfirm('¿Eliminar este tipo de equipo?'))) return;
+  setBtnLoading(el, true, '');
   const res = await fetch(`/Equipos/EliminarTipo/${id}`, { method: 'DELETE' });
-  if (res.status === 403) { alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
-  if (!res.ok) { alert(await res.text()); return; }
+  if (res.status === 403) { setBtnLoading(el, false); alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
+  if (!res.ok) { setBtnLoading(el, false); alert(await res.text()); return; }
   if (document.getElementById('tipoId').value == id)
     document.getElementById('tipoId').value = '';
   el.remove();
@@ -376,10 +377,11 @@ async function agregarNuevoPlan() {
 }
 
 async function eliminarPlan(id, el) {
-  if (!confirm('¿Eliminar este plan de datos?')) return;
+  if (!(await customConfirm('¿Eliminar este plan de datos?'))) return;
+  setBtnLoading(el, true, '');
   const res = await fetch(`/Equipos/EliminarPlan/${id}`, { method: 'DELETE' });
-  if (res.status === 403) { alert('No tienes permiso para eliminar planes. Contacta a un administrador.'); return; }
-  if (!res.ok) { alert(await res.text()); return; }
+  if (res.status === 403) { setBtnLoading(el, false); alert('No tienes permiso para eliminar planes. Contacta a un administrador.'); return; }
+  if (!res.ok) { setBtnLoading(el, false); alert(await res.text()); return; }
   if (document.getElementById('planDataId').value == id)
     document.getElementById('planDataId').value = '';
   el.remove();
@@ -476,9 +478,10 @@ async function cargarAccesorios() {
 }
 
 async function eliminarAccesorio(id, btnEl) {
-  if (!confirm('¿Eliminar este accesorio de la lista permanentemente?')) return;
+  if (!(await customConfirm('¿Eliminar este accesorio de la lista permanentemente?'))) return;
+  setBtnLoading(btnEl, true, '');
   const res = await fetch(`/Equipos/EliminarAccesorio/${id}`, { method: 'DELETE' });
-  if (!res.ok) { alert(await res.text()); return; }
+  if (!res.ok) { setBtnLoading(btnEl, false); alert(await res.text()); return; }
   const nombre = btnEl.dataset.acc;
   accesorios = accesorios.filter(a => a !== nombre);
   btnEl.remove();

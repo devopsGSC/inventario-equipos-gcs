@@ -118,7 +118,7 @@
     @if (await PermisoSvc.TienePermiso(User, "equipos.baja") && eq.Estado == "Bodega")
     {
       <div class="card-body" style="border-top:1px solid #f0f3f8;padding-top:14px">
-        <form asp-action="Dar_De_Baja" asp-route-id="@eq.Id" method="post" onsubmit="return confirm('¿Dar de baja este equipo?')">
+        <form asp-action="Dar_De_Baja" asp-route-id="@eq.Id" method="post" onsubmit="return confirmarSubmit(event, '¿Dar de baja este equipo?')">
           @Html.AntiForgeryToken()
           <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle"></i> Dar de baja</button>
         </form>
@@ -130,7 +130,7 @@
         <div class="alert alert-warning" style="margin-bottom:12px;font-size:12.5px">
           <i class="bi bi-info-circle-fill"></i> Este equipo está dado de baja. Puedes reactivarlo para que vuelva a estar disponible en bodega.
         </div>
-        <form asp-action="Reactivar" asp-route-id="@eq.Id" method="post" onsubmit="return confirm('¿Reactivar este equipo? Volverá al estado Bodega.')">
+        <form asp-action="Reactivar" asp-route-id="@eq.Id" method="post" onsubmit="return confirmarSubmit(event, '¿Reactivar este equipo? Volverá al estado Bodega.')">
           @Html.AntiForgeryToken()
           <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-arrow-counterclockwise"></i> Reactivar equipo</button>
         </form>

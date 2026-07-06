@@ -32,7 +32,7 @@
               <div class="gap-2">
                 <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
                 <form asp-action="ToggleActivo" asp-route-id="@u.Id" method="post"
-                      onsubmit="return confirm('¿@(u.Activo ? "Desactivar" : "Activar") este usuario?')">
+                      onsubmit="return confirmarSubmit(event, '¿@(u.Activo ? "Desactivar" : "Activar") este usuario?')">
                   @Html.AntiForgeryToken()
                   <button type="submit" class="btn @(u.Activo ? "btn-danger" : "btn-success") btn-sm">
                     <i class="bi @(u.Activo ? "bi-x-circle" : "bi-check-circle")"></i>

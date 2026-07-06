@@ -565,6 +565,19 @@
   }
   function customAlert(message, type = 'info') { return showCustomModal(message, type, false); }
   function customConfirm(message, type = 'warn') { return showCustomModal(message, type, true); }
+
+  // Para <form onsubmit="return confirmarSubmit(event, 'mensaje')">: reemplaza al confirm() nativo
+  // por el modal personalizado, ya que customConfirm() es asíncrono y onsubmit necesita ser síncrono.
+  function confirmarSubmit(e, message, type = 'warn') {
+    e.preventDefault();
+    const form = e.target;
+    customConfirm(message, type).then(ok => {
+      if (!ok) return;
+      setBtnLoading(form.querySelector('button[type="submit"]'), true, 'Procesando...');
+      form.submit();
+    });
+    return false;
+  }
 </script>
 <script>
   // Responsive sidebar

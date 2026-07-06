@@ -81,7 +81,7 @@
           @if (await PermisoSvc.TienePermiso(User, "perifericos.baja"))
           {
             <form asp-action="DarDeBaja" asp-route-id="@Model.Id" method="post"
-                  onsubmit="return confirm('¿Dar de baja este periférico?')">
+                  onsubmit="return confirmarSubmit(event, '¿Dar de baja este periférico?')">
               @Html.AntiForgeryToken()
               <button type="submit" class="btn btn-danger btn-sm">
                 <i class="bi bi-x-circle"></i> Dar de baja
@@ -112,7 +112,7 @@
             <i class="bi bi-info-circle-fill"></i> Este periférico está dado de baja. Puedes reactivarlo para que vuelva al stock disponible.
           </div>
           <form asp-action="Reactivar" asp-route-id="@Model.Id" method="post"
-                onsubmit="return confirm('¿Reactivar este periférico? Volverá al stock disponible.')">
+                onsubmit="return confirmarSubmit(event, '¿Reactivar este periférico? Volverá al stock disponible.')">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-success btn-sm">
               <i class="bi bi-arrow-counterclockwise"></i> Reactivar periférico
