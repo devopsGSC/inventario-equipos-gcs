@@ -1,0 +1,10 @@
+wwwroot/uploads/movimientos/*.jpg
+wwwroot/uploads/movimientos/*.png
+wwwroot/uploads/movimientos/*.webp
+bin/
+obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json
+*.db
