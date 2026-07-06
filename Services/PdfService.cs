@@ -174,7 +174,7 @@ public class PdfService
         }
 
         Box(1, 2, 1, 9);
-        Txt(1, 1, 2, 9, headerText ?? "Entrega de equipo asignado y desvinculacion por parte del colaborador.", fBold, XStringAlignment.Center);
+        Txt(1, 1, 2, 9, headerText ?? "Entrega de equipo asignado y desvinculacion.", fBold, XStringAlignment.Center);
         Box(2, 2, 3, 7);
         Txt(2, 3, 2, 7, "Departamento de Tecnologia", fBold10, XStringAlignment.Center);
         Box(4, 2, 5, 7);
@@ -344,13 +344,155 @@ public class PdfService
             }
             catch { /* continuar sin firma si hay error */ }
         }
+
+        // Firma IT (responsable de tecnología)
+        if (!string.IsNullOrEmpty(d.RutaFirmaIT))
+        {
+            try
+            {
+                string rutaFisica = Path.Combine(
+                    Directory.GetCurrentDirectory(), "wwwroot",
+                    d.RutaFirmaIT.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(rutaFisica))
+                {
+                    var firmaITImg = XImage.FromStream(() =>
+                        new MemoryStream(File.ReadAllBytes(rutaFisica)));
+                    double itH = firmaH * 0.55;
+                    double ratio = Math.Min(fw / firmaITImg.PixelWidth, itH / firmaITImg.PixelHeight);
+                    double dw = firmaITImg.PixelWidth  * ratio;
+                    double dh = firmaITImg.PixelHeight * ratio;
+                    g.DrawImage(firmaITImg, fx1 + (fw - dw) / 2, lineY - dh - 4, dw, dh);
+                }
+            }
+            catch { /* continuar sin firma IT si falla */ }
+        }
     } // fin DibujarPaginaDetalle
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  REPORTE TABULAR MULTI-PÁGINA (landscape)
+    // ─────────────────────────────────────────────────────────────────────
+    public byte[] GenerarReportePdf(
+        string titulo,
+        IEnumerable<string> columnas,
+        IEnumerable<IEnumerable<string>> filas,
+        string? subtitulo = null)
+    {
+        var doc      = new PdfDocument();
+        var cols     = columnas.ToList();
+        var filaList = filas.Select(f => f.ToList()).ToList();
+
+        const double ml = 20, mr = 20, mt = 16;
+        var fTitle   = new XFont("Arial", 11, XFontStyle.Bold);
+        var fSub     = new XFont("Arial", 7,  XFontStyle.Regular);
+        var fHead    = new XFont("Arial", 6.5, XFontStyle.Bold);
+        var fData    = new XFont("Arial", 6.5, XFontStyle.Regular);
+        var headerBg = XColor.FromArgb(30, 45, 69);
+        var stripeBg = XColor.FromArgb(249, 250, 251);
+        var linePen  = new XPen(XColor.FromArgb(220, 222, 228), 0.3);
+        const double rowH  = 12.5;
+        const double headH = 14;
+
+        PdfPage page   = null!;
+        XGraphics g    = null!;
+        double y       = 0;
+        double W       = 0, usable = 0;
+        double[] cw    = [];
+
+        void NewPage()
+        {
+            page = doc.AddPage();
+            page.Size        = PdfSharpCore.PageSize.Letter;
+            page.Orientation = PdfSharpCore.PageOrientation.Landscape;
+            g       = XGraphics.FromPdfPage(page);
+            W       = page.Width.Point;
+            usable  = W - ml - mr;
+            cw      = Enumerable.Repeat(usable / cols.Count, cols.Count).ToArray();
+            y       = mt;
+
+            // Logo
+            string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+            if (File.Exists(logoPath))
+            {
+                try
+                {
+                    var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                    double lh = 22, lw = img.PixelWidth * (lh / img.PixelHeight);
+                    g.DrawImage(img, ml, y, lw, lh);
+                }
+                catch { }
+            }
+
+            // Título centrado
+            var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+            g.DrawString(titulo, fTitle, XBrushes.Black, new XRect(ml, y, usable, 22), fmtC);
+            y += 26;
+
+            // Subtítulo (fecha + filtros)
+            string sub = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}";
+            if (!string.IsNullOrWhiteSpace(subtitulo)) sub += $"   |   {subtitulo}";
+            var fmtL = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
+            g.DrawString(sub, fSub, XBrushes.Gray, new XRect(ml, y, usable, 10), fmtL);
+            y += 13;
+
+            DrawHeaders();
+        }
+
+        void DrawHeaders()
+        {
+            double x = ml;
+            for (int i = 0; i < cols.Count; i++)
+            {
+                g.DrawRectangle(new XSolidBrush(headerBg), x, y, cw[i], headH);
+                var fmt = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
+                g.DrawString(cols[i], fHead, XBrushes.White, new XRect(x + 2, y, cw[i] - 4, headH), fmt);
+                x += cw[i];
+            }
+            y += headH;
+        }
+
+        NewPage();
+
+        bool stripe = false;
+        foreach (var fila in filaList)
+        {
+            if (y > page.Height.Point - 60)
+            {
+                NewPage();
+                stripe = false;
+            }
+
+            double x = ml;
+            var bg = stripe ? new XSolidBrush(stripeBg) : new XSolidBrush(XColors.White);
+            for (int i = 0; i < cols.Count; i++)
+            {
+                g.DrawRectangle(bg, x, y, cw[i], rowH);
+                g.DrawRectangle(linePen, x, y, cw[i], rowH);
+                string val = i < fila.Count ? (fila[i] ?? "") : "";
+                var fmt = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
+                g.DrawString(val, fData, XBrushes.Black, new XRect(x + 2, y, cw[i] - 4, rowH), fmt);
+                x += cw[i];
+            }
+            y += rowH;
+            stripe = !stripe;
+        }
+
+        if (filaList.Count == 0)
+        {
+            var fmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+            g.DrawString("Sin datos para mostrar", fData, XBrushes.Gray,
+                new XRect(ml, y, usable, rowH * 2), fmt);
+        }
+
+        using var ms = new MemoryStream();
+        doc.Save(ms, false);
+        return ms.ToArray();
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     //  PUNTO DE ENTRADA PÚBLICO — cada tipo llama a su propio método
     // ─────────────────────────────────────────────────────────────────────
 
-    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null)
+    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
     {
         var eq = movimiento.Equipo!; var emp = movimiento.Empleado!;
         var perifs = (movimiento.Equipo?.EquiposPerifericos ?? [])
@@ -364,6 +506,7 @@ public class PdfService
         return GenerarDocumentoAsignacion(new FiniquitoData
         {
             Titulo         = "Carta de Compromiso de Equipo",
+            RutaFirmaIT    = rutaFirmaIT,
             Fecha          = movimiento.FechaInicio.ToString("dd/MMM/yyyy"),
             Colaborador    = emp.Nombre,
             Centro         = emp.Departamento?.Nombre ?? "",
@@ -380,12 +523,13 @@ public class PdfService
             Observaciones  = movimiento.Observaciones ?? "",
             Motivo         = "renovacion",
             ReceptorCentro = "GCS",
+            TelImei        = eq.IMEI ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
         });
     }
 
-    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null)
+    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
     {
         var eq = movimiento.Equipo!; var emp = movimiento.Empleado!;
         string obs = movimiento.FechaFinEstimada.HasValue
@@ -402,6 +546,7 @@ public class PdfService
         return GenerarDocumentoPrestamo(new FiniquitoData
         {
             Titulo         = "Carta de Prestamo de Equipo",
+            RutaFirmaIT    = rutaFirmaIT,
             Fecha          = movimiento.FechaInicio.ToString("dd/MMM/yyyy"),
             Colaborador    = emp.Nombre,
             Centro         = emp.Departamento?.Nombre ?? "",
@@ -418,12 +563,474 @@ public class PdfService
             Observaciones  = obs,
             Motivo         = "renovacion",
             ReceptorCentro = "GCS",
+            TelImei        = eq.IMEI ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
         });
     }
 
     public byte[] GenerarFiniquito(FiniquitoData d) => GenerarDocumentoFiniquito(d);
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  HALLAZGOS Y ESTADO DEL EQUIPO/PERIFÉRICO — documento independiente
+    // ─────────────────────────────────────────────────────────────────────
+    public byte[] GenerarPdfHallazgos(Movimiento movimiento, string? rutaFirmaIT = null)
+    {
+        var eq  = movimiento.Equipo!;
+        var emp = movimiento.Empleado;
+        var tipoLabel = movimiento.TipoMovimiento switch
+        {
+            "Asignacion" => "Asignación", "Prestamo" => "Préstamo",
+            "Devolucion" => "Devolución", _ => movimiento.TipoMovimiento
+        };
+
+        var infoLineas = new List<(string label, string valor)>
+        {
+            ("Tipo de movimiento:", tipoLabel),
+            ("Fecha:",              movimiento.FechaInicio.ToString("dd/MM/yyyy HH:mm")),
+            ("Equipo:",             $"{eq.NombreEquipo} — {eq.Marca} {eq.Modelo}"),
+            ("Número de serie:",    eq.NumeroSerie),
+        };
+        if (!string.IsNullOrEmpty(eq.IMEI))
+            infoLineas.Add(("IMEI:", eq.IMEI));
+        if (emp != null)
+            infoLineas.Add(("Colaborador:", $"{emp.Nombre} ({emp.CodigoEmpleado}) — {emp.Departamento?.Nombre}"));
+        if (movimiento.Sitio != null)
+            infoLineas.Add(("Sitio:", movimiento.Sitio.Nombre));
+        if (!string.IsNullOrEmpty(movimiento.Observaciones))
+            infoLineas.Add(("Observaciones:", movimiento.Observaciones));
+
+        return GenerarPdfHallazgosInterno(infoLineas, movimiento.Imagenes.OrderBy(i => i.Orden),
+            rutaFirmaIT, emp?.Nombre ?? "Colaborador");
+    }
+
+    public byte[] GenerarPdfHallazgosPeriferico(EquipoPeriferico ep, string? rutaFirmaIT = null)
+    {
+        var per = ep.Periferico!;
+        var emp = ep.Empleado;
+        var tipoLabel = ep.TipoMovimiento switch
+        {
+            "Asignacion" => "Asignación", "Prestamo" => "Préstamo",
+            "Devolucion" => "Devolución", _ => ep.TipoMovimiento
+        };
+
+        var infoLineas = new List<(string label, string valor)>
+        {
+            ("Tipo de movimiento:", tipoLabel),
+            ("Fecha:",              ep.FechaAsignacion.ToString("dd/MM/yyyy HH:mm")),
+            ("Periférico:",         $"{per.TipoPeriferico?.Nombre} — {per.Marca} {per.Modelo}"),
+            ("Número de serie:",    per.NumeroSerie),
+        };
+        if (emp != null)
+            infoLineas.Add(("Colaborador:", $"{emp.Nombre} ({emp.CodigoEmpleado}) — {emp.Departamento?.Nombre}"));
+        if (ep.Sitio != null)
+            infoLineas.Add(("Sitio:", ep.Sitio.Nombre));
+        if (!string.IsNullOrEmpty(ep.Observaciones))
+            infoLineas.Add(("Observaciones:", ep.Observaciones));
+
+        return GenerarPdfHallazgosInterno(infoLineas, ep.Imagenes.OrderBy(i => i.Orden),
+            rutaFirmaIT, emp?.Nombre ?? "Colaborador");
+    }
+
+    private byte[] GenerarPdfHallazgosInterno(List<(string label, string valor)> infoLineas,
+        IEnumerable<ImagenMovimiento> imagenesOrdenadas, string? rutaFirmaIT, string nombreColaborador)
+    {
+        var doc  = new PdfDocument();
+        var page = doc.AddPage();
+        page.Size = PdfSharpCore.PageSize.Letter;
+        var g = XGraphics.FromPdfPage(page);
+
+        double W  = page.Width.Point;
+        double H  = page.Height.Point;
+        double ML = 48, MR = 48, MT = 40;
+        double TW = W - ML - MR;
+
+        var fTitle  = new XFont("Arial", 12, XFontStyle.Bold);
+        var fBold   = new XFont("Arial", 10, XFontStyle.Bold);
+        var fNorm   = new XFont("Arial", 9,  XFontStyle.Regular);
+        var fSm     = new XFont("Arial", 8,  XFontStyle.Regular);
+        var gray    = XColor.FromArgb(209, 209, 209);
+        var fmtC    = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+
+        double y = MT;
+
+        // ── Logo ──
+        string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+        if (File.Exists(logoPath))
+        {
+            try
+            {
+                var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                double lw = 70, lh = img.PixelHeight * (70.0 / img.PixelWidth);
+                g.DrawImage(img, ML, y, lw, lh);
+                y += lh + 6;
+            }
+            catch { y += 28; }
+        }
+
+        // ── Título ──
+        g.DrawString("HALLAZGOS Y ESTADO DEL EQUIPO", fTitle, XBrushes.Black,
+            new XRect(ML, y, TW, 18), fmtC);
+        y += 22;
+
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 10;
+
+        // ── Info del movimiento — una columna ──
+        double labelW = 105;
+        double valueX = ML + labelW;
+        double valueW = TW - labelW;
+
+        foreach (var (label, valor) in infoLineas)
+        {
+            g.DrawString(label, fBold, XBrushes.Black, ML, y + fBold.Size);
+
+            // Word wrap manual para el valor si es muy largo
+            var palabras = valor.Split(' ');
+            string lineaActual = "";
+
+            foreach (var palabra in palabras)
+            {
+                var prueba = lineaActual.Length == 0 ? palabra : lineaActual + " " + palabra;
+                var size   = g.MeasureString(prueba, fNorm);
+                if (size.Width > valueW && lineaActual.Length > 0)
+                {
+                    g.DrawString(lineaActual, fNorm, XBrushes.Black, valueX, y + fNorm.Size);
+                    y += 13;
+                    lineaActual = palabra;
+                }
+                else
+                {
+                    lineaActual = prueba;
+                }
+            }
+            if (lineaActual.Length > 0)
+                g.DrawString(lineaActual, fNorm, XBrushes.Black, valueX, y + fNorm.Size);
+
+            y += 16; // espacio entre filas de info
+        }
+
+        y += 6;
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 14;
+
+        // ── Sección de imágenes ──
+        g.DrawString("REGISTRO FOTOGRÁFICO", fBold, XBrushes.Black, ML, y + 10);
+        y += 18;
+
+        var listaImagenes = imagenesOrdenadas.ToList();
+        int totalFotos = listaImagenes.Count;
+
+        const double imgW = 220, gapX = 20;
+        double imgH = totalFotos <= 4 ? 155 : 160;
+        double gapY = totalFotos <= 4 ? 22 : 30;
+
+        int    filas         = (int)Math.Ceiling(totalFotos / 2.0);
+        double alturaFotos   = filas * (imgH + gapY);
+        double alturaFirmas  = 80; // espacio para líneas de firma
+        double alturaTotal   = y + alturaFotos + alturaFirmas + 30; // 30 = margen
+        bool   cabeEnUnaPagina = totalFotos <= 4 && alturaTotal <= H - 60;
+
+        double col1X = ML;
+        double col2X = ML + imgW + gapX;
+        bool   esCol1 = true;
+
+        foreach (var imagen in listaImagenes)
+        {
+            if (y + imgH + gapY > H - 60)
+            {
+                DibujarPiePagina(g, W, H, ML, TW, gray, fSm);
+                page = doc.AddPage();
+                page.Size = PdfSharpCore.PageSize.Letter;
+                g = XGraphics.FromPdfPage(page);
+                y = MT;
+                esCol1 = true;
+            }
+
+            double imgX = esCol1 ? col1X : col2X;
+
+            try
+            {
+                string rutaFisica = Path.Combine(
+                    Directory.GetCurrentDirectory(), "wwwroot",
+                    imagen.RutaImagen.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
+                if (File.Exists(rutaFisica))
+                {
+                    var imgObj = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(rutaFisica)));
+                    double ratio = Math.Min(imgW / imgObj.PixelWidth, imgH / imgObj.PixelHeight);
+                    double dw = imgObj.PixelWidth  * ratio;
+                    double dh = imgObj.PixelHeight * ratio;
+                    double dx = imgX + (imgW - dw) / 2;
+                    double dy = y    + (imgH - dh) / 2;
+
+                    g.DrawRectangle(new XPen(gray, 0.5), imgX, y, imgW, imgH);
+                    g.DrawImage(imgObj, dx, dy, dw, dh);
+                }
+                else
+                {
+                    g.DrawRectangle(new XPen(gray, 0.5), imgX, y, imgW, imgH);
+                    g.DrawString("Imagen no disponible", fSm, XBrushes.Gray,
+                        new XRect(imgX, y, imgW, imgH), fmtC);
+                }
+            }
+            catch
+            {
+                g.DrawRectangle(new XPen(gray, 0.5), imgX, y, imgW, imgH);
+                g.DrawString("Error al cargar imagen", fSm, XBrushes.Gray,
+                    new XRect(imgX, y, imgW, imgH), fmtC);
+            }
+
+            g.DrawString($"Foto {imagen.Orden}", fBold, XBrushes.Black, imgX, y + imgH + 4);
+            if (!string.IsNullOrEmpty(imagen.Descripcion))
+                g.DrawString(imagen.Descripcion, fSm, XBrushes.Gray, imgX, y + imgH + 14);
+
+            if (!esCol1)
+                y += imgH + gapY;
+            esCol1 = !esCol1;
+        }
+
+        if (!esCol1) y += imgH + gapY;
+
+        // ── Sección de firmas ──
+        y += 16;
+        // Solo saltar página si NO cabe en una sola página
+        if (!cabeEnUnaPagina && y + 80 > H - 60)
+        {
+            DibujarPiePagina(g, W, H, ML, TW, gray, fSm);
+            page = doc.AddPage();
+            page.Size = PdfSharpCore.PageSize.Letter;
+            g = XGraphics.FromPdfPage(page);
+            y = MT;
+        }
+
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 16;
+
+        double fw   = TW * 0.38;
+        double fx1  = ML;
+        double fx2  = ML + TW - fw;
+        double lineY = y + 44;
+
+        if (!string.IsNullOrEmpty(rutaFirmaIT))
+        {
+            try
+            {
+                string rutaFisica = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot",
+                    rutaFirmaIT.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(rutaFisica))
+                {
+                    var firmaIT = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(rutaFisica)));
+                    double ratio = Math.Min(fw / firmaIT.PixelWidth, 40.0 / firmaIT.PixelHeight);
+                    double dw = firmaIT.PixelWidth * ratio, dh = firmaIT.PixelHeight * ratio;
+                    g.DrawImage(firmaIT, fx1 + (fw - dw) / 2, lineY - dh - 2, dw, dh);
+                }
+            }
+            catch { }
+        }
+
+        g.DrawLine(XPens.Black, fx1, lineY, fx1 + fw, lineY);
+        g.DrawLine(XPens.Black, fx2, lineY, fx2 + fw, lineY);
+
+        var fmtCtr = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString("Firma Responsable TI", fSm, XBrushes.Black, new XRect(fx1, lineY + 4, fw, 12), fmtCtr);
+        g.DrawString(nombreColaborador, fBold, XBrushes.Black, new XRect(fx2, lineY + 4, fw, 12), fmtCtr);
+        g.DrawString("Firma del Colaborador", fSm, XBrushes.Black, new XRect(fx2, lineY + 14, fw, 12), fmtCtr);
+
+        DibujarPiePagina(g, W, H, ML, TW, gray, fSm);
+
+        using var ms = new MemoryStream();
+        doc.Save(ms, false);
+        return ms.ToArray();
+    }
+
+    private void DibujarPiePagina(XGraphics g, double W, double H, double ML, double TW,
+        XColor gray, XFont fSm)
+    {
+        g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
+        var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString(
+            "Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+            fSm, XBrushes.Gray, new XRect(ML, H - 24, TW, 12), fmtC);
+    }
+
+    public byte[] GenerarCartaCompromisoPerifericos(EquipoPeriferico ep, string? rutaFirmaIT = null)
+    {
+        var doc  = new PdfDocument();
+        var page = doc.AddPage();
+        page.Size = PdfSharpCore.PageSize.Letter;
+        var g = XGraphics.FromPdfPage(page);
+        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT);
+        using var ms = new MemoryStream();
+        doc.Save(ms, false);
+        return ms.ToArray();
+    }
+
+    private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep, string? rutaFirmaIT = null)
+    {
+        var emp = ep.Empleado!;
+        var per = ep.Periferico!;
+
+        double W  = page.Width.Point;
+        double H  = page.Height.Point;
+        double ML = 54, MR = 54, MT = 36;
+        double TW = W - ML - MR;
+
+        var fTitle   = new XFont("Arial", 12,   XFontStyle.Bold);
+        var fBold    = new XFont("Arial", 10.5, XFontStyle.Bold);
+        var fBoldSig = new XFont("Arial", 8,    XFontStyle.Bold);
+        var fNorm    = new XFont("Arial", 10.5, XFontStyle.Regular);
+        var fSm      = new XFont("Arial", 9.5,  XFontStyle.Regular);
+        var gray     = XColor.FromArgb(209, 209, 209);
+
+        double y       = MT;
+        double leading = 15.5;
+
+        List<string> WordWrap(string text, XFont font, double maxW)
+        {
+            var lines   = new List<string>();
+            var words   = text.Split(' ');
+            var current = "";
+            foreach (var word in words)
+            {
+                var test = current.Length == 0 ? word : current + " " + word;
+                if (g.MeasureString(test, font).Width <= maxW)
+                    current = test;
+                else
+                {
+                    if (current.Length > 0) lines.Add(current);
+                    current = word;
+                }
+            }
+            if (current.Length > 0) lines.Add(current);
+            return lines;
+        }
+
+        double DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
+        {
+            foreach (var line in WordWrap(text, font, TW - indentL))
+            {
+                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                y += leading;
+            }
+            y += spaceAfter;
+            return y;
+        }
+
+        // ── Logo ──
+        string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+        if (File.Exists(logoPath))
+        {
+            try
+            {
+                var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                double lw = 75, lh = img.PixelHeight * (75.0 / img.PixelWidth);
+                g.DrawImage(img, ML, y, lw, lh);
+                y += lh + 8;
+            }
+            catch { y += 28; }
+        }
+        else { y += 28; }
+
+        // ── Título ──
+        string titulo = ep.TipoMovimiento == "Prestamo"
+            ? "CARTA DE PRÉSTAMO DE PERIFÉRICO TECNOLÓGICO"
+            : "CARTA DE COMPROMISO DE PERIFÉRICO TECNOLÓGICO";
+        var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString(titulo, fTitle, XBrushes.Black,
+            new XRect(ML, y, TW, 16), fmtC);
+        y += 20;
+
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 10;
+
+        // ── Fecha ──
+        var fmtR = new XStringFormat { Alignment = XStringAlignment.Far, LineAlignment = XLineAlignment.Near };
+        g.DrawString($"San Salvador, {ep.FechaAsignacion:dd/MMM/yyyy}", fSm, XBrushes.Black,
+            new XRect(ML, y, TW, 12), fmtR);
+        y += 18;
+
+        // ── Cuerpo ──
+        DrawPara($"Yo, {emp.Nombre}, portador(a) del DUI {emp.DUI}, quien desempeña el cargo de {emp.Cargo}, por este medio hago constar que recibo de Global Customs Solutions S.E.M. de C.V. el siguiente periférico corporativo en buenas condiciones de funcionamiento:", fNorm);
+
+        string tipo = per.TipoPeriferico?.Nombre ?? "";
+        DrawPara($"{tipo}: {per.Marca} {per.Modelo} — S/N: {per.NumeroSerie}", fBold, indentL: 12, spaceAfter: 10);
+
+        DrawPara("Asimismo, declaro que recibo dicho bien con sus respectivos accesorios y me comprometo a utilizarlo exclusivamente para fines laborales, así como a devolverlo en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", fNorm);
+        DrawPara("Cualquier daño, desperfecto, pérdida, extravío o robo que sufriere el periférico después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil.", fNorm);
+        DrawPara("En caso de identificar fallas de fábrica o desperfectos al momento de la recepción, me comprometo a reportarlos inmediatamente al Departamento de Tecnología para la validación y aplicación de garantía correspondiente. De no reportarse oportunamente, se entenderá que el periférico fue recibido a satisfacción.", fNorm);
+        DrawPara("Reconozco que la no devolución del periférico corporativo o cualquier saldo pendiente derivado de su uso podrá dar lugar a acciones administrativas o disciplinarias conforme a las políticas internas de la empresa.", fNorm);
+        DrawPara("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", fNorm, spaceAfter: 6);
+        DrawPara("- Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", fNorm, indentL: 8, spaceAfter: 5);
+        DrawPara("- No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", fNorm, indentL: 8, spaceAfter: 5);
+        DrawPara("- Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", fNorm, indentL: 8, spaceAfter: 10);
+        DrawPara("Finalmente, me comprometo a cuidar y hacer buen uso del bien asignado, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", fNorm);
+
+        // ── Pie de página ──
+        g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
+        var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+            new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
+            new XRect(ML, H - 22, TW, 12), fmtPie);
+
+        // ── Firmas ──
+        double fw       = TW * 0.26;
+        double fx1      = ML + TW * 0.04;
+        double fx2      = ML + TW * 0.53;
+        double sigTop   = H - 90;
+        double lineY    = H - 52;
+
+        g.DrawLine(XPens.Black, fx1, lineY, fx1 + fw, lineY);
+        g.DrawLine(XPens.Black, fx2, lineY, fx2 + fw, lineY);
+        var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString("Firma de Tecnología", fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), lFmt);
+        g.DrawString("Firma de Empleado",   fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
+
+        // Firma digital del empleado
+        if (!string.IsNullOrEmpty(ep.FirmaEmpleado))
+        {
+            try
+            {
+                string b64 = ep.FirmaEmpleado;
+                int comma = b64.IndexOf(',');
+                if (comma >= 0) b64 = b64[(comma + 1)..];
+                byte[] imgBytes = Convert.FromBase64String(b64);
+                var firmaImg = XImage.FromStream(() => new MemoryStream(imgBytes));
+                double espacioDisp = lineY - sigTop - 6;
+                double ratio = Math.Min(fw / firmaImg.PixelWidth, espacioDisp / firmaImg.PixelHeight);
+                double drawW = firmaImg.PixelWidth  * ratio;
+                double drawH = firmaImg.PixelHeight * ratio;
+                double drawX = fx2 + (fw - drawW) / 2;
+                double drawY = sigTop + (espacioDisp - drawH) / 2 + 3;
+                g.DrawImage(firmaImg, drawX, drawY, drawW, drawH);
+            }
+            catch { /* continuar sin firma si hay error */ }
+        }
+
+        // Firma IT (responsable de tecnología)
+        if (!string.IsNullOrEmpty(rutaFirmaIT))
+        {
+            try
+            {
+                string rutaFisica = Path.Combine(
+                    Directory.GetCurrentDirectory(), "wwwroot",
+                    rutaFirmaIT.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(rutaFisica))
+                {
+                    var firmaITImg = XImage.FromStream(() =>
+                        new MemoryStream(File.ReadAllBytes(rutaFisica)));
+                    double espacioDisp = lineY - sigTop - 6;
+                    double ratio = Math.Min(fw / firmaITImg.PixelWidth, espacioDisp / firmaITImg.PixelHeight);
+                    double dw = firmaITImg.PixelWidth  * ratio;
+                    double dh = firmaITImg.PixelHeight * ratio;
+                    double dx = fx1 + (fw - dw) / 2;
+                    double dy = sigTop + (espacioDisp - dh) / 2 + 3;
+                    g.DrawImage(firmaITImg, dx, dy, dw, dh);
+                }
+            }
+            catch { /* continuar sin firma IT si falla */ }
+        }
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     //  CARA FRONTAL — carta legal de compromiso/préstamo
@@ -515,25 +1122,27 @@ public class PdfService
         g.DrawString($"San Salvador, {d.Fecha}", fSm, XBrushes.Black, new XRect(ML, y, TW, 12), fmtR);
         y += 18;
 
-        // ── Descripción del equipo ────────────────────────────────────
-        string eqDesc = $"{d.Tipo} {d.Marca} {d.Modelo}".Trim();
-        if (!string.IsNullOrEmpty(d.ServiceTag)) eqDesc += $" (S/N: {d.ServiceTag})";
-        string accs = d.Accesorio;
-        if (d.Perifericos.Any())
+        // ── Descripción del equipo en lista vertical ─────────────────
+        void DrawEquipoLista()
         {
-            var extras = d.Perifericos.Select(p => $"{p.Tipo} {p.Marca} {p.Modelo}".Trim());
-            accs = string.IsNullOrEmpty(accs)
-                ? string.Join(", ", extras)
-                : accs + ", " + string.Join(", ", extras);
+            var items = new List<string>();
+            string eqLine = $"Equipo: {d.Tipo} {d.Marca} {d.Modelo}".Trim();
+            if (!string.IsNullOrEmpty(d.ServiceTag)) eqLine += $" (S/N: {d.ServiceTag})";
+            items.Add(eqLine);
+            if (!string.IsNullOrEmpty(d.Accesorio))
+                items.Add($"Accesorios: {d.Accesorio}");
+            foreach (var p in d.Perifericos)
+                items.Add($"{p.Tipo}: {p.Marca} {p.Modelo} — S/N: {p.NumeroSerie}");
+            for (int i = 0; i < items.Count; i++)
+                DrawPara(items[i], fBold, indentL: 12, spaceAfter: i < items.Count - 1 ? 3 : 10);
         }
-        string eqCompleto = string.IsNullOrEmpty(accs) ? eqDesc : $"{eqDesc}, accesorios: {accs}";
 
         // ── Cuerpo del texto ──────────────────────────────────────────
         if (!esPrestamo)
         {
             DrawPara($"Yo, {d.Colaborador}, portador(a) del Documento Único de Identidad número {d.Identificacion}, quien desempeña el cargo de {d.Area}, por este medio hago constar que recibo de Global Customs Solutions S.E.M. de C.V. el siguiente equipo y/o accesorios corporativos, en buenas condiciones de funcionamiento:", fNorm);
 
-            DrawPara(eqCompleto, fBold, spaceAfter: 12);
+            DrawEquipoLista();
 
             DrawPara("Asimismo, declaro que recibo dichos bienes con sus respectivos accesorios y me comprometo a utilizarlos exclusivamente para fines laborales, así como a devolverlos en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", fNorm);
 
@@ -556,7 +1165,7 @@ public class PdfService
         {
             DrawPara($"Yo, {d.Colaborador}, portador(a) del Documento Único de Identidad número {d.Identificacion}, quien desempeña el cargo de {d.Area}, por este medio hago constar que recibo en calidad de préstamo temporal de Global Customs Solutions S.E.M. de C.V. el siguiente equipo:", fNorm);
 
-            DrawPara(eqCompleto, fBold, spaceAfter: 8);
+            DrawEquipoLista();
 
             string condicion = string.IsNullOrEmpty(d.Observaciones)
                 ? "Me comprometo a devolver el equipo en el mismo estado en que fue recibido, en la fecha acordada o cuando la empresa lo requiera."
@@ -656,6 +1265,7 @@ public class FiniquitoData
     public string ReceptorNombre { get; set; } = "";
     public string ReceptorCentro { get; set; } = "GCS Santa Elena";
     public string FirmaEmpleadoBase64 { get; set; } = "";
+    public string? RutaFirmaIT { get; set; }
     public List<PerifericoFiniquito> Perifericos { get; set; } = [];
 }
 

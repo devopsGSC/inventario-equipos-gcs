@@ -1,21 +1,32 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
 using System.Text.Json;
 using InventarioTI.Data;
 using InventarioTI.Models;
+using InventarioTI.Services;
 
 namespace InventarioTI.Controllers;
 
-public class CargaMasivaController : Controller
+public class CargaMasivaController : BaseController
 {
     private readonly AppDbContext _db;
-    public CargaMasivaController(AppDbContext db) => _db = db;
-
-    public IActionResult Index() => View();
-
-    public IActionResult Plantilla()
+    private readonly ILogger<CargaMasivaController> _logger;
+    private readonly UserManager<UsuarioApp> _users;
+    public CargaMasivaController(AppDbContext db, ILogger<CargaMasivaController> logger, PermisoService permisos, UserManager<UsuarioApp> users) : base(permisos)
     {
+        _db = db;
+        _logger = logger;
+        _users = users;
+    }
+
+    public async Task<IActionResult> Index() => await Puede("cargamasiva.usar") ? View() : AccesoDenegado();
+
+    public async Task<IActionResult> Plantilla()
+    {
+        if (!await Puede("cargamasiva.usar")) return AccesoDenegado();
+
         var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "plantilla_equipos.xlsx");
         if (!System.IO.File.Exists(path)) return NotFound();
         return PhysicalFile(path,
@@ -27,12 +38,15 @@ public class CargaMasivaController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Previsualizar(IFormFile archivo)
     {
+        if (!await Puede("cargamasiva.usar")) return AccesoDenegado();
+
         if (archivo == null || archivo.Length == 0)
         {
             TempData["Error"] = "Selecciona un archivo Excel válido.";
             return RedirectToAction(nameof(Index));
         }
 
+        var nombreArchivo    = archivo.FileName;
         var tiposEquipo      = await _db.TiposEquipo.ToListAsync();
         var seriesExistentes = await _db.Equipos.Select(e => e.NumeroSerie).ToHashSetAsync();
         var nombresExistentes= await _db.Equipos.Select(e => e.NombreEquipo).ToHashSetAsync();
@@ -107,12 +121,14 @@ public class CargaMasivaController : Controller
         }
         catch (Exception ex)
         {
-            TempData["Error"] = $"No se pudo leer el archivo: {ex.Message}";
+            _logger.LogError(ex, "Error al leer el archivo de carga masiva.");
+            TempData["Error"] = "No se pudo leer el archivo. Verifica que sea un Excel válido con el formato de la plantilla.";
             return RedirectToAction(nameof(Index));
         }
 
         // Guardar preview en TempData para el paso de confirmación
         TempData["Preview"] = JsonSerializer.Serialize(preview);
+        TempData["PreviewArchivo"] = nombreArchivo;
         return View("Preview", preview);
     }
 
@@ -120,6 +136,8 @@ public class CargaMasivaController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Confirmar()
     {
+        if (!await Puede("cargamasiva.usar")) return AccesoDenegado();
+
         var json = TempData["Preview"] as string;
         if (string.IsNullOrEmpty(json))
         {
@@ -141,6 +159,7 @@ public class CargaMasivaController : Controller
                 resultados.Add(new ResultadoCarga
                 {
                     Fila         = ep.Fila,
+                    NumeroSerie  = ep.NumeroSerie,
                     NombreEquipo = ep.NombreEquipo,
                     Estado       = ep.EstadoPreview == "Error" ? "Error" : "Omitido",
                     Mensaje      = ep.MensajePreview
@@ -186,23 +205,50 @@ public class CargaMasivaController : Controller
 
                 resultados.Add(new ResultadoCarga
                 {
-                    Fila = ep.Fila, NombreEquipo = ep.NombreEquipo,
+                    Fila = ep.Fila, NumeroSerie = ep.NumeroSerie, NombreEquipo = ep.NombreEquipo,
                     Estado = "OK", Mensaje = "Registrado correctamente"
                 });
                 registrados++;
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error al registrar equipo desde carga masiva (fila {Fila}).", ep.Fila);
                 resultados.Add(new ResultadoCarga
                 {
-                    Fila = ep.Fila, NombreEquipo = ep.NombreEquipo,
-                    Estado = "Error", Mensaje = ex.Message
+                    Fila = ep.Fila, NumeroSerie = ep.NumeroSerie, NombreEquipo = ep.NombreEquipo,
+                    Estado = "Error", Mensaje = "Ocurrió un error al registrar este equipo."
                 });
                 errores++;
             }
         }
 
         if (registrados > 0) await _db.SaveChangesAsync();
+
+        // Registrar en historial de auditoría
+        var nombreArchivo  = TempData["PreviewArchivo"] as string ?? "archivo.xlsx";
+        var usuarioActual  = await _users.GetUserAsync(User);
+        var operacion = new OperacionMasiva
+        {
+            TipoOperacion   = "CargaMasiva",
+            FechaOperacion  = DateTime.Now,
+            UsuarioNombre   = usuarioActual?.NombreCompleto ?? User.Identity?.Name ?? "Sistema",
+            NombreArchivo   = nombreArchivo,
+            TotalProcesados = registrados + omitidos + errores,
+            TotalExitosos   = registrados,
+            TotalOmitidos   = omitidos,
+            TotalErrores    = errores,
+            Detalles = resultados.Select(r => new DetalleOperacionMasiva
+            {
+                FilaExcel    = r.Fila,
+                NumeroSerie  = r.NumeroSerie,
+                NombreEquipo = r.NombreEquipo,
+                Estado       = r.Estado,
+                Mensaje      = r.Mensaje
+            }).ToList()
+        };
+        _db.OperacionesMasivas.Add(operacion);
+        await _db.SaveChangesAsync();
+        ViewBag.OperacionId = operacion.Id;
 
         ViewBag.Registrados = registrados;
         ViewBag.Omitidos    = omitidos;
@@ -242,6 +288,7 @@ public class EquipoPrevio
 public class ResultadoCarga
 {
     public int    Fila         { get; set; }
+    public string NumeroSerie  { get; set; } = "";
     public string NombreEquipo { get; set; } = "";
     public string Estado       { get; set; } = "";
     public string Mensaje      { get; set; } = "";

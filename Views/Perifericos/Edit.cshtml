@@ -1,5 +1,10 @@
 @model Periferico
-@{ ViewData["Title"] = "Editar periférico"; }
+@{
+  ViewData["Title"] = "Editar periférico";
+  var rolesActuales = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+  bool puedeCrearTipo    = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "perifericos.tipos.crear");
+  bool puedeEliminarTipo = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "perifericos.tipos.eliminar");
+}
 
 <div class="page-header">
   <div>
@@ -17,6 +22,8 @@
 .tipo-opt.selected { border-color:var(--accent); background:var(--blue-bg); color:var(--blue-text); font-weight:500; }
 .nuevo-input-wrap { display:none; margin-top:8px; }
 .nuevo-input-wrap.show { display:flex; gap:8px; }
+.tipo-eliminar { margin-left:6px; font-size:13px; font-weight:600; color:var(--dark-text2); cursor:pointer; padding:0 3px; border-radius:4px; transition:all .15s; }
+.tipo-eliminar:hover { background:var(--red-bg, #FEE2E2); color:var(--red-text, #DC2626); }
 </style>
 
 <div class="card" style="max-width:640px">
@@ -40,18 +47,26 @@
               "Teclado y Ratón" => "bi-keyboard",
               _                 => "bi-plug"
             };
+            bool esFijo = new[] { "Monitor", "Headset", "Mochila HP", "Teclado y Ratón" }.Contains(t.Text);
             var sel = t.Value == Model.TipoPerifericoId.ToString() ? "selected" : "";
-            <div class="tipo-opt @sel" data-id="@t.Value" onclick="selTipo(this)">
+            <div class="tipo-opt @sel" data-id="@t.Value" data-nombre="@t.Text" onclick="seleccionarTipo(this)">
               <i class="bi @icon"></i> @t.Text
+              @if (!esFijo && puedeEliminarTipo)
+              {
+                <span class="tipo-eliminar" onclick="event.stopPropagation(); eliminarTipo(@t.Value, this)" title="Eliminar tipo">×</span>
+              }
             </div>
           }
+          @if (puedeCrearTipo)
+          {
           <div class="tipo-opt" data-id="nuevo" onclick="mostrarNuevo()">
             <i class="bi bi-plus-circle"></i> Otro tipo...
           </div>
+          }
         </div>
         <div class="nuevo-input-wrap" id="nuevoWrap">
           <input type="text" id="nuevoNombre" class="form-control" placeholder="Nombre del tipo"/>
-          <button type="button" class="btn btn-primary btn-sm" onclick="agregarTipo()">Agregar</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoTipo()">Agregar</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarNuevo()">Cancelar</button>
         </div>
         <span class="field-error" id="tipoError"></span>
@@ -94,7 +109,8 @@
 </div>
 
 <script>
-function selTipo(el) {
+const PUEDE_ELIMINAR_TIPO = @Html.Raw(puedeEliminarTipo.ToString().ToLower());
+function seleccionarTipo(el) {
   document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('tipoId').value = el.dataset.id;
@@ -110,19 +126,22 @@ function cancelarNuevo() {
   document.getElementById('nuevoWrap').classList.remove('show');
   document.querySelector('[data-id="nuevo"]').classList.remove('selected');
 }
-async function agregarTipo() {
+async function agregarNuevoTipo() {
   const nombre = document.getElementById('nuevoNombre').value.trim();
   if (!nombre) return;
   const res = await fetch('/Perifericos/NuevoTipo', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nombre)
   });
+  if (res.status === 403) { alert('No tienes permiso para crear tipos. Contacta a un administrador.'); return; }
   const data = await res.json();
   if (!document.querySelector(`[data-id="${data.id}"]`)) {
     const div = document.createElement('div');
-    div.className = 'tipo-opt'; div.dataset.id = data.id;
-    div.onclick = function() { selTipo(this); };
-    div.innerHTML = `<i class="bi bi-plug"></i> ${data.nombre}`;
+    div.className = 'tipo-opt';
+    div.dataset.id = data.id;
+    div.dataset.nombre = data.nombre;
+    div.onclick = function() { seleccionarTipo(this); };
+    div.innerHTML = `<i class="bi bi-plug"></i> ${data.nombre}` + (PUEDE_ELIMINAR_TIPO ? ` <span class="tipo-eliminar" onclick="event.stopPropagation(); eliminarTipo(${data.id}, this)" title="Eliminar tipo">×</span>` : '');
     document.getElementById('tipoGrid').insertBefore(div, document.querySelector('[data-id="nuevo"]'));
   }
   document.getElementById('tipoId').value = data.id;
@@ -132,7 +151,7 @@ async function agregarTipo() {
   document.querySelector(`[data-id="${data.id}"]`).classList.add('selected');
 }
 document.getElementById('nuevoNombre').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); agregarTipo(); }
+  if (e.key === 'Enter') { e.preventDefault(); agregarNuevoTipo(); }
 });
 function validar() {
   const v = document.getElementById('tipoId').value;
@@ -141,5 +160,20 @@ function validar() {
     return false;
   }
   return true;
+}
+async function eliminarTipo(id, span) {
+  if (!confirm('¿Eliminar este tipo de periférico? Solo se puede si ningún periférico lo está usando.')) return;
+  try {
+    const res = await fetch(`/Perifericos/EliminarTipo/${id}`, { method: 'DELETE' });
+    if (res.status === 403) { alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
+    if (res.ok) {
+      span.closest('.tipo-opt').remove();
+    } else {
+      const msg = await res.text();
+      alert('No se pudo eliminar: ' + msg);
+    }
+  } catch(e) {
+    alert('Error de conexión.');
+  }
 }
 </script>

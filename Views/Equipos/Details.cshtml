@@ -7,11 +7,16 @@
     <div class="page-title" style="margin-top:4px">@eq.NombreEquipo</div>
   </div>
   <div class="gap-2">
-    @if (eq.Estado != "Baja")
+    @if (eq.Estado != "Baja" && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") ||
+                                  await PermisoSvc.TienePermiso(User, "movimientos.prestamo") ||
+                                  await PermisoSvc.TienePermiso(User, "movimientos.garantia")))
     {
       <a asp-controller="Movimientos" asp-action="Registrar" asp-route-equipoId="@eq.Id" class="btn btn-primary"><i class="bi bi-arrow-left-right"></i> Registrar movimiento</a>
     }
-    <a asp-action="Edit" asp-route-id="@eq.Id" class="btn btn-secondary"><i class="bi bi-pencil"></i> Editar</a>
+    @if (await PermisoSvc.TienePermiso(User, "equipos.editar"))
+    {
+      <a asp-action="Edit" asp-route-id="@eq.Id" class="btn btn-secondary"><i class="bi bi-pencil"></i> Editar</a>
+    }
   </div>
 </div>
 
@@ -35,6 +40,13 @@
           <div class="form-label">Número de serie</div>
           <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.NumeroSerie</div>
         </div>
+        @if (!string.IsNullOrEmpty(eq.IMEI))
+        {
+          <div>
+            <div class="form-label">IMEI</div>
+            <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.IMEI</div>
+          </div>
+        }
         <div>
           <div class="form-label">Costo</div>
           <div style="font-size:14px;font-weight:500">@(eq.Costo.HasValue ? "$" + eq.Costo.Value.ToString("N2") : "—")</div>
@@ -59,6 +71,42 @@
           </div>
         }
       </div>
+      @if (!string.IsNullOrEmpty(eq.RAM) || !string.IsNullOrEmpty(eq.Procesador) || !string.IsNullOrEmpty(eq.Almacenamiento) || eq.PlanData != null)
+      {
+        <div style="border-top:1px solid #f0f3f8;padding-top:12px;margin-top:14px">
+          <div class="form-label" style="margin-bottom:8px">Especificaciones técnicas</div>
+          <div class="form-grid" style="gap:14px 20px">
+            @if (!string.IsNullOrEmpty(eq.RAM))
+            {
+              <div>
+                <div class="form-label">RAM</div>
+                <div style="font-size:14px;font-weight:500">@eq.RAM</div>
+              </div>
+            }
+            @if (!string.IsNullOrEmpty(eq.Procesador))
+            {
+              <div>
+                <div class="form-label">Procesador</div>
+                <div style="font-size:14px;font-weight:500">@eq.Procesador</div>
+              </div>
+            }
+            @if (!string.IsNullOrEmpty(eq.Almacenamiento))
+            {
+              <div>
+                <div class="form-label">Almacenamiento</div>
+                <div style="font-size:14px;font-weight:500">@eq.Almacenamiento</div>
+              </div>
+            }
+            @if (eq.PlanData != null)
+            {
+              <div>
+                <div class="form-label">Plan de datos</div>
+                <div style="font-size:14px;font-weight:500"><i class="bi bi-sim"></i> @eq.PlanData.Nombre</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
       @if (eq.FechaGarantia.HasValue && eq.FechaGarantia.Value <= DateTime.Today.AddDays(30) && eq.FechaGarantia.Value >= DateTime.Today)
       {
         <div class="alert alert-warning" style="margin-top:16px;margin-bottom:0">
@@ -67,7 +115,7 @@
         </div>
       }
     </div>
-    @if (eq.Estado == "Bodega")
+    @if (await PermisoSvc.TienePermiso(User, "equipos.baja") && eq.Estado == "Bodega")
     {
       <div class="card-body" style="border-top:1px solid #f0f3f8;padding-top:14px">
         <form asp-action="Dar_De_Baja" asp-route-id="@eq.Id" method="post" onsubmit="return confirm('¿Dar de baja este equipo?')">
@@ -76,7 +124,7 @@
         </form>
       </div>
     }
-    @if (eq.Estado == "Baja")
+    @if (await PermisoSvc.TienePermiso(User, "equipos.baja") && eq.Estado == "Baja")
     {
       <div class="card-body" style="border-top:1px solid #f0f3f8;padding-top:14px">
         <div class="alert alert-warning" style="margin-bottom:12px;font-size:12.5px">
@@ -130,6 +178,13 @@
               <div>@mov.FechaFinEstimada.Value.ToString("dd/MM/yyyy")</div>
             </div>
           }
+          @if (mov.Sitio != null)
+          {
+            <div>
+              <div class="form-label">Sitio / Ubicación</div>
+              <div><i class="bi bi-geo-alt"></i> @mov.Sitio.Nombre</div>
+            </div>
+          }
         </div>
         <div style="margin-top:16px">
           <a asp-controller="Movimientos" asp-action="Carta" asp-route-id="@mov.Id" class="btn btn-success btn-sm">
@@ -154,7 +209,7 @@
     <div style="display:flex;align-items:center;gap:8px">
       @{ var perifs = ViewBag.PerifeicosActivos as List<EquipoPeriferico> ?? new List<EquipoPeriferico>(); }
       <span class="badge badge-asignado">@perifs.Count</span>
-      @if (eq.Estado == "Asignado" || eq.Estado == "Prestamo")
+      @if (await PermisoSvc.TienePermiso(User, "equipos.editar") && (eq.Estado == "Asignado" || eq.Estado == "Prestamo"))
       {
         <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalPerif()">
           <i class="bi bi-plus"></i> Adjuntar periférico
@@ -288,9 +343,33 @@ async function adjuntarPerif(perifId) {
               <div class="timeline-meta">
                 @m.FechaInicio.ToString("dd/MM/yyyy HH:mm")
                 @if (m.Empleado != null) { <span> — @m.Empleado.Nombre (@m.Empleado.CodigoEmpleado)</span> }
+                @if (m.Sitio != null) { <span> — <i class="bi bi-geo-alt"></i> @m.Sitio.Nombre</span> }
                 @if (m.FechaDevolucion.HasValue) { <span> — Devuelto: @m.FechaDevolucion.Value.ToString("dd/MM/yyyy")</span> }
                 @if (!string.IsNullOrEmpty(m.Observaciones)) { <div>@m.Observaciones</div> }
               </div>
+              @if (m.Imagenes != null && m.Imagenes.Any())
+              {
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+                  @foreach (var img in m.Imagenes.Take(4))
+                  {
+                    <a href="@img.RutaImagen" target="_blank" title="@(img.Descripcion ?? "Ver foto")"
+                       style="display:inline-block;border-radius:6px;overflow:hidden;border:1px solid #dde2ec">
+                      <img src="@img.RutaImagen"
+                           style="width:48px;height:36px;object-fit:cover;display:block"
+                           loading="lazy"
+                           onerror="this.closest('a').style.display='none'"/>
+                    </a>
+                  }
+                  @if (m.Imagenes.Count > 4)
+                  {
+                    <span class="text-muted" style="font-size:12px">+@(m.Imagenes.Count - 4) más</span>
+                  }
+                  <a asp-controller="Movimientos" asp-action="PdfHallazgos" asp-route-id="@m.Id" target="_blank"
+                     class="btn btn-secondary btn-sm" style="margin-left:4px">
+                    <i class="bi bi-file-earmark-pdf"></i> Hallazgos
+                  </a>
+                </div>
+              }
               @if ((m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo") && m.Empleado != null)
               {
                 <a asp-controller="Movimientos" asp-action="Carta" asp-route-id="@m.Id" class="btn btn-secondary btn-sm" style="margin-top:8px">

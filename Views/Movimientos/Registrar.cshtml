@@ -1,5 +1,11 @@
 @model MovimientoCreateViewModel
-@{ ViewData["Title"] = "Registrar movimiento"; var eq = Model.Equipo!; }
+@{
+  ViewData["Title"] = "Registrar movimiento";
+  var eq = Model.Equipo!;
+  bool puedeSeleccionarSitio = await PermisoSvc.TienePermiso(User, "movimientos.sitio");
+  bool puedeCrearSitio       = await PermisoSvc.TienePermiso(User, "sitios.crear");
+  bool puedeEliminarSitio    = await PermisoSvc.TienePermiso(User, "sitios.eliminar");
+}
 
 <div class="page-header">
   <div>
@@ -20,7 +26,7 @@
           @{
             var estadoActual = eq.Estado;
             var tiposDisponibles = estadoActual switch {
-              "Bodega"     => new[] { ("Asignacion","Asignación permanente","bi-person-check"), ("Prestamo","Préstamo temporal","bi-arrow-left-right"), ("EntradaGarantia","Entrada a garantía","bi-shield-check"), ("Baja","Dar de baja","bi-x-circle") },
+              "Bodega"     => new[] { ("Asignacion","Asignación","bi-person-check"), ("Prestamo","Préstamo temporal","bi-arrow-left-right"), ("EntradaGarantia","Entrada a garantía","bi-shield-check"), ("Baja","Dar de baja","bi-x-circle") },
               "Asignado"   => new[] { ("Devolucion","Devolución a bodega","bi-arrow-return-left") },
               "Prestamo"   => new[] { ("Devolucion","Devolución a bodega","bi-arrow-return-left") },
               "EnGarantia" => new[] { ("SalidaGarantia","Salida de garantía","bi-shield-x") },
@@ -61,6 +67,49 @@
           </div>
         </div>
 
+        @if (puedeSeleccionarSitio)
+        {
+          <div id="sec-sitio" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Sitio / Ubicación física <span class="text-muted" style="font-weight:400">(opcional — solo referencia interna)</span></label>
+              <input type="hidden" asp-for="SitioId" id="sitioId"/>
+              <div class="sitio-grid" id="sitioGrid">
+                @foreach (var s in Model.Sitios)
+                {
+                  var selSitio = s.Id == Model.SitioId ? "selected" : "";
+                  <div class="sitio-opt @selSitio" data-id="@s.Id" data-nombre="@s.Nombre" onclick="seleccionarSitio(this)">
+                    <i class="bi bi-geo-alt"></i> <span>@s.Nombre</span>
+                    @if (puedeEliminarSitio)
+                    {
+                      <span class="sitio-eliminar" onclick="event.stopPropagation(); eliminarSitio(@s.Id, this)" title="Eliminar sitio">×</span>
+                    }
+                  </div>
+                }
+                @if (puedeCrearSitio)
+                {
+                  <div class="sitio-opt" data-id="nuevo-sitio" onclick="mostrarNuevoSitio()">
+                    <i class="bi bi-plus-circle"></i> Otro sitio...
+                  </div>
+                }
+              </div>
+              <div class="nuevo-sitio-wrap" id="nuevoSitioWrap">
+                <input type="text" id="nuevoSitioNombre" class="form-control" placeholder="Nombre del sitio"/>
+                <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoSitio(this)">Agregar</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarNuevoSitio()">Cancelar</button>
+              </div>
+              @if (puedeEliminarSitio)
+              {
+                <div style="margin-top:8px">
+                  <a href="javascript:void(0)" onclick="toggleSitiosInactivos()" style="font-size:12.5px;color:var(--dark-text2)">
+                    <i class="bi bi-archive"></i> Sitios desactivados
+                  </a>
+                  <div id="sitiosInactivosWrap" class="sitio-grid" style="display:none"></div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
         <div class="form-group">
           <label class="form-label">Fecha del movimiento</label>
           <input name="FechaInicio" class="form-control" type="datetime-local" 
@@ -87,6 +136,53 @@
             </button>
             <span class="text-muted" style="font-size:12px" id="firmaStatus">Sin firma</span>
           </div>
+        </div>
+
+        <!-- Registro fotográfico — solo visible para Asignación, Préstamo y Devolución -->
+        <div id="sec-fotos" style="display:none">
+          <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+            Registro fotográfico <span style="font-weight:400;font-size:11px">(opcional — evidencia del estado)</span>
+          </div>
+
+          <div id="dropzoneFotos"
+            style="border:2px dashed #dde2ec;border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--blue-bg)'"
+            ondragleave="this.style.borderColor='#dde2ec';this.style.background=''"
+            ondrop="handleDropFotos(event)">
+            <i class="bi bi-images" style="font-size:32px;color:var(--dark-text2);display:block;margin-bottom:8px"></i>
+            <div style="font-size:13.5px;font-weight:500">Arrastra las fotos aquí</div>
+            <div class="text-muted" style="font-size:12px;margin-top:4px">o elige una opción:</div>
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('inputFotos').click()">
+                <i class="bi bi-upload"></i> Seleccionar archivos
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="abrirCamaraFotos()">
+                <i class="bi bi-camera"></i> Tomar foto
+              </button>
+            </div>
+            <div class="text-muted" style="font-size:11px;margin-top:8px">JPG, PNG, WEBP — máx. 10 MB por foto — sin límite de fotos</div>
+          </div>
+          <input type="file" id="inputFotos" accept="image/*" multiple style="display:none" onchange="agregarFotosDesdeInput(this)"/>
+
+          <!-- Cámara -->
+          <div id="sec-camara-fotos" style="display:none;margin-bottom:12px">
+            <div style="background:#000;border-radius:8px;overflow:hidden;margin-bottom:8px;max-height:280px">
+              <video id="videoCamaraFotos" autoplay playsinline style="width:100%;display:block;max-height:280px;object-fit:cover"></video>
+            </div>
+            <canvas id="canvasCamaraFotos" style="display:none"></canvas>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn btn-primary btn-sm" onclick="capturarDesdeCamaraFotos()">
+                <i class="bi bi-camera-fill"></i> Capturar foto
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="cerrarCamaraFotos()">
+                <i class="bi bi-x"></i> Cerrar cámara
+              </button>
+            </div>
+          </div>
+
+          <!-- Grid de preview de fotos agregadas -->
+          <div id="gridFotos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px"></div>
+          <div id="contadorFotos" class="text-muted" style="font-size:12px;margin-top:8px"></div>
         </div>
 
         <!-- Periféricos — solo visible para Asignación y Préstamo -->
@@ -117,7 +213,7 @@
         </div>
 
         <div class="gap-2">
-          <button type="submit" class="btn btn-primary" onclick="prepararFirma()"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
           <a asp-controller="Equipos" asp-action="Details" asp-route-id="@Model.EquipoId" class="btn btn-secondary">Cancelar</a>
         </div>
       </form>
@@ -165,6 +261,12 @@ function onTipo(val) {
   secFirma.style.display = (esSalida || val === 'Devolucion') ? 'block' : 'none';
   secPerif.style.display = esSalida ? 'block' : 'none';
   if (secFirma.style.display === 'block') initCanvas();
+
+  document.getElementById('sec-fotos').style.display =
+    (val === 'Asignacion' || val === 'Prestamo' || val === 'Devolucion') ? 'block' : 'none';
+
+  const secSitio = document.getElementById('sec-sitio');
+  if (secSitio) secSitio.style.display = esSalida || val === 'EntradaGarantia' ? 'block' : 'none';
 }
 
 // ── Canvas de firma ──────────────────────────────────
@@ -297,4 +399,248 @@ function renderChipsPerif() {
   }
   document.getElementById('perifericosIds').value = perifs.map(p => p.id).join(',');
 }
+
+// ── Registro fotográfico (múltiples imágenes) ────────
+let fotosAgregadas   = []; // Array de { file, previewUrl, descripcion }
+let streamCamaraFotos = null;
+
+async function abrirCamaraFotos() {
+  document.getElementById('sec-camara-fotos').style.display = 'block';
+  if (!streamCamaraFotos) {
+    try {
+      streamCamaraFotos = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      document.getElementById('videoCamaraFotos').srcObject = streamCamaraFotos;
+    } catch(e) {
+      alert('Cámara no disponible.');
+      cerrarCamaraFotos();
+    }
+  }
+}
+function cerrarCamaraFotos() {
+  document.getElementById('sec-camara-fotos').style.display = 'none';
+  if (streamCamaraFotos) { streamCamaraFotos.getTracks().forEach(t => t.stop()); streamCamaraFotos = null; }
+}
+function capturarDesdeCamaraFotos() {
+  const video  = document.getElementById('videoCamaraFotos');
+  const canvas = document.getElementById('canvasCamaraFotos');
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    const file = new File([blob], `foto_camara_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    agregarFotoMovimiento(file);
+  }, 'image/jpeg', 0.88);
+}
+function agregarFotosDesdeInput(input) {
+  Array.from(input.files).forEach(file => agregarFotoMovimiento(file));
+  input.value = ''; // reset para permitir seleccionar el mismo archivo de nuevo
+}
+function handleDropFotos(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = '#dde2ec';
+  e.currentTarget.style.background  = '';
+  const files = e.dataTransfer?.files;
+  if (files) Array.from(files).forEach(file => {
+    if (file.type.startsWith('image/')) agregarFotoMovimiento(file);
+  });
+}
+function agregarFotoMovimiento(file) {
+  if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    fotosAgregadas.push({ file, previewUrl: e.target.result, descripcion: '' });
+    renderGridFotos();
+  };
+  reader.readAsDataURL(file);
+}
+function quitarFotoMovimiento(idx) {
+  fotosAgregadas.splice(idx, 1);
+  renderGridFotos();
+}
+function renderGridFotos() {
+  const grid = document.getElementById('gridFotos');
+  grid.innerHTML = '';
+  fotosAgregadas.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;border:1px solid #dde2ec;background:#f9fafb';
+    div.innerHTML = `
+      <img src="${item.previewUrl}" style="width:100%;height:110px;object-fit:cover;display:block"/>
+      <div style="padding:6px">
+        <input type="text" placeholder="Descripción (opcional)"
+               value="${item.descripcion}"
+               onchange="fotosAgregadas[${idx}].descripcion=this.value"
+               style="width:100%;font-size:11px;border:1px solid #dde2ec;border-radius:4px;padding:3px 6px"/>
+      </div>
+      <button type="button" onclick="quitarFotoMovimiento(${idx})"
+              style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+      <div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 6px;border-radius:10px">${idx+1}</div>
+    `;
+    grid.appendChild(div);
+  });
+  const count = fotosAgregadas.length;
+  document.getElementById('contadorFotos').textContent =
+    count === 0 ? '' : `${count} foto${count>1?'s':''} adjunta${count>1?'s':''}`;
+}
+
+// Subir fotos después de guardar el movimiento
+async function subirFotosMovimiento(movimientoId) {
+  if (!fotosAgregadas.length) return;
+  const formData = new FormData();
+  fotosAgregadas.forEach(item => {
+    formData.append('imagenes', item.file);
+    formData.append('descripciones', item.descripcion ?? '');
+  });
+  await fetch(`/Movimientos/SubirImagenes?movimientoId=${movimientoId}`, {
+    method: 'POST', body: formData
+  });
+}
+
+// ── Envío del formulario vía AJAX ─────────────────────
+document.getElementById('frmMov').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btnSubmit = this.querySelector('button[type="submit"]');
+  setBtnLoading(btnSubmit, true, 'Registrando...');
+  prepararFirma();
+  const fd = new FormData(this);
+  let res;
+  try {
+    res = await fetch(this.action || window.location.href, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd
+    });
+  } catch (err) {
+    setBtnLoading(btnSubmit, false);
+    alert('Error de conexión. Intenta de nuevo.');
+    return;
+  }
+  if (!res.ok) {
+    setBtnLoading(btnSubmit, false);
+    alert('No se pudo registrar el movimiento. Verifica los datos.');
+    return;
+  }
+  const data = await res.json();
+  if (data.movimientoId && fotosAgregadas.length) {
+    setBtnLoading(btnSubmit, true, 'Subiendo fotos...');
+    await subirFotosMovimiento(data.movimientoId);
+  }
+  cerrarCamaraFotos();
+  window.location.href = data.redirectUrl;
+});
+
+// ── Sitio / Ubicación ────────────────────────────────
+function seleccionarSitio(el) {
+  document.querySelectorAll('#sitioGrid .sitio-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('sitioId').value = el.dataset.id;
+  document.getElementById('nuevoSitioWrap').classList.remove('show');
+}
+function mostrarNuevoSitio() {
+  document.getElementById('nuevoSitioWrap').classList.add('show');
+  document.getElementById('nuevoSitioNombre').focus();
+}
+function cancelarNuevoSitio() {
+  document.getElementById('nuevoSitioWrap').classList.remove('show');
+}
+async function agregarNuevoSitio(btn) {
+  const nombre = document.getElementById('nuevoSitioNombre').value.trim();
+  if (!nombre) return;
+  setBtnLoading(btn, true, 'Agregando...');
+  const res = await fetch('/Movimientos/NuevoSitio', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nombre)
+  });
+  setBtnLoading(btn, false);
+  if (res.status === 403) { await customAlert('No tienes permiso para crear sitios.', 'danger'); return; }
+  if (!res.ok) { await customAlert('No se pudo guardar el sitio. Intenta de nuevo.', 'danger'); return; }
+  const data = await res.json();
+  if (!document.querySelector(`#sitioGrid [data-id="${data.id}"]`)) {
+    const div = document.createElement('div');
+    div.className = 'sitio-opt';
+    div.dataset.id = data.id;
+    div.dataset.nombre = data.nombre;
+    div.onclick = function() { seleccionarSitio(this); };
+    div.innerHTML = `<i class="bi bi-geo-alt"></i> <span>${data.nombre}</span> <span class="sitio-eliminar" onclick="event.stopPropagation(); eliminarSitio(${data.id}, this)" title="Eliminar sitio">×</span>`;
+    document.getElementById('sitioGrid').insertBefore(div, document.querySelector('#sitioGrid [data-id="nuevo-sitio"]'));
+  }
+  document.getElementById('sitioId').value = data.id;
+  document.getElementById('nuevoSitioWrap').classList.remove('show');
+  document.getElementById('nuevoSitioNombre').value = '';
+  document.querySelectorAll('#sitioGrid .sitio-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector(`#sitioGrid [data-id="${data.id}"]`).classList.add('selected');
+}
+async function eliminarSitio(id, el) {
+  const confirmado = await customConfirm('¿Desactivar este sitio? No se borra su historial y podrás reactivarlo luego desde "Sitios desactivados".', 'warn');
+  if (!confirmado) return;
+  const original = el.innerHTML;
+  el.innerHTML = '<span class="spinner-inline"></span>';
+  try {
+    const res = await fetch(`/Movimientos/EliminarSitio/${id}`, { method: 'DELETE' });
+    if (res.status === 403) { el.innerHTML = original; await customAlert('No tienes permiso para desactivar sitios.', 'danger'); return; }
+    if (res.ok) {
+      if (document.getElementById('sitioId').value == id) document.getElementById('sitioId').value = '';
+      el.closest('.sitio-opt').remove();
+    } else {
+      el.innerHTML = original;
+      await customAlert('No se pudo desactivar: ' + await res.text(), 'danger');
+    }
+  } catch(e) { el.innerHTML = original; await customAlert('Error de conexión.', 'danger'); }
+}
+let sitiosInactivosVisibles = false;
+async function toggleSitiosInactivos() {
+  sitiosInactivosVisibles = !sitiosInactivosVisibles;
+  const wrap = document.getElementById('sitiosInactivosWrap');
+  wrap.style.display = sitiosInactivosVisibles ? 'grid' : 'none';
+  if (sitiosInactivosVisibles) await cargarSitiosInactivos();
+}
+async function cargarSitiosInactivos() {
+  const wrap = document.getElementById('sitiosInactivosWrap');
+  wrap.innerHTML = '<span class="text-muted" style="font-size:12.5px">Cargando…</span>';
+  const res = await fetch('/Movimientos/ListarSitiosInactivos');
+  if (!res.ok) { wrap.innerHTML = '<span class="text-muted" style="font-size:12.5px">No se pudo cargar.</span>'; return; }
+  const sitios = await res.json();
+  if (sitios.length === 0) { wrap.innerHTML = '<span class="text-muted" style="font-size:12.5px">No hay sitios desactivados.</span>'; return; }
+  wrap.innerHTML = '';
+  sitios.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'sitio-opt';
+    div.style.opacity = '.6';
+    div.innerHTML = `<i class="bi bi-geo-alt"></i> <span>${s.nombre}</span> <span class="sitio-eliminar" onclick="reactivarSitio(${s.id}, this)" title="Reactivar sitio"><i class="bi bi-arrow-counterclockwise"></i></span>`;
+    wrap.appendChild(div);
+  });
+}
+async function reactivarSitio(id, el) {
+  const original = el ? el.innerHTML : null;
+  if (el) el.innerHTML = '<span class="spinner-inline"></span>';
+  const res = await fetch(`/Movimientos/ReactivarSitio/${id}`, { method: 'POST' });
+  if (res.status === 403) { if (el) el.innerHTML = original; await customAlert('No tienes permiso para reactivar sitios.', 'danger'); return; }
+  if (!res.ok) { if (el) el.innerHTML = original; await customAlert('No se pudo reactivar el sitio.', 'danger'); return; }
+  const data = await res.json();
+  if (!document.querySelector(`#sitioGrid [data-id="${data.id}"]`)) {
+    const div = document.createElement('div');
+    div.className = 'sitio-opt';
+    div.dataset.id = data.id;
+    div.dataset.nombre = data.nombre;
+    div.onclick = function() { seleccionarSitio(this); };
+    div.innerHTML = `<i class="bi bi-geo-alt"></i> <span>${data.nombre}</span> <span class="sitio-eliminar" onclick="event.stopPropagation(); eliminarSitio(${data.id}, this)" title="Desactivar sitio">×</span>`;
+    document.getElementById('sitioGrid').insertBefore(div, document.querySelector('#sitioGrid [data-id="nuevo-sitio"]'));
+  }
+  await cargarSitiosInactivos();
+}
+document.getElementById('nuevoSitioNombre')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); agregarNuevoSitio(document.querySelector('#nuevoSitioWrap button.btn-primary')); }
+});
 </script>
+
+<style>
+.sitio-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:6px; }
+.sitio-opt { border:1px solid #dde2ec; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:8px; transition:all .15s; background:var(--surface); }
+.sitio-opt:hover { border-color:var(--accent); background:var(--blue-bg); }
+.sitio-opt.selected { border-color:var(--accent); background:var(--blue-bg); color:var(--blue-text); font-weight:500; }
+.sitio-eliminar { margin-left:auto; font-size:13px; font-weight:600; color:var(--dark-text2); cursor:pointer; padding:0 3px; border-radius:4px; transition:all .15s; }
+.sitio-eliminar:hover { background:var(--red-bg, #FEE2E2); color:var(--red-text, #DC2626); }
+.nuevo-sitio-wrap { display:none; gap:8px; margin-top:8px; }
+.nuevo-sitio-wrap.show { display:flex; }
+</style>

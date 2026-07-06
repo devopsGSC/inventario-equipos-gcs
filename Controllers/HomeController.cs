@@ -19,10 +19,15 @@ public class HomeController : Controller
             Asignados       = await _db.Equipos.CountAsync(e => e.Estado == "Asignado"),
             EnPrestamo      = await _db.Equipos.CountAsync(e => e.Estado == "Prestamo"),
             EnGarantia      = await _db.Equipos.CountAsync(e => e.Estado == "EnGarantia"),
+            EnBaja          = await _db.Equipos.CountAsync(e => e.Estado == "Baja"),
             GarantiasProximas = await _db.Equipos.CountAsync(e =>
                 e.FechaGarantia.HasValue &&
                 e.FechaGarantia.Value >= DateTime.Today &&
                 e.FechaGarantia.Value <= DateTime.Today.AddDays(30)),
+            GarantiasVencidas = await _db.Equipos.CountAsync(e =>
+                e.FechaGarantia.HasValue &&
+                e.FechaGarantia.Value < DateTime.Today &&
+                e.Estado != "Baja"),
             UltimosRegistros = await _db.Equipos
                 .Include(e => e.TipoEquipo)
                 .OrderByDescending(e => e.FechaRegistro)

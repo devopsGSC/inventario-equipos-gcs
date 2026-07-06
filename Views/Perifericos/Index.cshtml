@@ -3,7 +3,10 @@
 
 <div class="page-header">
   <div class="page-title">Periféricos</div>
-  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar periférico</a>
+  @if (await PermisoSvc.TienePermiso(User, "perifericos.crear"))
+  {
+    <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar periférico</a>
+  }
 </div>
 
 <div class="card" style="margin-bottom:20px">
@@ -59,7 +62,10 @@
             <td>
               <div class="gap-2">
                 <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
-                <a asp-action="Edit"    asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                @if (await PermisoSvc.TienePermiso(User, "perifericos.editar"))
+                {
+                  <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                }
               </div>
             </td>
           </tr>

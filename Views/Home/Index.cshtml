@@ -1,34 +1,68 @@
 @model DashboardViewModel
 @{ ViewData["Title"] = "Inventario y gestión de equipos"; }
 
-<div class="stats-grid">
-  <div class="stat-card accent">
-    <div class="stat-label">Total equipos</div>
-    <div class="stat-value">@Model.TotalEquipos</div>
-    <div class="stat-sub">en inventario</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">En bodega</div>
-    <div class="stat-value" style="color:var(--gray)">@Model.EnBodega</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Asignados</div>
-    <div class="stat-value" style="color:var(--blue)">@Model.Asignados</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">En préstamo</div>
-    <div class="stat-value" style="color:var(--purple)">@Model.EnPrestamo</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">En garantía</div>
-    <div class="stat-value" style="color:var(--amber)">@Model.EnGarantia</div>
-  </div>
-  @if (Model.GarantiasProximas > 0)
+@{
+  var distribucion = new (string Label, int Count, string Color)[]
   {
-    <div class="stat-card" style="border-color:#fde68a; background:var(--amber-bg)">
-      <div class="stat-label" style="color:var(--amber-text)">Garantías por vencer</div>
-      <div class="stat-value" style="color:var(--amber)">@Model.GarantiasProximas</div>
-      <div class="stat-sub" style="color:var(--amber-text)">próximos 30 días</div>
+    ("Bodega",      Model.EnBodega,  "var(--gray)"),
+    ("Asignados",   Model.Asignados, "var(--blue)"),
+    ("Préstamo",    Model.EnPrestamo,"var(--purple)"),
+    ("En garantía", Model.EnGarantia,"var(--amber)"),
+    ("Baja",        Model.EnBaja,    "var(--red)"),
+  };
+}
+<div class="card" style="padding:20px;margin-bottom:24px">
+  <div style="font-size:34px;font-weight:500;line-height:1;color:var(--dark-text)">@Model.TotalEquipos</div>
+  <div class="stat-sub" style="margin-top:4px">equipos en total</div>
+
+  @if (Model.TotalEquipos > 0)
+  {
+    <div style="display:flex;gap:2px;height:24px;width:100%;border-radius:8px;overflow:hidden;margin-top:16px">
+      @foreach (var d in distribucion)
+      {
+        @if (d.Count > 0)
+        {
+          <div style="flex-basis:@((d.Count * 100.0 / Model.TotalEquipos).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))%;background:@d.Color;border-radius:4px"></div>
+        }
+      }
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px">
+      @foreach (var d in distribucion)
+      {
+        @if (d.Count > 0)
+        {
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:@d.Color"></span>
+            <span>@d.Label</span>
+            <strong>@d.Count</strong>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @if (Model.GarantiasProximas > 0 || Model.GarantiasVencidas > 0)
+  {
+    <div style="border-top:0.5px solid #e5eaf2;padding-top:12px;margin-top:12px">
+      @if (Model.GarantiasProximas > 0)
+      {
+        <a asp-controller="Equipos" asp-action="Index" asp-route-garantiaPorVencer="true"
+           style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;color:inherit;text-decoration:none">
+          <i class="bi bi-exclamation-triangle-fill" style="color:var(--amber)"></i>
+          <span>Garantías por vencer (próximos 30 días)</span>
+          <strong>@Model.GarantiasProximas</strong>
+        </a>
+      }
+      @if (Model.GarantiasVencidas > 0)
+      {
+        <a asp-controller="Equipos" asp-action="Index" asp-route-garantiaVencida="true"
+           style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;color:inherit;text-decoration:none">
+          <i class="bi bi-x-octagon-fill" style="color:var(--red)"></i>
+          <span>Garantías vencidas</span>
+          <strong>@Model.GarantiasVencidas</strong>
+        </a>
+      }
     </div>
   }
 </div>
@@ -84,7 +118,10 @@
   <div class="card">
     <div class="card-header">
       <div class="card-title">Últimos equipos registrados</div>
-      <a asp-controller="Equipos" asp-action="Create" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Nuevo</a>
+      @if (await PermisoSvc.TienePermiso(User, "equipos.crear"))
+      {
+        <a asp-controller="Equipos" asp-action="Create" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Nuevo</a>
+      }
     </div>
     <div class="table-wrap">
       <table>

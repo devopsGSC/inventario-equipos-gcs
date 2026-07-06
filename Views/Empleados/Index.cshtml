@@ -3,19 +3,41 @@
 
 <div class="page-header">
   <div class="page-title">Empleados</div>
-  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Registrar empleado</a>
+  @if (await PermisoSvc.TienePermiso(User, "empleados.crear"))
+  {
+    <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Registrar empleado</a>
+  }
 </div>
 
 <div class="card" style="margin-bottom:20px">
   <div class="card-body" style="padding:14px 20px">
-    <form method="get" style="display:flex;gap:10px">
-      <div class="search-box" style="flex:1">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div class="search-box" style="flex:1;min-width:200px">
         <i class="bi bi-search"></i>
         <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre, código o DUI..." value="@ViewBag.Buscar"/>
       </div>
-      <button type="submit" class="btn btn-secondary">Buscar</button>
-      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string))
-      { <a asp-action="Index" class="btn btn-secondary">Limpiar</a> }
+
+      <select name="departamento" class="form-control" style="width:180px">
+        <option value="">Todos los departamentos</option>
+        @foreach (var dep in ViewBag.Departamentos as List<string> ?? [])
+        {
+          <option value="@dep" selected="@(ViewBag.Departamento == dep ? "selected" : null)">@dep</option>
+        }
+      </select>
+
+      <select name="activo" class="form-control" style="width:140px">
+        <option value="">Todos los estados</option>
+        <option value="true"  selected="@(ViewBag.Activo == true  ? "selected" : null)">Activos</option>
+        <option value="false" selected="@(ViewBag.Activo == false ? "selected" : null)">Inactivos</option>
+      </select>
+
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string) ||
+           !string.IsNullOrEmpty(ViewBag.Departamento as string) ||
+           ViewBag.Activo != null)
+      {
+        <a asp-action="Index" class="btn btn-secondary">Limpiar</a>
+      }
     </form>
   </div>
 </div>
@@ -40,7 +62,10 @@
             <td>
               <div class="gap-2">
                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
-                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                @if (await PermisoSvc.TienePermiso(User, "empleados.editar"))
+                {
+                  <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                }
               </div>
             </td>
           </tr>
@@ -50,4 +75,5 @@
       </tbody>
     </table>
   </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
 </div>

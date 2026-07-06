@@ -9,7 +9,9 @@ public class DashboardViewModel
     public int Asignados { get; set; }
     public int EnPrestamo { get; set; }
     public int EnGarantia { get; set; }
+    public int EnBaja { get; set; }
     public int GarantiasProximas { get; set; }
+    public int GarantiasVencidas { get; set; }
     public List<Equipo> UltimosRegistros { get; set; } = [];
     public List<Movimiento> UltimosMovimientos { get; set; } = [];
     public Equipo? ResultadoBusqueda { get; set; }
@@ -26,7 +28,9 @@ public class MovimientoCreateViewModel
     public DateTime? FechaFinEstimada { get; set; }
     public string? Observaciones { get; set; }
     public string? FirmaEmpleado { get; set; }
+    public int? SitioId { get; set; }
     public List<Empleado> Empleados { get; set; } = [];
+    public List<Sitio> Sitios { get; set; } = [];
 }
 
 public class EquipoDetalleViewModel
@@ -34,4 +38,10 @@ public class EquipoDetalleViewModel
     public Equipo Equipo { get; set; } = null!;
     public List<Movimiento> Historial { get; set; } = [];
     public Movimiento? MovimientoActivo { get; set; }
+}
+
+public class UsuarioListItemViewModel
+{
+    public UsuarioApp Usuario { get; set; } = null!;
+    public string Rol { get; set; } = "";
 }

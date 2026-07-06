@@ -4,6 +4,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>@ViewData["Title"] — InventarioTI</title>
+  <link rel="icon" type="image/x-icon" href="/gcs_logo.ico"/>
+  <link rel="shortcut icon" type="image/x-icon" href="/gcs_logo.ico"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
   <style>
@@ -66,6 +68,7 @@
     .nav-link.active { background: var(--accent); color: #fff; font-weight: 600; }
     /* Sub-enlaces: más pequeños, menos peso, más indentados */
     .nav-link.nav-sub {
+      position: relative;
       padding: 6px 12px 6px 20px;
       font-size: 12.5px;
       font-weight: 400;
@@ -74,6 +77,30 @@
     }
     .nav-link.nav-sub:hover { background: transparent; color: var(--text2); }
     .nav-link.nav-sub.active { background: var(--accent); color: #fff; font-weight: 500; }
+    /* Árbol de conexión: línea vertical (tronco) + línea horizontal (rama, más tenue) */
+    .nav-link.nav-sub::before,
+    .nav-link.nav-sub::after {
+      content: '';
+      position: absolute;
+      left: 10px;
+    }
+    .nav-link.nav-sub::before {
+      top: 0; bottom: 0; width: 1px;
+      background: rgba(255,255,255,.16);
+    }
+    .nav-link.nav-sub::after {
+      top: 50%; width: 8px; height: 1px;
+      background: rgba(255,255,255,.09);
+    }
+    /* Último subitem de un grupo: el tronco no continúa después de su rama */
+    .nav-link.nav-sub:not(:has(+ .nav-link.nav-sub))::before {
+      bottom: auto; height: 50%;
+    }
+    /* Subitem sin padre visible en su sección: sin línea de árbol */
+    .nav-link.nav-sub:first-child::before,
+    .nav-link.nav-sub:first-child::after {
+      display: none;
+    }
     .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); }
 
     /* MAIN */
@@ -191,8 +218,8 @@
     .result-field label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text3); }
     .result-field p { font-size:13.5px; color:var(--text); margin-top:2px; }
 
-    @@media(max-width:768px){
-      /* Sidebar como drawer */
+    /* Tablets y teléfonos: menú como drawer + contenido en una columna */
+    @@media(max-width:1024px){
       .sidebar {
         transform: translateX(-100%);
         transition: transform .25s ease;
@@ -217,6 +244,13 @@
       .topbar { padding: 0 16px; }
       .hamburger { display: flex; }
 
+      /* Objetivos de toque más grandes en el drawer táctil */
+      .sidebar-nav { padding: 20px 14px; }
+      .nav-link { padding: 12px 14px; font-size: 15px; }
+      .nav-link.nav-sub { padding: 10px 14px 10px 24px; font-size: 13.5px; }
+      .nav-link.nav-sub::before,
+      .nav-link.nav-sub::after { left: 12px; }
+
       /* Contenido con menos padding */
       .content { padding: 16px; }
 
@@ -225,7 +259,7 @@
       .span-2 { grid-column: span 1; }
       .stats-grid { grid-template-columns: repeat(2,1fr); gap:10px; }
 
-      /* Dashboard dos columnas → una */
+      /* Cualquier grilla de dos columnas fijas → una sola columna */
       [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
       [style*="grid-template-columns:1fr 320px"] { grid-template-columns: 1fr !important; }
       [style*="grid-template-columns:1fr 300px"] { grid-template-columns: 1fr !important; }
@@ -268,7 +302,7 @@
     <div class="nav-section">
       <div class="nav-label">Principal</div>
       <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Home"?"active":"")" asp-controller="Home" asp-action="Index" onclick="closeSidebar()">
-        Dashboard
+        Panel general 
       </a>
     </div>
     <div class="nav-section">
@@ -299,20 +333,92 @@
       </a>
     </div>
     <div class="nav-section">
-      <div class="nav-label">Acciones</div>
-      <a class="nav-link" asp-controller="Equipos" asp-action="Create" onclick="closeSidebar()">
-        Registrar equipo
+      <div class="nav-label">Reportes</div>
+      @{
+        string? _rptCtl    = ViewContext.RouteData.Values["controller"]?.ToString();
+        string? _rptAction = ViewContext.RouteData.Values["action"]?.ToString();
+        bool    _enRep     = _rptCtl == "Reportes";
+      }
+      <a class="nav-link @(_enRep && _rptAction == "Index" ? "active" : "")"
+         asp-controller="Reportes" asp-action="Index" onclick="closeSidebar()">
+        Reportes
       </a>
-      <a class="nav-link" asp-controller="CargaMasiva" asp-action="Index" onclick="closeSidebar()">
-        Carga masiva
+      <a class="nav-link nav-sub @(_enRep && _rptAction == "Equipos" ? "active" : "")"
+         asp-controller="Reportes" asp-action="Equipos" onclick="closeSidebar()">
+        Inventario de equipos
       </a>
-      <a class="nav-link" asp-controller="Perifericos" asp-action="Create" onclick="closeSidebar()">
-        Registrar periférico
+      <a class="nav-link nav-sub @(_enRep && _rptAction == "Perifericos" ? "active" : "")"
+         asp-controller="Reportes" asp-action="Perifericos" onclick="closeSidebar()">
+        Inventario de periféricos
       </a>
-      <a class="nav-link" asp-controller="Empleados" asp-action="Create" onclick="closeSidebar()">
-        Registrar empleado
+      <a class="nav-link nav-sub @(_enRep && _rptAction == "Empleados" ? "active" : "")"
+         asp-controller="Reportes" asp-action="Empleados" onclick="closeSidebar()">
+        Asignaciones por empleado
       </a>
     </div>
+    @{
+      bool _puedeEquipoCrear  = await PermisoSvc.TienePermiso(User, "equipos.crear");
+      bool _puedeCargaMasiva  = await PermisoSvc.TienePermiso(User, "cargamasiva.usar");
+      bool _puedePerifCrear   = await PermisoSvc.TienePermiso(User, "perifericos.crear");
+      bool _puedeEmpleadoCrear= await PermisoSvc.TienePermiso(User, "empleados.crear");
+    }
+    @if (_puedeEquipoCrear || _puedeCargaMasiva || _puedePerifCrear || _puedeEmpleadoCrear)
+    {
+      <div class="nav-section">
+        <div class="nav-label">Acciones</div>
+        @if (_puedeEquipoCrear)
+        {
+          <a class="nav-link" asp-controller="Equipos" asp-action="Create" onclick="closeSidebar()">
+            Registrar equipo
+          </a>
+        }
+        @if (_puedeCargaMasiva)
+        {
+          <a class="nav-link" asp-controller="CargaMasiva" asp-action="Index" onclick="closeSidebar()">
+            Carga masiva
+          </a>
+        }
+        @if (_puedePerifCrear)
+        {
+          <a class="nav-link" asp-controller="Perifericos" asp-action="Create" onclick="closeSidebar()">
+            Registrar periférico
+          </a>
+        }
+        @if (_puedeEmpleadoCrear)
+        {
+          <a class="nav-link" asp-controller="Empleados" asp-action="Create" onclick="closeSidebar()">
+            Registrar empleado
+          </a>
+        }
+      </div>
+    }
+    @if (User.IsInRole("Administrador"))
+    {
+      <div class="nav-section">
+        <div class="nav-label">Administración</div>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Usuarios"?"active":"")"
+           asp-controller="Usuarios" asp-action="Index" onclick="closeSidebar()">
+          Usuarios del sistema
+        </a>
+        <a class="nav-link nav-sub @(ViewContext.RouteData.Values["controller"]?.ToString()=="Permisos"?"active":"")"
+           asp-controller="Permisos" asp-action="Index" onclick="closeSidebar()">
+          Permisos por rol
+        </a>
+        <a class="nav-link nav-sub @(ViewContext.RouteData.Values["controller"]?.ToString()=="ActualizacionMasiva"?"active":"")"
+           asp-controller="ActualizacionMasiva" asp-action="Index" onclick="closeSidebar()">
+          Actualización masiva
+        </a>
+      </div>
+    }
+    @if (User.IsInRole("Administrador") || User.IsInRole("TecnicoIT"))
+    {
+      <div class="nav-section">
+        <a class="nav-link nav-sub @(ViewContext.RouteData.Values["controller"]?.ToString()=="HistorialMasivo"?"active":"")"
+           asp-controller="HistorialMasivo" asp-action="Index" onclick="closeSidebar()">
+          Historial de cargas
+        </a>
+      </div>
+    }
   </nav>
   <div class="sidebar-footer">DevOps - GCS &mdash; @DateTime.Now.Year</div>
 </aside>
@@ -327,7 +433,27 @@
       </button>
       <div class="topbar-title">@ViewData["Title"]</div>
     </div>
-    <div class="text-muted">@DateTime.Now.ToString("dd/MM/yyyy")</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="text-muted">@DateTime.Now.ToString("dd/MM/yyyy")</div>
+      @if (User.Identity?.IsAuthenticated == true)
+      {
+        <a asp-controller="Auth" asp-action="Perfil" style="text-decoration:none;color:inherit">
+          <div style="text-align:right">
+            <div style="font-size:13px;font-weight:500">@User.Identity?.Name</div>
+            <div class="text-muted" style="font-size:11px">
+              @(User.IsInRole("Administrador") ? "Administrador" :
+                User.IsInRole("TecnicoIT")     ? "Técnico IT" : "Consulta")
+            </div>
+          </div>
+        </a>
+        <form asp-controller="Auth" asp-action="Logout" method="post" style="margin:0">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn btn-secondary btn-sm" title="Cerrar sesión">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </form>
+      }
+    </div>
   </div>
   <div class="content">
     @if (TempData["OK"] != null)
@@ -341,6 +467,105 @@
     @RenderBody()
   </div>
 </div>
+
+<div id="customModalOverlay" class="custom-modal-overlay">
+  <div class="custom-modal">
+    <div class="custom-modal-icon" id="customModalIcon"></div>
+    <div class="custom-modal-message" id="customModalMessage"></div>
+    <div class="custom-modal-actions">
+      <button type="button" class="btn btn-secondary btn-sm" id="customModalCancel">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" id="customModalOk">Aceptar</button>
+    </div>
+  </div>
+</div>
+<style>
+  .custom-modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,36,.45); z-index:2000; align-items:center; justify-content:center; padding:16px; }
+  .custom-modal-overlay.show { display:flex; }
+  .custom-modal { background:var(--surface); border-radius:12px; padding:22px 24px; max-width:380px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.25); animation:customModalIn .15s ease; }
+  @@keyframes customModalIn { from{opacity:0;transform:translateY(-8px) scale(.98)} to{opacity:1;transform:none} }
+  .custom-modal-icon { font-size:26px; margin-bottom:10px; }
+  .custom-modal-icon.danger { color:var(--red); }
+  .custom-modal-icon.warn { color:var(--amber); }
+  .custom-modal-icon.info { color:var(--accent); }
+  .custom-modal-message { font-size:14px; color:var(--dark-text); line-height:1.5; margin-bottom:18px; white-space:pre-line; }
+  .custom-modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+
+  .spinner-inline {
+    display:inline-block; width:13px; height:13px; border-radius:50%;
+    border:2px solid currentColor; border-bottom-color:transparent; opacity:.85;
+    animation:spinnerSpin .6s linear infinite; vertical-align:-2px;
+  }
+  @@keyframes spinnerSpin { to { transform:rotate(360deg); } }
+
+  .page-loading-overlay { display:none; position:fixed; inset:0; background:rgba(244,246,250,.6); z-index:1500; align-items:center; justify-content:center; flex-direction:column; gap:10px; }
+  .page-loading-overlay.show { display:flex; }
+  .page-loading-overlay .spinner-inline { width:28px; height:28px; border-width:3px; color:var(--accent); }
+  .page-loading-overlay span { font-size:13px; color:var(--dark-text2); font-weight:500; }
+</style>
+<div id="pageLoadingOverlay" class="page-loading-overlay">
+  <span class="spinner-inline"></span>
+  <span id="pageLoadingText">Procesando...</span>
+</div>
+<script>
+  function setBtnLoading(btn, loading, textoCarga) {
+    if (!btn) return;
+    if (loading) {
+      if (btn.dataset.originalHtml === undefined) btn.dataset.originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-inline"></span> ${textoCarga || 'Procesando...'}`;
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.originalHtml !== undefined) {
+        btn.innerHTML = btn.dataset.originalHtml;
+        delete btn.dataset.originalHtml;
+      }
+    }
+  }
+  function setPageLoading(loading, texto) {
+    const overlay = document.getElementById('pageLoadingOverlay');
+    document.getElementById('pageLoadingText').textContent = texto || 'Procesando...';
+    overlay.classList.toggle('show', !!loading);
+  }
+  function showCustomModal(message, type, isConfirm) {
+    return new Promise(resolve => {
+      const overlay = document.getElementById('customModalOverlay');
+      const icon    = document.getElementById('customModalIcon');
+      const msg     = document.getElementById('customModalMessage');
+      const cancel  = document.getElementById('customModalCancel');
+      const ok      = document.getElementById('customModalOk');
+
+      icon.className = 'custom-modal-icon ' + type;
+      icon.innerHTML = type === 'danger' ? '<i class="bi bi-exclamation-triangle-fill"></i>'
+                      : type === 'warn'  ? '<i class="bi bi-question-circle-fill"></i>'
+                      : '<i class="bi bi-info-circle-fill"></i>';
+      msg.textContent = message;
+      cancel.style.display = isConfirm ? 'inline-flex' : 'none';
+      ok.textContent = isConfirm ? 'Confirmar' : 'Aceptar';
+
+      function cleanup(result) {
+        overlay.classList.remove('show');
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onKey(e) {
+        if (e.key === 'Escape') cleanup(false);
+        else if (e.key === 'Enter') cleanup(true);
+      }
+
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKey);
+      overlay.classList.add('show');
+      ok.focus();
+    });
+  }
+  function customAlert(message, type = 'info') { return showCustomModal(message, type, false); }
+  function customConfirm(message, type = 'warn') { return showCustomModal(message, type, true); }
+</script>
 <script>
   // Responsive sidebar
   const sidebar  = document.getElementById('sidebar');
@@ -360,8 +585,8 @@
 
   // Mostrar/ocultar hamburguesa según ancho
   function checkWidth() {
-    hamburger.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
-    if (window.innerWidth > 768) closeSidebar();
+    hamburger.style.display = window.innerWidth <= 1024 ? 'flex' : 'none';
+    if (window.innerWidth > 1024) closeSidebar();
   }
   checkWidth();
   window.addEventListener('resize', checkWidth);

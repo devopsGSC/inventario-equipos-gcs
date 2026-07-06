@@ -1,8 +1,14 @@
 @model Equipo
-@{ 
+@{
   ViewData["Title"] = "Editar equipo";
   var accsActuales = (Model.Accesorios ?? "").Split(',').Select(a => a.Trim()).Where(a => a != "").ToList();
-  var accsConocidos = new[] { "Cargador", "Funda" };
+  var rolesActuales = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+  bool puedeCrearTipo    = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "equipos.tipos.crear");
+  bool puedeEliminarTipo = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "equipos.tipos.eliminar");
+  bool puedeCrearPlan    = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "equipos.planes.crear");
+  bool puedeEliminarPlan = await PermisoSvc.UsuarioTienePermiso(rolesActuales, "equipos.planes.eliminar");
+  var planesFijos = new[] { "ESP 48", "ESP 23", "ESP 15" };
+  bool esTelefono = Model.TipoEquipo?.Nombre == "Teléfono";
 }
 
 <div class="page-header">
@@ -22,6 +28,8 @@
 .tipo-opt:hover { border-color:var(--accent); background:var(--blue-bg); }
 .tipo-opt.selected { border-color:var(--accent); background:var(--blue-bg); color:var(--blue-text); font-weight:500; }
 .tipo-opt i { font-size:16px; }
+.tipo-opt .tipo-del { margin-left:auto; font-size:14px; line-height:1; color:var(--dark-text2); opacity:.5; cursor:pointer; }
+.tipo-opt .tipo-del:hover { opacity:1; color:#e53e3e; }
 .nuevo-input-wrap { display:none; margin-top:8px; }
 .nuevo-input-wrap.show { display:flex; gap:8px; }
 </style>
@@ -46,24 +54,23 @@
           <label class="form-label">Tipo de equipo</label>
           <input type="hidden" asp-for="TipoEquipoId" id="tipoId"/>
           <div class="tipo-grid" id="tipoGrid">
-            @foreach (var t in ((ViewBag.Tipos as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>) ?? [])
-                .Where(t => t.Text != "Desktop" && t.Text != "Monitor" && t.Text != "Impresora"))
+            @foreach (var t in (ViewBag.Tipos as List<TipoEquipo> ?? []))
             {
-              var icon = t.Text switch {
-                "Laptop"   => "bi-laptop",
-                "Teléfono" => "bi-phone",
-                "Tablet"   => "bi-tablet",
-                _          => ""
-              };
-              var sel = t.Value == Model.TipoEquipoId.ToString() ? "selected" : "";
-              <div class="tipo-opt @sel" data-id="@t.Value" data-nombre="@t.Text" onclick="seleccionarTipo(this)">
+              var icon = t.Nombre switch { "Laptop" => "bi-laptop", "Teléfono" => "bi-phone", "Tablet" => "bi-tablet", _ => "" };
+              bool esCustom = string.IsNullOrEmpty(icon);
+              var sel = t.Id == Model.TipoEquipoId ? "selected" : "";
+              <div class="tipo-opt @sel" data-id="@t.Id" data-nombre="@t.Nombre" onclick="seleccionarTipo(this)">
                 @if (!string.IsNullOrEmpty(icon)) { <i class="bi @icon"></i> }
-                @t.Text
+                <span>@t.Nombre</span>
+                @if (esCustom && puedeEliminarTipo) { <span class="tipo-del" onclick="event.stopPropagation();eliminarTipo(@t.Id,this.parentElement)" title="Eliminar tipo">×</span> }
               </div>
             }
+            @if (puedeCrearTipo)
+            {
             <div class="tipo-opt" data-id="nuevo" onclick="mostrarNuevoTipo()">
               <i class="bi bi-plus-circle"></i> Otro tipo...
             </div>
+            }
           </div>
           <div class="nuevo-input-wrap" id="nuevoTipoWrap">
             <input type="text" id="nuevoTipoNombre" class="form-control" placeholder="Nombre del nuevo tipo"/>
@@ -77,6 +84,12 @@
           <label class="form-label">Número de serie</label>
           <input asp-for="NumeroSerie" class="form-control"/>
           <span asp-validation-for="NumeroSerie" class="field-error"></span>
+        </div>
+        <div id="sec-imei" style="display:@(Model.TipoEquipo?.Nombre == "Teléfono" ? "block" : "none")" class="form-group">
+          <label class="form-label">IMEI <span style="color:var(--red-text)">*</span></label>
+          <input asp-for="IMEI" class="form-control" placeholder="Ej: 356938035643809" maxlength="50"/>
+          <span asp-validation-for="IMEI" class="field-error"></span>
+          <div class="input-note">15 dígitos. Puedes marcarlo con *#06# en el teléfono.</div>
         </div>
         <div class="form-group">
           <label class="form-label">Marca</label>
@@ -98,25 +111,70 @@
           <label class="form-label">Garantía hasta</label>
           <input asp-for="FechaGarantia" class="form-control" type="date"/>
         </div>
+      </div>
 
+      <!-- ESPECIFICACIONES TÉCNICAS -->
+      <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+        Especificaciones técnicas
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Memoria RAM</label>
+          <input asp-for="RAM" class="form-control" placeholder="Ej: 16 GB DDR5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Procesador</label>
+          <input asp-for="Procesador" class="form-control" placeholder="Ej: Intel Core Ultra 7"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Almacenamiento</label>
+          <input asp-for="Almacenamiento" class="form-control" placeholder="Ej: 512 GB SSD NVMe"/>
+        </div>
+      </div>
+
+      <!-- PLAN DE DATOS: solo Teléfono -->
+      <div id="sec-plan" style="display:@(esTelefono ? "block" : "none")">
+        <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Plan de datos
+        </div>
+        <input type="hidden" asp-for="PlanDataId" id="planDataId"/>
+        <div class="tipo-grid" id="planGrid">
+          @foreach (var p in (ViewBag.Planes as List<PlanData> ?? []))
+          {
+            bool esFijoPlan = planesFijos.Contains(p.Nombre);
+            var selPlan = p.Id == Model.PlanDataId ? "selected" : "";
+            <div class="tipo-opt @selPlan" data-id="@p.Id" data-nombre="@p.Nombre" onclick="seleccionarPlan(this)">
+              <i class="bi bi-sim"></i>
+              <span>@p.Nombre</span>
+              @if (!esFijoPlan && puedeEliminarPlan) { <span class="tipo-del" onclick="event.stopPropagation();eliminarPlan(@p.Id,this.parentElement)" title="Eliminar plan">×</span> }
+            </div>
+          }
+          @if (puedeCrearPlan)
+          {
+            <div class="tipo-opt" data-id="nuevo-plan" onclick="mostrarNuevoPlan()">
+              <i class="bi bi-plus-circle"></i> Otro plan...
+            </div>
+          }
+        </div>
+        <div class="nuevo-input-wrap" id="nuevoPlanWrap">
+          <input type="text" id="nuevoPlanNombre" class="form-control" placeholder="Nombre del nuevo plan"/>
+          <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoPlan()">Agregar</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarNuevoPlan()">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="form-grid">
         <!-- ACCESORIOS -->
         <div class="form-group span-2">
           <label class="form-label">Accesorios</label>
-          <input type="hidden" name="Accesorios" id="accesoriosHidden" value="@Model.Accesorios"/>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-            @foreach (var acc in new[] { "Cargador", "Funda" })
-            {
-              var activo = accsActuales.Contains(acc);
-              <button type="button" class="btn btn-secondary btn-sm acc-btn @(activo?"acc-activo":"")" 
-                      data-acc="@acc" onclick="toggleAccesorio('@acc', this)"
-                      style="@(activo ? "background:var(--blue-bg);border-color:var(--accent);color:var(--blue-text)" : "")">
-                <i class="bi @(activo ? "bi-check" : "bi-plus")"></i> @acc
-              </button>
-            }
-            <button type="button" class="btn btn-secondary btn-sm" onclick="mostrarNuevoAcc()">
+          <input type="hidden" name="Accesorios" id="accesoriosHidden"/>
+
+          <div id="accContainer" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+            <button type="button" class="btn btn-secondary btn-sm" id="otroBtnAcc" onclick="mostrarNuevoAcc()">
               <i class="bi bi-plus-circle"></i> Otro...
             </button>
           </div>
+
           <div class="nuevo-input-wrap" id="nuevoAccWrap">
             <input type="text" id="nuevoAccNombre" class="form-control" placeholder="Nombre del accesorio"/>
             <button type="button" class="btn btn-primary btn-sm" onclick="agregarNuevoAcc()">Agregar</button>
@@ -137,22 +195,75 @@
 
 <script>
 // ---- TIPO ----
+const TIPOS_FIJOS        = ['Laptop', 'Teléfono', 'Tablet'];
+const ICONOS_TIPOS       = { 'Laptop': 'bi-laptop', 'Teléfono': 'bi-phone', 'Tablet': 'bi-tablet' };
+const PUEDE_ELIMINAR_TIPO = @Html.Raw(puedeEliminarTipo.ToString().ToLower());
+
 function seleccionarTipo(el) {
-  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('tipoId').value = el.dataset.id;
   document.getElementById('nuevoTipoWrap').classList.remove('show');
+  document.getElementById('sec-imei').style.display = el.dataset.nombre === 'Teléfono' ? 'block' : 'none';
+  document.getElementById('sec-plan').style.display = el.dataset.nombre === 'Teléfono' ? 'block' : 'none';
 }
 function mostrarNuevoTipo() {
-  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
-  document.querySelector('[data-id="nuevo"]').classList.add('selected');
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector('#tipoGrid [data-id="nuevo"]').classList.add('selected');
   document.getElementById('nuevoTipoWrap').classList.add('show');
   document.getElementById('nuevoTipoNombre').focus();
 }
 function cancelarNuevoTipo() {
   document.getElementById('nuevoTipoWrap').classList.remove('show');
-  document.querySelector('[data-id="nuevo"]').classList.remove('selected');
+  document.querySelector('#tipoGrid [data-id="nuevo"]').classList.remove('selected');
 }
+
+function crearTipoOpt(id, nombre) {
+  const div = document.createElement('div');
+  div.className = 'tipo-opt';
+  div.dataset.id     = id;
+  div.dataset.nombre = nombre;
+  div.onclick = function() { seleccionarTipo(this); };
+
+  const icono = ICONOS_TIPOS[nombre];
+  if (icono) {
+    const i = document.createElement('i');
+    i.className = `bi ${icono}`;
+    div.appendChild(i);
+  }
+
+  const txt = document.createElement('span');
+  txt.textContent = nombre;
+  div.appendChild(txt);
+
+  if (!TIPOS_FIJOS.includes(nombre) && PUEDE_ELIMINAR_TIPO) {
+    const del = document.createElement('span');
+    del.className   = 'tipo-del';
+    del.title       = 'Eliminar tipo';
+    del.textContent = '×';
+    del.onclick = e => { e.stopPropagation(); eliminarTipo(id, div); };
+    div.appendChild(del);
+  }
+  return div;
+}
+
+async function cargarTipos(tipoSeleccionadoId = null) {
+  const res = await fetch('/Equipos/ListarTipos');
+  if (!res.ok) return;
+  const lista = await res.json();
+  const grid    = document.getElementById('tipoGrid');
+  const nuevoEl = grid.querySelector('[data-id="nuevo"]');
+  lista.forEach(t => {
+    if (grid.querySelector(`[data-id="${t.id}"]`)) return;
+    const div = crearTipoOpt(t.id, t.nombre);
+    if (tipoSeleccionadoId && t.id == tipoSeleccionadoId)
+      div.classList.add('selected');
+    grid.insertBefore(div, nuevoEl);
+  });
+  if (tipoSeleccionadoId)
+    document.getElementById('tipoId').value = tipoSeleccionadoId;
+}
+
 async function agregarNuevoTipo() {
   const nombre = document.getElementById('nuevoTipoNombre').value.trim();
   if (!nombre) return;
@@ -161,37 +272,135 @@ async function agregarNuevoTipo() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nombre)
   });
-  if (!res.ok) return;
+  if (res.status === 403) { alert('No tienes permiso para crear tipos. Contacta a un administrador.'); return; }
+  if (!res.ok) { alert('No se pudo guardar el tipo. Intenta de nuevo.'); return; }
   const data = await res.json();
-  if (!document.querySelector(`[data-id="${data.id}"]`)) {
-    const div = document.createElement('div');
-    div.className = 'tipo-opt';
-    div.dataset.id = data.id;
-    div.dataset.nombre = data.nombre;
-    div.onclick = function() { seleccionarTipo(this); };
-    div.innerHTML = data.nombre;
-    document.getElementById('tipoGrid').insertBefore(div, document.querySelector('[data-id="nuevo"]'));
+  if (!document.querySelector(`#tipoGrid [data-id="${data.id}"]`)) {
+    const div = crearTipoOpt(data.id, data.nombre);
+    document.getElementById('tipoGrid').insertBefore(div, document.querySelector('#tipoGrid [data-id="nuevo"]'));
   }
   document.getElementById('tipoId').value = data.id;
   document.getElementById('nuevoTipoWrap').classList.remove('show');
   document.getElementById('nuevoTipoNombre').value = '';
-  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
-  document.querySelector(`[data-id="${data.id}"]`).classList.add('selected');
+  document.querySelectorAll('#tipoGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector(`#tipoGrid [data-id="${data.id}"]`).classList.add('selected');
+  document.getElementById('sec-imei').style.display = data.nombre === 'Teléfono' ? 'block' : 'none';
+  document.getElementById('sec-plan').style.display = data.nombre === 'Teléfono' ? 'block' : 'none';
 }
-document.getElementById('nuevoTipoNombre').addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();agregarNuevoTipo();} });
+
+async function eliminarTipo(id, el) {
+  if (!confirm('¿Eliminar este tipo de equipo?')) return;
+  const res = await fetch(`/Equipos/EliminarTipo/${id}`, { method: 'DELETE' });
+  if (res.status === 403) { alert('No tienes permiso para eliminar tipos. Contacta a un administrador.'); return; }
+  if (!res.ok) { alert(await res.text()); return; }
+  if (document.getElementById('tipoId').value == id)
+    document.getElementById('tipoId').value = '';
+  el.remove();
+}
+
+document.getElementById('nuevoTipoNombre').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); agregarNuevoTipo(); }
+});
+
+// ---- PLAN DE DATOS ----
+const PLANES_FIJOS        = ['ESP 48', 'ESP 23', 'ESP 15'];
+const PUEDE_ELIMINAR_PLAN = @Html.Raw(puedeEliminarPlan.ToString().ToLower());
+
+function seleccionarPlan(el) {
+  document.querySelectorAll('#planGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('planDataId').value = el.dataset.id;
+  document.getElementById('nuevoPlanWrap').classList.remove('show');
+}
+
+function mostrarNuevoPlan() {
+  document.querySelectorAll('#planGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector('#planGrid [data-id="nuevo-plan"]').classList.add('selected');
+  document.getElementById('nuevoPlanWrap').classList.add('show');
+  document.getElementById('nuevoPlanNombre').focus();
+}
+
+function cancelarNuevoPlan() {
+  document.getElementById('nuevoPlanWrap').classList.remove('show');
+  document.querySelector('#planGrid [data-id="nuevo-plan"]').classList.remove('selected');
+}
+
+function crearPlanOpt(id, nombre) {
+  const div = document.createElement('div');
+  div.className = 'tipo-opt';
+  div.dataset.id     = id;
+  div.dataset.nombre = nombre;
+  div.onclick = function() { seleccionarPlan(this); };
+
+  const icon = document.createElement('i');
+  icon.className = 'bi bi-sim';
+  div.appendChild(icon);
+
+  const txt = document.createElement('span');
+  txt.textContent = nombre;
+  div.appendChild(txt);
+
+  if (!PLANES_FIJOS.includes(nombre) && PUEDE_ELIMINAR_PLAN) {
+    const del = document.createElement('span');
+    del.className   = 'tipo-del';
+    del.title       = 'Eliminar plan';
+    del.textContent = '×';
+    del.onclick = e => { e.stopPropagation(); eliminarPlan(id, div); };
+    div.appendChild(del);
+  }
+  return div;
+}
+
+async function agregarNuevoPlan() {
+  const nombre = document.getElementById('nuevoPlanNombre').value.trim();
+  if (!nombre) return;
+  const res = await fetch('/Equipos/NuevoPlan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nombre)
+  });
+  if (res.status === 403) { alert('No tienes permiso para crear planes. Contacta a un administrador.'); return; }
+  if (!res.ok) { alert('No se pudo guardar el plan. Intenta de nuevo.'); return; }
+  const data = await res.json();
+
+  if (!document.querySelector(`#planGrid [data-id="${data.id}"]`)) {
+    const div = crearPlanOpt(data.id, data.nombre);
+    document.getElementById('planGrid').insertBefore(div, document.querySelector('#planGrid [data-id="nuevo-plan"]'));
+  }
+
+  document.getElementById('planDataId').value = data.id;
+  document.getElementById('nuevoPlanWrap').classList.remove('show');
+  document.getElementById('nuevoPlanNombre').value = '';
+  document.querySelectorAll('#planGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
+  document.querySelector(`#planGrid [data-id="${data.id}"]`).classList.add('selected');
+}
+
+async function eliminarPlan(id, el) {
+  if (!confirm('¿Eliminar este plan de datos?')) return;
+  const res = await fetch(`/Equipos/EliminarPlan/${id}`, { method: 'DELETE' });
+  if (res.status === 403) { alert('No tienes permiso para eliminar planes. Contacta a un administrador.'); return; }
+  if (!res.ok) { alert(await res.text()); return; }
+  if (document.getElementById('planDataId').value == id)
+    document.getElementById('planDataId').value = '';
+  el.remove();
+}
+
+document.getElementById('nuevoPlanNombre').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); agregarNuevoPlan(); }
+});
 
 // ---- ACCESORIOS ----
+const ACCS_FIJOS = ['Cargador', 'Funda'];
 let accesorios = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accsActuales));
 
 function actualizarHidden() {
   document.getElementById('accesoriosHidden').value = accesorios.join(', ');
 }
+
 function renderChips() {
-  const known = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accsConocidos));
   const list = document.getElementById('chipList');
   list.innerHTML = '';
-  const extras = accesorios.filter(a => !known.includes(a));
-  extras.forEach(acc => {
+  accesorios.forEach(acc => {
     const chip = document.createElement('span');
     chip.className = 'chip';
     chip.innerHTML = `${acc} <span class="chip-remove" onclick="quitarAcc('${acc}')">×</span>`;
@@ -199,37 +408,127 @@ function renderChips() {
   });
   document.querySelectorAll('.acc-btn').forEach(btn => {
     const en = accesorios.includes(btn.dataset.acc);
-    btn.style.background = en ? 'var(--blue-bg)' : '';
-    btn.style.borderColor = en ? 'var(--accent)' : '';
-    btn.style.color = en ? 'var(--blue-text)' : '';
-    btn.innerHTML = `<i class="bi ${en ? 'bi-check' : 'bi-plus'}"></i> ${btn.dataset.acc}`;
+    btn.style.background  = en ? 'var(--blue-bg)'   : '';
+    btn.style.borderColor = en ? 'var(--accent)'     : '';
+    btn.style.color       = en ? 'var(--blue-text)'  : '';
+    const icon = btn.querySelector('i.bi');
+    if (icon) icon.className = `bi ${en ? 'bi-check' : 'bi-plus'}`;
   });
   actualizarHidden();
 }
+
 function toggleAccesorio(nombre) {
   if (accesorios.includes(nombre)) accesorios = accesorios.filter(a => a !== nombre);
   else accesorios.push(nombre);
   renderChips();
 }
-function quitarAcc(nombre) { accesorios = accesorios.filter(a => a !== nombre); renderChips(); }
-function mostrarNuevoAcc() { document.getElementById('nuevoAccWrap').classList.add('show'); document.getElementById('nuevoAccNombre').focus(); }
-function cancelarNuevoAcc() { document.getElementById('nuevoAccWrap').classList.remove('show'); document.getElementById('nuevoAccNombre').value = ''; }
-function agregarNuevoAcc() {
-  const nombre = document.getElementById('nuevoAccNombre').value.trim();
-  if (!nombre || accesorios.includes(nombre)) { cancelarNuevoAcc(); return; }
-  accesorios.push(nombre); renderChips(); cancelarNuevoAcc();
+
+function quitarAcc(nombre) {
+  accesorios = accesorios.filter(a => a !== nombre);
+  renderChips();
 }
-document.getElementById('nuevoAccNombre').addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();agregarNuevoAcc();} });
+
+function crearAccBtn(id, nombre, esFijo) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-secondary btn-sm acc-btn';
+  btn.dataset.acc   = nombre;
+  btn.dataset.accId = id;
+  btn.onclick = function() { toggleAccesorio(nombre); };
+
+  const icon = document.createElement('i');
+  icon.className = 'bi bi-plus';
+  btn.appendChild(icon);
+  btn.appendChild(document.createTextNode(' ' + nombre));
+
+  if (!esFijo) {
+    const del = document.createElement('span');
+    del.className = 'chip-remove';
+    del.style.marginLeft = '4px';
+    del.title = 'Eliminar accesorio';
+    del.textContent = '×';
+    del.onclick = e => { e.stopPropagation(); eliminarAccesorio(id, btn); };
+    btn.appendChild(del);
+  }
+  return btn;
+}
+
+async function cargarAccesorios() {
+  const res = await fetch('/Equipos/ListarAccesorios');
+  if (!res.ok) return;
+  const lista = await res.json();
+  const container = document.getElementById('accContainer');
+  const otroBtn   = document.getElementById('otroBtnAcc');
+
+  // Accesorios guardados que no están en la BD (legado): los añadimos como chips sin botón
+  const nombresDb = lista.map(a => a.nombre);
+  accesorios = accesorios.filter(a => {
+    if (!nombresDb.includes(a) && !ACCS_FIJOS.includes(a)) return true; // se mostrará en chip
+    return true;
+  });
+
+  lista.forEach(acc => {
+    if (container.querySelector(`[data-acc-id="${acc.id}"]`)) return;
+    container.insertBefore(crearAccBtn(acc.id, acc.nombre, ACCS_FIJOS.includes(acc.nombre)), otroBtn);
+  });
+
+  renderChips();
+}
+
+async function eliminarAccesorio(id, btnEl) {
+  if (!confirm('¿Eliminar este accesorio de la lista permanentemente?')) return;
+  const res = await fetch(`/Equipos/EliminarAccesorio/${id}`, { method: 'DELETE' });
+  if (!res.ok) { alert(await res.text()); return; }
+  const nombre = btnEl.dataset.acc;
+  accesorios = accesorios.filter(a => a !== nombre);
+  btnEl.remove();
+  renderChips();
+}
+
+function mostrarNuevoAcc() {
+  document.getElementById('nuevoAccWrap').classList.add('show');
+  document.getElementById('nuevoAccNombre').focus();
+}
+function cancelarNuevoAcc() {
+  document.getElementById('nuevoAccWrap').classList.remove('show');
+  document.getElementById('nuevoAccNombre').value = '';
+}
+
+async function agregarNuevoAcc() {
+  const nombre = document.getElementById('nuevoAccNombre').value.trim();
+  if (!nombre) { cancelarNuevoAcc(); return; }
+  const res = await fetch('/Equipos/NuevoAccesorio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nombre)
+  });
+  if (!res.ok) { cancelarNuevoAcc(); return; }
+  const data = await res.json();
+
+  const container = document.getElementById('accContainer');
+  if (!container.querySelector(`[data-acc-id="${data.id}"]`)) {
+    container.insertBefore(
+      crearAccBtn(data.id, data.nombre, ACCS_FIJOS.includes(data.nombre)),
+      document.getElementById('otroBtnAcc')
+    );
+  }
+  if (!accesorios.includes(data.nombre)) accesorios.push(data.nombre);
+  renderChips();
+  cancelarNuevoAcc();
+}
+
+document.getElementById('nuevoAccNombre').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); agregarNuevoAcc(); }
+});
 
 function validar() {
   const tipoId = document.getElementById('tipoId').value;
-  if (!tipoId || tipoId === 'nuevo') {
+  if (!tipoId || tipoId === 'nuevo' || tipoId === '0') {
     document.getElementById('tipoError').textContent = 'Seleccione un tipo de equipo.';
     return false;
   }
   return true;
 }
 
-// Inicializar chips de accesorios personalizados al cargar
-renderChips();
+window.addEventListener('load', cargarAccesorios);
 </script>

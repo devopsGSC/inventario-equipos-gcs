@@ -48,6 +48,17 @@ else if (errores > 0)
   <div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> La carga terminó con algunos errores. Revisa la tabla para corregirlos y volver a cargar solo las filas con problema.</div>
 }
 
+@if (ViewBag.OperacionId != null)
+{
+  <div class="alert alert-success" style="margin-top:16px;font-size:13px">
+    <i class="bi bi-shield-check"></i>
+    Esta operación quedó registrada en el historial de auditoría.
+    <a asp-controller="HistorialMasivo" asp-action="Detalle" asp-route-id="@ViewBag.OperacionId" style="color:var(--accent)">
+      Ver detalle →
+    </a>
+  </div>
+}
+
 <!-- Detalle por fila -->
 <div class="card">
   <div class="card-header"><div class="card-title">Detalle por fila</div></div>

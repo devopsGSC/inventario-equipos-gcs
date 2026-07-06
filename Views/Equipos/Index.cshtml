@@ -7,7 +7,10 @@
     @if (!string.IsNullOrEmpty(ViewBag.Estado as string))
     { <span class="badge badge-bodega" style="font-size:13px;margin-left:8px">@ViewBag.Estado</span> }
   </div>
-  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar equipo</a>
+  @if (await PermisoSvc.TienePermiso(User, "equipos.crear"))
+  {
+    <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar equipo</a>
+  }
 </div>
 
 <div class="card" style="margin-bottom:16px">
@@ -54,16 +57,26 @@
           var garantiaVence = e.FechaGarantia.HasValue &&
               e.FechaGarantia.Value <= DateTime.Today.AddDays(30) &&
               e.FechaGarantia.Value >= DateTime.Today;
+          var garantiaVencida = e.FechaGarantia.HasValue &&
+              e.FechaGarantia.Value < DateTime.Today &&
+              e.Estado != "Baja";
           <tr>
             <td>
               <div style="font-weight:500">@e.NombreEquipo</div>
               <div class="text-muted">@e.Marca — @e.Modelo</div>
             </td>
             <td>@e.TipoEquipo?.Nombre</td>
-            <td class="mono">@e.NumeroSerie</td>
+            <td class="mono">@e.NumeroSerie
+              @if (!string.IsNullOrEmpty(e.IMEI))
+              { <div style="font-size:11px;color:var(--dark-text2)">IMEI: @e.IMEI</div> }
+            </td>
             <td><partial name="_EstadoBadge" model="@e.Estado" /></td>
             <td>
-              @if (e.FechaGarantia.HasValue)
+              @if (garantiaVencida)
+              {
+                <span class="badge badge-baja">Vencida — @e.FechaGarantia!.Value.ToString("dd/MM/yyyy")</span>
+              }
+              else if (e.FechaGarantia.HasValue)
               {
                 <span class="@(garantiaVence ? "badge badge-garantia" : "text-muted")">
                   @(garantiaVence ? "⚠ " : "")@e.FechaGarantia.Value.ToString("dd/MM/yyyy")
@@ -75,7 +88,10 @@
             <td>
               <div class="gap-2">
                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
-                <a asp-action="Edit"    asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                @if (await PermisoSvc.TienePermiso(User, "equipos.editar"))
+                {
+                  <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                }
               </div>
             </td>
           </tr>
