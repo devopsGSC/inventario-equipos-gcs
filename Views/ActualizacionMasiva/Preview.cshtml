@@ -1,0 +1,96 @@
+@model List<InventarioTI.Controllers.EquipoActualizacionPrevio>
+@{
+    ViewData["Title"] = "Previsualización de actualización";
+    int validos     = Model.Count(p => p.EstadoPreview == "Valido");
+    int advertencias= Model.Count(p => p.EstadoPreview == "Advertencia");
+    int sinCambios  = Model.Count(p => p.EstadoPreview == "SinCambios");
+    int errores     = Model.Count(p => p.EstadoPreview == "Error");
+}
+
+<div class="page-header">
+  <div class="page-title">Previsualización de actualización</div>
+  <a asp-action="Index" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Cancelar</a>
+</div>
+
+<div class="stats-grid" style="margin-bottom:20px">
+  <div class="stat-card" style="border-color:#a7f3d0">
+    <div class="stat-label">A actualizar</div>
+    <div class="stat-value" style="color:var(--green-text)">@validos</div>
+  </div>
+  <div class="stat-card" style="border-color:#fde68a">
+    <div class="stat-label">Con advertencias</div>
+    <div class="stat-value" style="color:var(--amber)">@advertencias</div>
+    <div class="stat-sub">se actualizarán igual</div>
+  </div>
+  <div class="stat-card" style="border-color:#e5eaf2">
+    <div class="stat-label">Sin cambios</div>
+    <div class="stat-value" style="color:var(--dark-text2)">@sinCambios</div>
+    <div class="stat-sub">no se modificarán</div>
+  </div>
+  <div class="stat-card" style="border-color:#fecaca">
+    <div class="stat-label">Con errores</div>
+    <div class="stat-value" style="color:var(--red-text)">@errores</div>
+    <div class="stat-sub">no se procesarán</div>
+  </div>
+</div>
+
+@if (validos + advertencias == 0)
+{
+  <div class="alert alert-danger" style="margin-bottom:16px">
+    <i class="bi bi-x-circle-fill"></i> No hay equipos para actualizar. Corrige los errores en el archivo y vuelve a subirlo.
+  </div>
+}
+else
+{
+  <div class="alert alert-success" style="margin-bottom:16px">
+    <i class="bi bi-info-circle-fill"></i>
+    Se actualizarán <strong>@(validos + advertencias) equipo(s)</strong>.
+    @if (sinCambios > 0) { <span>@sinCambios sin cambios serán omitidos.</span> }
+    @if (errores > 0) { <span>@errores tienen errores y no se procesarán.</span> }
+  </div>
+}
+
+<div class="card" style="margin-bottom:20px">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Fila</th><th>Serie</th><th>Nombre actual</th><th>Estado</th><th>Cambios detectados</th></tr>
+      </thead>
+      <tbody>
+        @foreach (var p in Model)
+        {
+          var (rowStyle, badgeCls, icon, label) = p.EstadoPreview switch {
+            "Valido"      => ("", "badge-green",   "bi-check-circle-fill", "Listo"),
+            "Advertencia" => ("background:#FFFBEB", "badge-garantia","bi-exclamation-triangle-fill", "Advertencia"),
+            "SinCambios"  => ("background:#F9FAFB", "badge-bodega", "bi-dash-circle", "Sin cambios"),
+            _             => ("background:#FFF5F5", "badge-baja",   "bi-x-circle-fill", "Error")
+          };
+          <tr style="@rowStyle">
+            <td class="mono text-muted">@p.Fila</td>
+            <td class="mono">@p.NumeroSerie</td>
+            <td style="font-weight:500">@p.NombreActual</td>
+            <td><span class="badge @badgeCls"><i class="bi @icon"></i> @label</span></td>
+            <td style="font-size:12.5px;color:var(--dark-text2)">@p.MensajePreview</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+@if (validos + advertencias > 0)
+{
+  <form asp-action="Confirmar" method="post">
+    @Html.AntiForgeryToken()
+    <div class="gap-2">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg"></i> Confirmar y actualizar @(validos + advertencias) equipo(s)
+      </button>
+      <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+}
+else
+{
+  <a asp-action="Index" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Volver y corregir</a>
+}

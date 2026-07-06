@@ -1,0 +1,285 @@
+@model Periferico
+@using InventarioTI.Models
+@{
+  ViewData["Title"] = "Registrar devolución";
+  var asignacion = ViewBag.Asignacion as EquipoPeriferico;
+}
+
+<div class="page-header">
+  <div>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="text-muted" style="font-size:13px;text-decoration:none">
+      <i class="bi bi-arrow-left"></i> @Model.Marca @Model.Modelo
+    </a>
+    <div class="page-title" style="margin-top:4px">Devolución de periférico</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-body">
+      <form asp-action="Devolver" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="alert alert-warning" style="margin-bottom:20px;font-size:13px">
+          <i class="bi bi-arrow-return-left"></i>
+          Al confirmar, el periférico regresará a estado <strong>Disponible</strong> en el stock.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observaciones <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+          <input type="text" name="observaciones" class="form-control" placeholder="Estado del periférico al devolver..."/>
+        </div>
+
+        <!-- Firma -->
+        <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Firma del colaborador
+        </div>
+        <input type="hidden" name="firmaEmpleado" id="firmaInput"/>
+        <div style="border:1px solid #dde2ec;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:6px">
+          <canvas id="firmaCanvas" style="display:block;width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>
+        </div>
+        <div class="gap-2" style="margin-bottom:20px">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="limpiarFirma()">
+            <i class="bi bi-eraser"></i> Limpiar
+          </button>
+          <span class="text-muted" style="font-size:12px" id="firmaStatus">Sin firma</span>
+        </div>
+
+        <!-- Registro fotográfico -->
+        <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+          Registro fotográfico <span style="font-weight:400;font-size:11px">(opcional — evidencia del estado)</span>
+        </div>
+
+        <div id="dropzoneFotos"
+          style="border:2px dashed #dde2ec;border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--blue-bg)'"
+          ondragleave="this.style.borderColor='#dde2ec';this.style.background=''"
+          ondrop="handleDropFotos(event)">
+          <i class="bi bi-images" style="font-size:32px;color:var(--dark-text2);display:block;margin-bottom:8px"></i>
+          <div style="font-size:13.5px;font-weight:500">Arrastra las fotos aquí</div>
+          <div class="text-muted" style="font-size:12px;margin-top:4px">o elige una opción:</div>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('inputFotos').click()">
+              <i class="bi bi-upload"></i> Seleccionar archivos
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="abrirCamaraFotos()">
+              <i class="bi bi-camera"></i> Tomar foto
+            </button>
+          </div>
+          <div class="text-muted" style="font-size:11px;margin-top:8px">JPG, PNG, WEBP — máx. 10 MB por foto — sin límite de fotos</div>
+        </div>
+        <input type="file" id="inputFotos" accept="image/*" multiple style="display:none" onchange="agregarFotosDesdeInput(this)"/>
+
+        <!-- Cámara -->
+        <div id="sec-camara-fotos" style="display:none;margin-bottom:12px">
+          <div style="background:#000;border-radius:8px;overflow:hidden;margin-bottom:8px;max-height:280px">
+            <video id="videoCamaraFotos" autoplay playsinline style="width:100%;display:block;max-height:280px;object-fit:cover"></video>
+          </div>
+          <canvas id="canvasCamaraFotos" style="display:none"></canvas>
+          <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-primary btn-sm" onclick="capturarDesdeCamaraFotos()">
+              <i class="bi bi-camera-fill"></i> Capturar foto
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="cerrarCamaraFotos()">
+              <i class="bi bi-x"></i> Cerrar cámara
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid de preview -->
+        <div id="gridFotos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px;margin-bottom:8px"></div>
+        <div id="contadorFotos" class="text-muted" style="font-size:12px;margin-bottom:16px"></div>
+
+        <div class="gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> Confirmar devolución
+          </button>
+          <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Panel resumen -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Resumen</div></div>
+    <div class="card-body">
+      <div style="margin-bottom:14px">
+        <div class="form-label">Periférico</div>
+        <div style="font-weight:600">@Model.TipoPeriferico?.Nombre</div>
+        <div class="text-muted">@Model.Marca @Model.Modelo</div>
+        <div class="mono text-muted" style="font-size:11px">@Model.NumeroSerie</div>
+      </div>
+      @if (asignacion?.Empleado != null)
+      {
+        <div style="margin-bottom:14px">
+          <div class="form-label">Devuelve</div>
+          <div style="font-weight:600">@asignacion.Empleado.Nombre</div>
+          <div class="text-muted">@asignacion.Empleado.CodigoEmpleado</div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="form-label">Tipo de movimiento</div>
+          <span class="badge @(asignacion.TipoMovimiento == "Prestamo" ? "badge-prestamo" : "badge-asignado")">
+            @(asignacion.TipoMovimiento == "Prestamo" ? "Préstamo" : "Asignación")
+          </span>
+        </div>
+      }
+      <div>
+        <div class="form-label">Asignado desde</div>
+        <div>@asignacion?.FechaAsignacion.ToString("dd/MM/yyyy")</div>
+        @{
+          var dias = (int)(DateTime.Today - (asignacion?.FechaAsignacion ?? DateTime.Today)).TotalDays;
+        }
+        <div class="text-muted" style="font-size:12px">@dias día(s) en posesión</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('firmaCanvas');
+const ctx    = canvas.getContext('2d');
+let drawing  = false, hasFirma = false;
+function initCanvas() {
+  const rect=canvas.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+}
+window.addEventListener('load', initCanvas);
+window.addEventListener('resize', initCanvas);
+function getPos(e){const r=canvas.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};}
+canvas.addEventListener('mousedown', e=>{drawing=true;ctx.beginPath();const p=getPos(e);ctx.moveTo(p.x,p.y);});
+canvas.addEventListener('mousemove', e=>{if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasFirma=true;document.getElementById('firmaStatus').textContent='✓ Firma capturada';document.getElementById('firmaStatus').style.color='var(--green-text)';});
+canvas.addEventListener('mouseup',   ()=>drawing=false);
+canvas.addEventListener('mouseleave',()=>drawing=false);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;ctx.beginPath();const p=getPos(e);ctx.moveTo(p.x,p.y);},{passive:false});
+canvas.addEventListener('touchmove', e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasFirma=true;},{passive:false});
+canvas.addEventListener('touchend',  ()=>drawing=false);
+function limpiarFirma(){const r=canvas.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);hasFirma=false;document.getElementById('firmaStatus').textContent='Sin firma';document.getElementById('firmaStatus').style.color='';document.getElementById('firmaInput').value='';}
+function prepararFirma(){if(hasFirma)document.getElementById('firmaInput').value=canvas.toDataURL('image/png');}
+
+// ── Registro fotográfico (múltiples imágenes) ────────
+let fotosAgregadas    = []; // Array de { file, previewUrl, descripcion }
+let streamCamaraFotos = null;
+
+async function abrirCamaraFotos() {
+  document.getElementById('sec-camara-fotos').style.display = 'block';
+  if (!streamCamaraFotos) {
+    try {
+      streamCamaraFotos = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      document.getElementById('videoCamaraFotos').srcObject = streamCamaraFotos;
+    } catch(e) {
+      alert('Cámara no disponible.');
+      cerrarCamaraFotos();
+    }
+  }
+}
+function cerrarCamaraFotos() {
+  document.getElementById('sec-camara-fotos').style.display = 'none';
+  if (streamCamaraFotos) { streamCamaraFotos.getTracks().forEach(t => t.stop()); streamCamaraFotos = null; }
+}
+function capturarDesdeCamaraFotos() {
+  const video  = document.getElementById('videoCamaraFotos');
+  const canvas = document.getElementById('canvasCamaraFotos');
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    const file = new File([blob], `foto_camara_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    agregarFotoPeriferico(file);
+  }, 'image/jpeg', 0.88);
+}
+function agregarFotosDesdeInput(input) {
+  Array.from(input.files).forEach(file => agregarFotoPeriferico(file));
+  input.value = '';
+}
+function handleDropFotos(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = '#dde2ec';
+  e.currentTarget.style.background  = '';
+  const files = e.dataTransfer?.files;
+  if (files) Array.from(files).forEach(file => {
+    if (file.type.startsWith('image/')) agregarFotoPeriferico(file);
+  });
+}
+function agregarFotoPeriferico(file) {
+  if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    fotosAgregadas.push({ file, previewUrl: e.target.result, descripcion: '' });
+    renderGridFotos();
+  };
+  reader.readAsDataURL(file);
+}
+function quitarFotoPeriferico(idx) {
+  fotosAgregadas.splice(idx, 1);
+  renderGridFotos();
+}
+function renderGridFotos() {
+  const grid = document.getElementById('gridFotos');
+  grid.innerHTML = '';
+  fotosAgregadas.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;border:1px solid #dde2ec;background:#f9fafb';
+    div.innerHTML = `
+      <img src="${item.previewUrl}" style="width:100%;height:110px;object-fit:cover;display:block"/>
+      <div style="padding:6px">
+        <input type="text" placeholder="Descripción (opcional)"
+               value="${item.descripcion}"
+               onchange="fotosAgregadas[${idx}].descripcion=this.value"
+               style="width:100%;font-size:11px;border:1px solid #dde2ec;border-radius:4px;padding:3px 6px"/>
+      </div>
+      <button type="button" onclick="quitarFotoPeriferico(${idx})"
+              style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+      <div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 6px;border-radius:10px">${idx+1}</div>
+    `;
+    grid.appendChild(div);
+  });
+  const count = fotosAgregadas.length;
+  document.getElementById('contadorFotos').textContent =
+    count === 0 ? '' : `${count} foto${count>1?'s':''} adjunta${count>1?'s':''}`;
+}
+
+async function subirFotosPeriferico(epId) {
+  if (!fotosAgregadas.length) return;
+  const formData = new FormData();
+  fotosAgregadas.forEach(item => {
+    formData.append('imagenes', item.file);
+    formData.append('descripciones', item.descripcion ?? '');
+  });
+  await fetch(`/Perifericos/SubirImagenesPeriferico?epId=${epId}`, {
+    method: 'POST', body: formData
+  });
+}
+
+// ── Envío del formulario vía AJAX ─────────────────────
+document.querySelector('form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  prepararFirma();
+  const fd = new FormData(this);
+  let res;
+  try {
+    res = await fetch(this.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd
+    });
+  } catch (err) {
+    alert('Error de conexión. Intenta de nuevo.');
+    return;
+  }
+  if (!res.ok) {
+    alert('No se pudo registrar la devolución. Verifica los datos.');
+    return;
+  }
+  const data = await res.json();
+  if (data.asignacionId && fotosAgregadas.length) {
+    await subirFotosPeriferico(data.asignacionId);
+  }
+  cerrarCamaraFotos();
+  window.location.href = data.redirectUrl;
+});
+</script>

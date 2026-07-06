@@ -1,0 +1,60 @@
+@{ ViewData["Title"] = "Nuevo usuario"; }
+
+<div class="page-header">
+  <div>
+    <a asp-action="Index" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Usuarios</a>
+    <div class="page-title" style="margin-top:4px">Nuevo usuario</div>
+  </div>
+</div>
+
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    @if (!ViewData.ModelState.IsValid)
+    {
+      <div class="alert alert-danger">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        { <div>@error.ErrorMessage</div> }
+      </div>
+    }
+    <form method="post" enctype="multipart/form-data">
+      @Html.AntiForgeryToken()
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label class="form-label">Nombre completo</label>
+          <input type="text" name="nombreCompleto" class="form-control" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Correo electrónico</label>
+          <input type="email" name="email" class="form-control" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input type="password" name="password" class="form-control" required minlength="8"/>
+          <div class="input-note">Mínimo 8 caracteres, al menos un número.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cargo</label>
+          <input type="text" name="cargo" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select name="rol" class="form-control" required>
+            @foreach (var r in ViewBag.Roles as string[] ?? [])
+            { <option value="@r">@r</option> }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Firma del responsable IT</label>
+        <input type="file" name="firmaIT" class="form-control" accept="image/jpeg,image/png,image/webp"/>
+        <div class="input-note">JPG, PNG o WEBP. Fondo blanco o transparente. Máx. 2 MB.</div>
+      </div>
+
+      <div class="gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear usuario</button>
+        <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>

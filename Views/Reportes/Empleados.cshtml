@@ -1,0 +1,252 @@
+@model List<Empleado>
+@using InventarioTI.Models
+@using InventarioTI.ViewModels
+@{
+    ViewData["Title"] = "Asignaciones por empleado";
+
+    var movsPorEmp  = ViewBag.MovsPorEmp as Dictionary<int, List<Movimiento>>           ?? new Dictionary<int, List<Movimiento>>();
+    var perifsPorEmp= ViewBag.PerifsDir  as Dictionary<int, List<EquipoPeriferico>>     ?? new Dictionary<int, List<EquipoPeriferico>>();
+    var pagInfo     = ViewBag.Paginacion as PaginacionViewModel;
+    var total       = (int)(ViewBag.TotalSinPaginar ?? 0);
+    var deptos      = ViewBag.Departamentos as List<string> ?? new List<string>();
+
+    string buscar          = ViewBag.Buscar           ?? "";
+    string departamento    = ViewBag.Departamento     ?? "";
+    string empleadoId      = ViewBag.EmpleadoId       ?? "";
+    string tipoMovimiento  = ViewBag.TipoMovimiento   ?? "";
+    string fechaAsignDesde = ViewBag.FechaAsignDesde  ?? "";
+    string fechaAsignHasta = ViewBag.FechaAsignHasta  ?? "";
+    bool soloConEquipos    = ViewBag.SoloConEquipos   is bool sce && sce;
+    bool soloSinEquipos    = ViewBag.SoloSinEquipos   is bool sse && sse;
+    bool multiplesEquipos  = ViewBag.MultiplesEquipos is bool me  && me;
+    int? minimoEquipos     = ViewBag.MinimoEquipos    as int?;
+    bool? soloActivos      = ViewBag.SoloActivos      is bool _sa ? _sa : (bool?)null;
+
+    var exportParams = Context.Request.Query
+        .Where(kv => kv.Key != "formato" && kv.Key != "pagina")
+        .Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value.ToString())}");
+    var exportBase   = "/Reportes/Empleados?" + string.Join("&", exportParams);
+}
+
+<style>
+.filtro-chip {
+    display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;
+    border:1.5px solid var(--border);background:var(--surface);
+    font-size:12px;font-weight:500;cursor:pointer;transition:.15s;user-select:none;
+}
+.filtro-chip:hover { border-color:var(--accent); }
+.filtro-chip.chip-active { background:var(--accent);border-color:var(--accent);color:#fff; }
+.emp-header {
+    background:var(--surface-2,#f3f4f6);padding:10px 16px;
+    display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);
+}
+</style>
+
+<div class="page-header">
+  <div>
+    <a asp-action="Index" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Reportes</a>
+    <div class="page-title" style="margin-top:4px">Asignaciones por empleado</div>
+  </div>
+  @if (Model.Any())
+  {
+    <div style="display:flex;gap:8px">
+      <a href="@exportBase&formato=excel" class="btn btn-secondary btn-sm"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+      <a href="@exportBase&formato=csv"   class="btn btn-secondary btn-sm"><i class="bi bi-filetype-csv"></i> CSV</a>
+      <a href="@exportBase&formato=pdf"   class="btn btn-secondary btn-sm"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+    </div>
+  }
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <form method="get" asp-action="Empleados" style="padding:16px 20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div>
+        <label class="form-label">Búsqueda general</label>
+        <input name="buscar" value="@buscar" class="form-control" placeholder="Nombre, código, DUI…" />
+      </div>
+      <div>
+        <label class="form-label">Departamento</label>
+        <select name="departamento" class="form-control">
+          <option value="">Todos los departamentos</option>
+          @foreach (var d in deptos)
+          { <option value="@d" selected="@(departamento == d ? "selected" : null)">@d</option> }
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Empleado específico</label>
+        <select name="empleadoId" class="form-control">
+          <option value="">Todos</option>
+          @foreach (dynamic emp in ViewBag.Empleados ?? new List<object>())
+          {
+            bool sel = empleadoId == emp.Id.ToString();
+            <option value="@emp.Id" selected="@(sel ? "selected" : null)">@emp.Nombre (@emp.CodigoEmpleado)</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Estado del empleado</label>
+        <select name="soloActivos" class="form-control">
+          <option value="">Todos</option>
+          <option value="true"  selected="@(soloActivos == true  ? "selected" : null)">Solo activos</option>
+          <option value="false" selected="@(soloActivos == false ? "selected" : null)">Solo inactivos</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Tipo de movimiento</label>
+        <select name="tipoMovimiento" class="form-control">
+          <option value="">Todos</option>
+          @foreach (var t in new[]{"Asignacion","Prestamo"})
+          { <option value="@t" selected="@(tipoMovimiento == t ? "selected" : null)">@t</option> }
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label class="form-label">Fecha de asignación</label>
+      <div style="display:flex;gap:10px">
+        <input type="date" name="fechaAsignacionDesde" value="@fechaAsignDesde" class="form-control" style="max-width:160px" />
+        <span style="align-self:center;color:var(--text-muted)">—</span>
+        <input type="date" name="fechaAsignacionHasta" value="@fechaAsignHasta" class="form-control" style="max-width:160px" />
+      </div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <span class="form-label" style="margin-bottom:0">Filtros rápidos:</span>
+
+      <label class="filtro-chip @(soloConEquipos ? "chip-active" : "")">
+        <input type="checkbox" name="soloConEquipos" value="true" @(soloConEquipos ? "checked" : "") style="display:none"
+               onchange="this.closest('.filtro-chip').classList.toggle('chip-active',this.checked)" />
+        <i class="bi bi-laptop"></i> Con equipos
+      </label>
+
+      <label class="filtro-chip @(soloSinEquipos ? "chip-active" : "")">
+        <input type="checkbox" name="soloSinEquipos" value="true" @(soloSinEquipos ? "checked" : "") style="display:none"
+               onchange="this.closest('.filtro-chip').classList.toggle('chip-active',this.checked)" />
+        <i class="bi bi-laptop-x"></i> Sin equipos
+      </label>
+
+      <label class="filtro-chip @(multiplesEquipos ? "chip-active" : "")" id="chip-me">
+        <input type="checkbox" name="multiplesEquipos" value="true" @(multiplesEquipos ? "checked" : "") style="display:none"
+               onchange="toggleChipMe(this)" />
+        <i class="bi bi-layers"></i> Múltiples equipos
+      </label>
+      <span id="extra-me" style="display:@(multiplesEquipos?"flex":"none");align-items:center;gap:4px">
+        <span style="font-size:12px;color:var(--text-muted)">mín.</span>
+        <input type="number" name="minimoEquipos" value="@(minimoEquipos?.ToString()??"")" min="2" style="width:60px" class="form-control" placeholder="2" />
+      </span>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
+      <a asp-action="Empleados" class="btn btn-secondary">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+@if (!string.IsNullOrEmpty(buscar) || !string.IsNullOrEmpty(departamento) ||
+     !string.IsNullOrEmpty(empleadoId) || soloActivos.HasValue ||
+     soloConEquipos || soloSinEquipos || multiplesEquipos || !string.IsNullOrEmpty(tipoMovimiento))
+{
+  <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <span style="font-size:12px;color:var(--text-muted)">Filtros activos:</span>
+    @if (!string.IsNullOrEmpty(buscar))     { <span class="badge badge-bodega"><i class="bi bi-search"></i> @buscar</span> }
+    @if (!string.IsNullOrEmpty(departamento)){ <span class="badge badge-bodega">Dpto: @departamento</span> }
+    @if (soloActivos == true)  { <span class="badge badge-green">Solo activos</span> }
+    @if (soloActivos == false) { <span class="badge badge-baja">Solo inactivos</span> }
+    @if (soloConEquipos)   { <span class="badge badge-asignado"><i class="bi bi-laptop"></i> Con equipos</span> }
+    @if (soloSinEquipos)   { <span class="badge badge-bodega"><i class="bi bi-laptop-x"></i> Sin equipos</span> }
+    @if (multiplesEquipos) { <span class="badge badge-prestamo"><i class="bi bi-layers"></i> Múltiples</span> }
+    @if (!string.IsNullOrEmpty(tipoMovimiento)){ <span class="badge badge-bodega">@tipoMovimiento</span> }
+    <span style="font-size:12px;color:var(--text-muted)">— @total empleado(s)</span>
+  </div>
+}
+
+@if (!Model.Any())
+{
+  <div class="card">
+    <div class="empty-state"><i class="bi bi-people"></i>No se encontraron empleados con los filtros aplicados.</div>
+  </div>
+}
+else
+{
+  foreach (var emp in Model)
+  {
+    var movs   = movsPorEmp.GetValueOrDefault(emp.Id)   ?? new List<Movimiento>();
+    var perifs = perifsPorEmp.GetValueOrDefault(emp.Id) ?? new List<EquipoPeriferico>();
+    <div class="card" style="margin-bottom:14px">
+      <div class="emp-header">
+        <div style="flex:1">
+          <a asp-controller="Empleados" asp-action="Details" asp-route-id="@emp.Id"
+             style="font-weight:600;color:var(--accent);text-decoration:none">@emp.Nombre</a>
+          <span class="mono text-muted" style="font-size:12px;margin-left:8px">@emp.CodigoEmpleado</span>
+        </div>
+        <span class="text-muted" style="font-size:12px">@emp.Departamento?.Nombre</span>
+        @if (emp.Activo)
+        { <span class="badge badge-green" style="font-size:11px">Activo</span> }
+        else
+        { <span class="badge badge-baja" style="font-size:11px">Inactivo</span> }
+        <span class="badge badge-asignado" style="font-size:11px">@movs.Count equipo(s)</span>
+      </div>
+
+      @if (!movs.Any() && !perifs.Any())
+      {
+        <div style="padding:14px 20px;color:var(--text-muted);font-size:13px"><i class="bi bi-info-circle"></i> Sin asignaciones activas.</div>
+      }
+      else
+      {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Equipo</th><th>Tipo</th><th>Mov.</th>
+                <th>Desde</th><th>Serie</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var mov in movs)
+              {
+                <tr>
+                  <td>
+                    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@mov.EquipoId"
+                       style="color:var(--accent);text-decoration:none;font-weight:500">@mov.Equipo?.NombreEquipo</a>
+                    <div class="text-muted" style="font-size:11px">@mov.Equipo?.Marca @mov.Equipo?.Modelo</div>
+                  </td>
+                  <td>@mov.Equipo?.TipoEquipo?.Nombre</td>
+                  <td><span class="badge @(mov.TipoMovimiento=="Asignacion"?"badge-asignado":"badge-prestamo")">@mov.TipoMovimiento</span></td>
+                  <td>@mov.FechaInicio.ToString("dd/MM/yyyy")</td>
+                  <td><span class="mono text-muted">@mov.Equipo?.NumeroSerie</span></td>
+                  <td><partial name="_EstadoBadge" model="@(mov.Equipo?.Estado ?? "")" /></td>
+                </tr>
+              }
+              @foreach (var ep in perifs)
+              {
+                <tr style="background:color-mix(in srgb,var(--surface) 60%,transparent)">
+                  <td>
+                    <a asp-controller="Perifericos" asp-action="Details" asp-route-id="@ep.PerifericoId"
+                       style="color:var(--accent);text-decoration:none">@ep.Periferico?.Marca @ep.Periferico?.Modelo</a>
+                  </td>
+                  <td><span class="text-muted">@ep.Periferico?.TipoPeriferico?.Nombre</span> <span class="badge badge-bodega" style="font-size:10px">periférico</span></td>
+                  <td><span class="badge badge-bodega">Directo</span></td>
+                  <td>@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+                  <td><span class="mono text-muted">@ep.Periferico?.NumeroSerie</span></td>
+                  <td><partial name="_EstadoBadge" model="@(ep.Periferico?.Estado ?? "")" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  @if (pagInfo != null && pagInfo.TotalPaginas > 1)
+  { <div style="margin-top:8px"><partial name="_Paginacion" model="pagInfo" /></div> }
+}
+
+<script>
+function toggleChipMe(cb) {
+    cb.closest('.filtro-chip').classList.toggle('chip-active', cb.checked);
+    const extra = document.getElementById('extra-me');
+    if (extra) extra.style.display = cb.checked ? 'flex' : 'none';
+}
+</script>

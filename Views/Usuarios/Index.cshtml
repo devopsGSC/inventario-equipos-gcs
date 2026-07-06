@@ -1,0 +1,50 @@
+@model List<UsuarioListItemViewModel>
+@{ ViewData["Title"] = "Usuarios del sistema"; }
+
+<div class="page-header">
+  <div class="page-title">Usuarios del sistema</div>
+  <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Nuevo usuario</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Cargo</th><th>Rol</th><th>Estado</th><th>Firma IT</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var item in Model)
+        {
+          var u = item.Usuario;
+          <tr>
+            <td style="font-weight:500">@u.NombreCompleto</td>
+            <td class="mono">@u.Email</td>
+            <td>@u.Cargo</td>
+            <td><span class="badge badge-asignado">@item.Rol</span></td>
+            <td>
+              @if (u.Activo) { <span class="badge badge-green">Activo</span> }
+              else { <span class="badge badge-baja">Inactivo</span> }
+            </td>
+            <td>
+              @if (!string.IsNullOrEmpty(u.RutaFirmaIT))
+              { <img src="@u.RutaFirmaIT" style="max-height:28px"/> }
+              else { <span class="text-muted">—</span> }
+            </td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                <form asp-action="ToggleActivo" asp-route-id="@u.Id" method="post"
+                      onsubmit="return confirm('¿@(u.Activo ? "Desactivar" : "Activar") este usuario?')">
+                  @Html.AntiForgeryToken()
+                  <button type="submit" class="btn @(u.Activo ? "btn-danger" : "btn-success") btn-sm">
+                    <i class="bi @(u.Activo ? "bi-x-circle" : "bi-check-circle")"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        }
+        @if (!Model.Any())
+        { <tr><td colspan="7"><div class="empty-state"><i class="bi bi-people"></i>No hay usuarios registrados.</div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+</div>

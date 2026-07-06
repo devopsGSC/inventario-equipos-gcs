@@ -1,0 +1,89 @@
+@{
+  ViewData["Title"] = "Resultado de la actualización";
+  var resultados   = ViewBag.Resultados as List<InventarioTI.Controllers.ResultadoActualizacion> ?? [];
+  int actualizados = ViewBag.Actualizados ?? 0;
+  int omitidos     = ViewBag.Omitidos ?? 0;
+  int errores      = ViewBag.Errores ?? 0;
+  int total        = actualizados + omitidos + errores;
+}
+
+<div class="page-header">
+  <div class="page-title">Resultado de la actualización</div>
+  <div class="gap-2">
+    <a asp-action="Index" class="btn btn-secondary"><i class="bi bi-upload"></i> Nueva actualización</a>
+    <a asp-controller="Equipos" asp-action="Index" class="btn btn-primary"><i class="bi bi-laptop"></i> Ver equipos</a>
+  </div>
+</div>
+
+<!-- Resumen -->
+<div class="stats-grid" style="margin-bottom:24px">
+  <div class="stat-card accent">
+    <div class="stat-label">Total procesados</div>
+    <div class="stat-value">@total</div>
+    <div class="stat-sub">filas en el archivo</div>
+  </div>
+  <div class="stat-card" style="border-color:#a7f3d0">
+    <div class="stat-label">Actualizados</div>
+    <div class="stat-value" style="color:var(--green-text)">@actualizados</div>
+    <div class="stat-sub">equipos modificados</div>
+  </div>
+  <div class="stat-card" style="border-color:#e5eaf2">
+    <div class="stat-label">Omitidos</div>
+    <div class="stat-value" style="color:var(--dark-text2)">@omitidos</div>
+    <div class="stat-sub">sin cambios detectados</div>
+  </div>
+  <div class="stat-card" style="border-color:#fecaca">
+    <div class="stat-label">Con errores</div>
+    <div class="stat-value" style="color:var(--red-text)">@errores</div>
+    <div class="stat-sub">filas no procesadas</div>
+  </div>
+</div>
+
+@if (actualizados == total)
+{
+  <div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> ¡Actualización completada! Todos los equipos fueron actualizados correctamente.</div>
+}
+else if (errores > 0)
+{
+  <div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> La actualización terminó con algunos errores. Revisa la tabla para corregirlos y volver a cargar solo las filas con problema.</div>
+}
+
+@if (ViewBag.OperacionId != null)
+{
+  <div class="alert alert-success" style="margin-top:16px;font-size:13px">
+    <i class="bi bi-shield-check"></i>
+    Esta operación quedó registrada en el historial de auditoría.
+    <a asp-controller="HistorialMasivo" asp-action="Detalle" asp-route-id="@ViewBag.OperacionId" style="color:var(--accent)">
+      Ver detalle →
+    </a>
+  </div>
+}
+
+<!-- Detalle por fila -->
+<div class="card">
+  <div class="card-header"><div class="card-title">Detalle por fila</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Fila</th><th>Serie</th><th>Equipo</th><th>Estado</th><th>Detalle</th></tr>
+      </thead>
+      <tbody>
+        @foreach (var r in resultados)
+        {
+          var (rowBg, badgeCls, icon) = r.Estado switch {
+            "OK"      => ("", "badge-green",   "bi-check-circle-fill"),
+            "Omitido" => ("background:#F9FAFB", "badge-bodega","bi-dash-circle"),
+            _         => ("background:#fff5f5", "badge-baja","bi-x-circle-fill")
+          };
+          <tr style="@rowBg">
+            <td class="mono text-muted">@r.Fila</td>
+            <td class="mono">@r.NumeroSerie</td>
+            <td style="font-weight:500">@r.NombreEquipo</td>
+            <td><span class="badge @badgeCls"><i class="bi @icon"></i> @r.Estado</span></td>
+            <td style="font-size:13px;color:var(--dark-text2)">@r.Mensaje</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,85 @@
+@model OperacionMasiva
+@{ ViewData["Title"] = "Detalle de operación"; }
+
+<div class="page-header">
+  <div>
+    <a asp-action="Index" class="text-muted" style="font-size:13px;text-decoration:none">
+      <i class="bi bi-arrow-left"></i> Historial
+    </a>
+    <div class="page-title" style="margin-top:4px">
+      @(Model.TipoOperacion == "CargaMasiva" ? "Carga masiva" : "Actualización masiva")
+      — @Model.FechaOperacion.ToString("dd/MM/yyyy HH:mm")
+    </div>
+  </div>
+  <a asp-action="ExportarExcel" asp-route-id="@Model.Id" class="btn btn-secondary">
+    <i class="bi bi-file-earmark-excel"></i> Exportar auditoría
+  </a>
+</div>
+
+<!-- Resumen de la operación -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+  <div class="stat-card accent">
+    <div class="stat-label">Total procesados</div>
+    <div class="stat-value">@Model.TotalProcesados</div>
+  </div>
+  <div class="stat-card" style="border-color:#a7f3d0">
+    <div class="stat-label">Exitosos</div>
+    <div class="stat-value" style="color:var(--green-text)">@Model.TotalExitosos</div>
+  </div>
+  <div class="stat-card" style="border-color:#fde68a">
+    <div class="stat-label">Omitidos</div>
+    <div class="stat-value" style="color:var(--amber)">@Model.TotalOmitidos</div>
+  </div>
+  <div class="stat-card" style="border-color:#fecaca">
+    <div class="stat-label">Errores</div>
+    <div class="stat-value" style="color:var(--red-text)">@Model.TotalErrores</div>
+  </div>
+</div>
+
+<!-- Info de la operación -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div><div class="form-label">Usuario</div><div style="font-weight:500">@Model.UsuarioNombre</div></div>
+      <div><div class="form-label">Archivo</div><div style="font-size:13px">@Model.NombreArchivo</div></div>
+      <div><div class="form-label">Fecha y hora</div><div style="font-size:13px">@Model.FechaOperacion.ToString("dd/MM/yyyy HH:mm:ss")</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Detalle por equipo -->
+<div class="card">
+  <div class="card-header"><div class="card-title">Detalle por equipo</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fila</th><th>Serie</th><th>Equipo</th><th>Estado</th><th>Detalle</th>
+          @if(Model.TipoOperacion == "ActualizacionMasiva")
+          { <th>Campos modificados</th> }
+        </tr>
+      </thead>
+      <tbody>
+        @foreach(var d in Model.Detalles.OrderBy(d => d.FilaExcel))
+        {
+          var (badgeCls, icon) = d.Estado switch {
+            "OK"         => ("badge-green",    "bi-check-circle-fill"),
+            "Omitido"    => ("badge-garantia", "bi-skip-forward-fill"),
+            "SinCambios" => ("badge-bodega",   "bi-dash-circle"),
+            "Advertencia"=> ("badge-prestamo", "bi-exclamation-triangle-fill"),
+            _            => ("badge-baja",     "bi-x-circle-fill")
+          };
+          <tr style="@(d.Estado=="Error"?"background:#fff5f5":"")">
+            <td class="mono text-muted">@d.FilaExcel</td>
+            <td class="mono">@d.NumeroSerie</td>
+            <td style="font-size:13px">@(d.NombreEquipo ?? "—")</td>
+            <td><span class="badge @badgeCls"><i class="bi @icon"></i> @d.Estado</span></td>
+            <td style="font-size:12.5px;color:var(--dark-text2)">@d.Mensaje</td>
+            @if(Model.TipoOperacion == "ActualizacionMasiva")
+            { <td style="font-size:12px;color:var(--dark-text2)">@(d.CamposModificados ?? "—")</td> }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

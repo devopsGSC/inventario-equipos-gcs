@@ -1,0 +1,97 @@
+@model List<OperacionMasiva>
+@{ ViewData["Title"] = "Historial de operaciones masivas"; }
+
+<div class="page-header">
+  <div class="page-title">Historial de operaciones masivas</div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="card" style="padding:16px;margin-bottom:16px">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div>
+      <div class="form-label">Tipo</div>
+      <select name="tipo" class="form-control" style="width:180px">
+        <option value="">Todos</option>
+        <option value="CargaMasiva"       selected="@(ViewBag.Tipo=="CargaMasiva"?"selected":null)">Carga masiva</option>
+        <option value="ActualizacionMasiva" selected="@(ViewBag.Tipo=="ActualizacionMasiva"?"selected":null)">Actualización masiva</option>
+      </select>
+    </div>
+    <div>
+      <div class="form-label">Usuario</div>
+      <select name="usuario" class="form-control" style="width:180px">
+        <option value="">Todos</option>
+        @foreach(var u in ViewBag.Usuarios as List<string> ?? [])
+        { <option value="@u" selected="@(ViewBag.Usuario==u?"selected":null)">@u</option> }
+      </select>
+    </div>
+    <div>
+      <div class="form-label">Desde</div>
+      <input type="date" name="fechaDesde" class="form-control" value="@ViewBag.FechaDesde"/>
+    </div>
+    <div>
+      <div class="form-label">Hasta</div>
+      <input type="date" name="fechaHasta" class="form-control" value="@ViewBag.FechaHasta"/>
+    </div>
+    <button type="submit" class="btn btn-secondary">Filtrar</button>
+    <a asp-action="Index" class="btn btn-secondary">Limpiar</a>
+  </div>
+</form>
+
+<!-- Tabla de operaciones -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Tipo</th><th>Usuario</th><th>Archivo</th>
+          <th style="text-align:center">Total</th>
+          <th style="text-align:center">Exitosos</th>
+          <th style="text-align:center">Omitidos</th>
+          <th style="text-align:center">Errores</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach(var op in Model)
+        {
+          var tipoBadge = op.TipoOperacion == "CargaMasiva" ? "badge-asignado" : "badge-garantia";
+          var tipoLabel = op.TipoOperacion == "CargaMasiva" ? "Carga" : "Actualización";
+          <tr>
+            <td>
+              <div style="font-weight:500">@op.FechaOperacion.ToString("dd/MM/yyyy")</div>
+              <div class="text-muted" style="font-size:11.5px">@op.FechaOperacion.ToString("HH:mm")</div>
+            </td>
+            <td><span class="badge @tipoBadge">@tipoLabel</span></td>
+            <td style="font-size:13px">@op.UsuarioNombre</td>
+            <td class="text-muted" style="font-size:12.5px">@op.NombreArchivo</td>
+            <td style="text-align:center;font-weight:500">@op.TotalProcesados</td>
+            <td style="text-align:center;color:var(--green-text);font-weight:500">@op.TotalExitosos</td>
+            <td style="text-align:center;color:var(--amber)">@op.TotalOmitidos</td>
+            <td style="text-align:center;color:var(--red-text)">
+              @if(op.TotalErrores > 0)
+              { <span style="font-weight:500">@op.TotalErrores</span> }
+              else { <span class="text-muted">0</span> }
+            </td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Detalle" asp-route-id="@op.Id" class="btn btn-secondary btn-sm">
+                  <i class="bi bi-eye"></i> Ver
+                </a>
+                <a asp-action="ExportarExcel" asp-route-id="@op.Id" class="btn btn-secondary btn-sm">
+                  <i class="bi bi-file-earmark-excel"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        }
+        @if(!Model.Any())
+        {
+          <tr><td colspan="9">
+            <div class="empty-state"><i class="bi bi-clock-history"></i> Sin operaciones registradas.</div>
+          </td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
+</div>

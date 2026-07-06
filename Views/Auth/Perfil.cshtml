@@ -1,0 +1,65 @@
+@model InventarioTI.Models.UsuarioApp
+@{ ViewData["Title"] = "Mi perfil"; }
+
+<div class="page-header">
+  <div class="page-title">Mi perfil</div>
+</div>
+
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <form asp-action="Perfil" method="post" enctype="multipart/form-data">
+      @Html.AntiForgeryToken()
+
+      <div class="form-group">
+        <label class="form-label">Correo electrónico</label>
+        <input type="text" class="form-control" value="@Model.Email" disabled/>
+        <div class="input-note">El correo no se puede modificar.</div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre completo</label>
+          <input type="text" name="nombreCompleto" class="form-control" value="@Model.NombreCompleto" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cargo</label>
+          <input type="text" name="cargo" class="form-control" value="@Model.Cargo"/>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Contraseña actual</label>
+          <input type="password" name="passwordActual" class="form-control"/>
+          <div class="input-note">Requerida solo si vas a cambiar la contraseña.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nueva contraseña</label>
+          <input type="password" name="passwordNueva" class="form-control"/>
+          <div class="input-note">Déjalo en blanco para no cambiarla.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label class="form-label">Firma del responsable IT</label>
+        @if (!string.IsNullOrEmpty(Model.RutaFirmaIT))
+        {
+          <div style="margin-bottom:10px">
+            <img src="@Model.RutaFirmaIT" style="max-height:60px;border:1px solid #dde2ec;border-radius:6px;padding:4px"/>
+            <div class="text-muted" style="font-size:12px;margin-top:4px">Firma actual — sube otra para reemplazarla</div>
+          </div>
+        }
+        <input type="file" name="firmaIT" class="form-control" accept="image/jpeg,image/png,image/webp"/>
+        <div class="input-note">JPG, PNG o WEBP. Fondo blanco o transparente. Esta firma se estampa automáticamente en las cartas generadas.</div>
+      </div>
+
+      <div class="gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>

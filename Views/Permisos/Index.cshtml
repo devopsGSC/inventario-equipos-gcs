@@ -1,0 +1,122 @@
+@{ ViewData["Title"] = "Gestión de permisos"; }
+
+<div class="page-header">
+  <div class="page-title">Permisos por rol</div>
+  <div class="text-muted" style="font-size:13px">Los cambios se aplican inmediatamente sin reiniciar el sistema.</div>
+</div>
+
+@{
+  var modulos      = ViewBag.Modulos as List<InventarioTI.Models.Modulo> ?? [];
+  var roles        = ViewBag.Roles   as string[] ?? [];
+  var permsDict    = ViewBag.PermisosDict as Dictionary<string,bool> ?? new();
+  bool tienePermiso(string rol, string clave) =>
+      permsDict.TryGetValue($"{rol}::{clave}", out bool v) && v;
+}
+
+<div class="card">
+  <div class="table-wrap" style="overflow-x:auto">
+    <table style="min-width:700px">
+      <thead>
+        <tr>
+          <th style="width:50%">Módulo / Acción</th>
+          @foreach (var rol in roles)
+          {
+            <th style="text-align:center;width:16.6%">
+              <div style="font-size:13px;font-weight:500">@rol</div>
+              <div class="text-muted" style="font-size:11px">
+                @(rol == "Administrador" ? "Acceso total" :
+                  rol == "TecnicoIT"     ? "Operativo" : "Solo lectura")
+              </div>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var modulo in modulos)
+        {
+          <!-- Fila de sección del módulo -->
+          <tr style="background:var(--surface2)">
+            <td colspan="4" style="padding:10px 16px">
+              <div style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px">
+                <i class="bi @modulo.Icono" style="color:var(--accent)"></i>
+                @modulo.Nombre
+              </div>
+            </td>
+          </tr>
+          <!-- Filas de acciones del módulo -->
+          @foreach (var accion in modulo.Acciones)
+          {
+            <tr>
+              <td style="padding-left:32px;font-size:13px">
+                @accion.Nombre
+                <div class="mono text-muted" style="font-size:10px">@accion.Clave</div>
+              </td>
+              @foreach (var rol in roles)
+              {
+                bool esCritico = rol == "Administrador" &&
+                    (accion.Clave == "usuarios.permisos" || accion.Clave == "usuarios.ver");
+                bool activo = tienePermiso(rol, accion.Clave);
+                <td style="text-align:center">
+                  <label class="toggle-switch @(esCritico ? "toggle-bloqueado" : "")"
+                         title="@(esCritico ? "No modificable" : "")">
+                    <input type="checkbox"
+                           data-rol="@rol"
+                           data-clave="@accion.Clave"
+                           checked="@(activo ? "checked" : null)"
+                           disabled="@(esCritico ? "disabled" : null)"
+                           onchange="togglePermiso(this)"/>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </td>
+              }
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.toggle-switch { position:relative; display:inline-block; width:38px; height:22px; cursor:pointer; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:#dde2ec; border-radius:22px; transition:.2s; }
+.toggle-slider:before { content:""; position:absolute; width:16px; height:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
+input:checked + .toggle-slider { background:var(--accent,#3B82F6); }
+input:checked + .toggle-slider:before { transform:translateX(16px); }
+input:disabled + .toggle-slider { opacity:.5; cursor:not-allowed; }
+.toggle-bloqueado { cursor:not-allowed; }
+.guardando { opacity:.6; pointer-events:none; }
+</style>
+
+<script>
+async function togglePermiso(checkbox) {
+  const rol    = checkbox.dataset.rol;
+  const clave  = checkbox.dataset.clave;
+  const valor  = checkbox.checked;
+  const fila   = checkbox.closest('tr');
+  fila.classList.add('guardando');
+
+  try {
+    const res = await fetch('/Permisos/TogglePermiso', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rolNombre: rol, accionClave: clave, permitido: valor })
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      alert('No se pudo modificar: ' + msg);
+      checkbox.checked = !valor; // revertir
+    } else {
+      // Feedback visual breve
+      fila.style.background = valor ? '#f0fdf4' : '#fff5f5';
+      setTimeout(() => fila.style.background = '', 800);
+    }
+  } catch(e) {
+    alert('Error de conexión.');
+    checkbox.checked = !valor;
+  } finally {
+    fila.classList.remove('guardando');
+  }
+}
+</script>
