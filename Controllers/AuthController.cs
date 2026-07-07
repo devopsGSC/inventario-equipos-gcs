@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using InventarioTI.Models;
+using InventarioTI.Services;
+using InventarioTI.ViewModels;
 
 namespace InventarioTI.Controllers;
 
@@ -9,8 +11,9 @@ public class AuthController : Controller
 {
     private readonly SignInManager<UsuarioApp> _signIn;
     private readonly UserManager<UsuarioApp>  _users;
-    public AuthController(SignInManager<UsuarioApp> signIn, UserManager<UsuarioApp> users)
-    { _signIn = signIn; _users = users; }
+    private readonly EmailService _email;
+    public AuthController(SignInManager<UsuarioApp> signIn, UserManager<UsuarioApp> users, EmailService email)
+    { _signIn = signIn; _users = users; _email = email; }
 
     [AllowAnonymous, HttpGet] public IActionResult Login(string? returnUrl = null)
     {
@@ -49,6 +52,66 @@ public class AuthController : Controller
 
     [AllowAnonymous]
     public IActionResult AccesoDenegado() => View();
+
+    [AllowAnonymous, HttpGet]
+    public IActionResult ForgotPassword() => View();
+
+    [AllowAnonymous, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(string email)
+    {
+        var user = await _users.FindByEmailAsync(email);
+        if (user != null && user.Activo)
+        {
+            var token = await _users.GeneratePasswordResetTokenAsync(user);
+            var callbackUrl = Url.Action(nameof(ResetPassword), "Auth",
+                new { userId = user.Id, token }, protocol: Request.Scheme);
+
+            var cuerpo = EmailService.PlantillaBoton(
+                $"Hola {user.NombreCompleto},",
+                "Recibimos una solicitud para restablecer tu contraseña en InventarioTI. " +
+                "Haz clic en el botón de abajo para crear una nueva. Si tú no solicitaste este cambio, puedes ignorar este correo.",
+                callbackUrl!, "Crear nueva contraseña");
+
+            await _email.EnviarAsync(user.Email!, "Restablecer contraseña — InventarioTI", cuerpo, incluirLogo: true);
+        }
+        // Se muestra siempre la misma confirmación, exista o no el correo,
+        // para no revelar si una cuenta está registrada en el sistema.
+        return RedirectToAction(nameof(ForgotPasswordConfirmation));
+    }
+
+    [AllowAnonymous]
+    public IActionResult ForgotPasswordConfirmation() => View();
+
+    [AllowAnonymous, HttpGet]
+    public IActionResult ResetPassword(string? userId, string? token)
+    {
+        if (userId == null || token == null) return RedirectToAction(nameof(Login));
+        return View(new ResetPasswordViewModel { UserId = userId, Token = token });
+    }
+
+    [AllowAnonymous, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (model.Password != model.ConfirmPassword)
+        {
+            ModelState.AddModelError("", "Las contraseñas no coinciden.");
+            return View(model);
+        }
+
+        var user = await _users.FindByIdAsync(model.UserId);
+        if (user == null) return RedirectToAction(nameof(ResetPasswordConfirmation));
+
+        var result = await _users.ResetPasswordAsync(user, model.Token, model.Password);
+        if (!result.Succeeded)
+        {
+            foreach (var err in result.Errors) ModelState.AddModelError("", err.Description);
+            return View(model);
+        }
+        return RedirectToAction(nameof(ResetPasswordConfirmation));
+    }
+
+    [AllowAnonymous]
+    public IActionResult ResetPasswordConfirmation() => View();
 
     public async Task<IActionResult> Perfil()
     {
