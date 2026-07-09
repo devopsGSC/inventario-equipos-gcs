@@ -8,6 +8,8 @@ using InventarioTI.Data;
 using InventarioTI.Models;
 using InventarioTI.Services;
 
+DotNetEnv.Env.Load("/etc/inventariotecnologia.env");
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews(options =>
     {
@@ -41,8 +43,15 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
     options.SupportedUICultures = supportedCultures;
 });
 
+var connectionString =
+    $"Server={Environment.GetEnvironmentVariable("DB_SERVER")};" +
+    $"Database={Environment.GetEnvironmentVariable("DB_NAME")};" +
+    $"User Id={Environment.GetEnvironmentVariable("DB_USER")};" +
+    $"Password={Environment.GetEnvironmentVariable("DB_PASSWORD")};" +
+    $"TrustServerCertificate=True;";
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    opt.UseSqlServer(connectionString));
 builder.Services.AddScoped<PdfService>();
 builder.Services.AddScoped<ExcelService>();
 builder.Services.AddScoped<EmailService>();
@@ -72,6 +81,18 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddScoped<SeedService>();
+
+builder.Configuration["Email:From"] =
+    Environment.GetEnvironmentVariable("EMAIL_FROM");
+
+builder.Configuration["Email:AppPassword"] =
+    Environment.GetEnvironmentVariable("EMAIL_APP_PASSWORD");
+
+builder.Configuration["Email:SmtpHost"] =
+    Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
+
+builder.Configuration["Email:SmtpPort"] =
+    Environment.GetEnvironmentVariable("EMAIL_SMTP_PORT");
 
 var app = builder.Build();
 
