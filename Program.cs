@@ -8,8 +8,6 @@ using InventarioTI.Data;
 using InventarioTI.Models;
 using InventarioTI.Services;
 
-DotNetEnv.Env.Load("/etc/inventariotecnologia.env");
-
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews(options =>
     {
