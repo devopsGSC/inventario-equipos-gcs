@@ -1,5 +1,8 @@
 @model InventarioTI.Models.UsuarioApp
-@{ ViewData["Title"] = "Mi perfil"; }
+@{
+    ViewData["Title"] = "Mi perfil";
+    var puedeEditarCargo = await PermisoSvc.TienePermiso(User, "usuarios.editar");
+}
 
 <div class="page-header">
   <div class="page-title">Mi perfil</div>
@@ -23,7 +26,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">Cargo</label>
-          <input type="text" name="cargo" class="form-control" value="@Model.Cargo"/>
+          <input type="text" name="cargo" class="form-control" value="@Model.Cargo" disabled="@(puedeEditarCargo ? null : "disabled")"/>
+          @if (!puedeEditarCargo)
+          {
+            <div class="input-note">Solo un administrador puede modificar tu cargo.</div>
+          }
         </div>
       </div>
 

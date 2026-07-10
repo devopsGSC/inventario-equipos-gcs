@@ -12,8 +12,9 @@ public class AuthController : Controller
     private readonly SignInManager<UsuarioApp> _signIn;
     private readonly UserManager<UsuarioApp>  _users;
     private readonly EmailService _email;
-    public AuthController(SignInManager<UsuarioApp> signIn, UserManager<UsuarioApp> users, EmailService email)
-    { _signIn = signIn; _users = users; _email = email; }
+    private readonly PermisoService _permisos;
+    public AuthController(SignInManager<UsuarioApp> signIn, UserManager<UsuarioApp> users, EmailService email, PermisoService permisos)
+    { _signIn = signIn; _users = users; _email = email; _permisos = permisos; }
 
     [AllowAnonymous, HttpGet] public IActionResult Login(string? returnUrl = null)
     {
@@ -128,7 +129,8 @@ public class AuthController : Controller
         if (user == null) return NotFound();
 
         user.NombreCompleto = nombreCompleto;
-        user.Cargo          = cargo;
+        if (await _permisos.TienePermiso(User, "usuarios.editar"))
+            user.Cargo = cargo;
 
         if (!string.IsNullOrWhiteSpace(passwordNueva))
         {
