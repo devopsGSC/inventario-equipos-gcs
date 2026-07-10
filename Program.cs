@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -80,6 +81,16 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddScoped<SeedService>();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Apache corre en el mismo servidor (proxy reverso local); se limpian
+    // KnownNetworks/KnownProxies porque por defecto solo se confía en loopback
+    // exacto y eso a veces no coincide con la IP que reporta Apache.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Configuration["Email:From"] =
     Environment.GetEnvironmentVariable("EMAIL_FROM");
 
@@ -103,6 +114,11 @@ using (var scope = app.Services.CreateScope())
 
 // Mostrar errores detallados siempre (quitar en producción)
 app.UseDeveloperExceptionPage();
+
+// Debe ir antes que cualquier middleware que dependa del esquema/host
+// (redirects, cookies, generación de URLs), para que ASP.NET Core sepa
+// que la petición original llegó por HTTPS aunque Apache la reenvíe por HTTP.
+app.UseForwardedHeaders();
 
 app.UseRequestLocalization();
 app.UseStaticFiles();
