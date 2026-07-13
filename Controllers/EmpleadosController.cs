@@ -31,7 +31,7 @@ public class EmpleadosController : BaseController
 
         var total = await query.CountAsync();
         var empleados = await query
-            .OrderBy(e => e.Nombre)
+            .OrderByDescending(e => e.CodigoEmpleado)
             .Skip((pagina - 1) * tamPagina)
             .Take(tamPagina)
             .ToListAsync();
@@ -80,8 +80,22 @@ public class EmpleadosController : BaseController
         ViewBag.HistorialPerifericos = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Equipo)
-            .Where(ep => ep.EmpleadoId == id)
+            .Where(ep => ep.EmpleadoId == id && ep.TipoMovimiento != "Devolucion")
             .OrderByDescending(ep => ep.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.EmpleadoId == id && la.FechaDesvinculacion == null)
+            .OrderByDescending(la => la.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.HistorialLicencias = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.EmpleadoId == id && la.TipoMovimiento != "Devolucion")
+            .OrderByDescending(la => la.FechaAsignacion)
             .ToListAsync();
 
         var totalHistorial = await _db.Movimientos.CountAsync(m => m.EmpleadoId == id);

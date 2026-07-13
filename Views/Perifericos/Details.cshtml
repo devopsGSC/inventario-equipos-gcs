@@ -249,123 +249,82 @@
 }
 <div class="card" style="margin-top:20px">
   <div class="card-header">
-    <div class="card-title">Historial de asignaciones</div>
+    <div class="card-title">Historial de movimientos</div>
     <span class="badge badge-asignado">@((ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel)?.TotalRegistros ?? 0) registros</span>
   </div>
-  @if (historial.Any())
-  {
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Asignado a</th>
-            <th>Vía equipo</th>
-            <th>Desde</th>
-            <th>Hasta</th>
-            <th>Duración</th>
-            <th>Foto</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach (var ep in historial)
-          {
-            var esActivo  = !ep.FechaDesvinculacion.HasValue;
-            var esDirecto = ep.EquipoId == null;
-            var dias      = ep.FechaDesvinculacion.HasValue
-              ? (int)(ep.FechaDesvinculacion.Value - ep.FechaAsignacion).TotalDays
-              : (int)(DateTime.Today - ep.FechaAsignacion).TotalDays;
-            <tr>
-              <td>
-                @if (esDirecto)
-                {
-                  <span class="badge badge-asignado">Directo</span>
-                }
-                else
-                {
-                  <span class="badge badge-bodega">Vía equipo</span>
-                }
-              </td>
-              <td>
+  <div class="card-body">
+    @if (!historial.Any())
+    {
+      <div class="empty-state"><i class="bi bi-clock-history"></i>Sin movimientos registrados.</div>
+    }
+    else
+    {
+      <ul class="timeline">
+        @foreach (var ep in historial)
+        {
+          var dotBg    = ep.TipoMovimiento switch { "Asignacion"=>"var(--blue-bg)","Prestamo"=>"var(--purple-bg)","Devolucion"=>"var(--green-bg)",_=>"var(--gray-bg)" };
+          var dotColor = ep.TipoMovimiento switch { "Asignacion"=>"var(--blue-text)","Prestamo"=>"var(--purple-text)","Devolucion"=>"var(--green-text)",_=>"var(--gray-text)" };
+          var icon     = ep.TipoMovimiento switch { "Asignacion"=>"bi-person-check-fill","Prestamo"=>"bi-arrow-left-right","Devolucion"=>"bi-arrow-return-left",_=>"bi-circle" };
+          var label    = ep.TipoMovimiento switch { "Asignacion"=>"Asignación","Prestamo"=>"Préstamo","Devolucion"=>"Devolución",_=>ep.TipoMovimiento };
+          var esDirecto = ep.EquipoId == null;
+          <li class="timeline-item">
+            <div class="timeline-dot" style="background:@dotBg;color:@dotColor"><i class="bi @icon"></i></div>
+            <div class="timeline-body">
+              <div class="timeline-title">
+                @label
+                @if (esDirecto) { <span class="badge badge-asignado" style="font-size:10px;margin-left:6px">Directo</span> }
+                else { <span class="badge badge-bodega" style="font-size:10px;margin-left:6px">Vía equipo</span> }
+              </div>
+              <div class="timeline-meta">
+                @ep.FechaAsignacion.ToString("dd/MM/yyyy HH:mm")
                 @if (ep.Empleado != null || ep.MiembroExterno != null || ep.Grupo != null)
                 {
-                  <div style="font-weight:500;font-size:13px">@ep.NombreResponsable</div>
-                  <div class="text-muted">@(ep.Empleado?.CodigoEmpleado ?? ep.MiembroExterno?.Organizacion ?? ep.Grupo?.Descripcion)</div>
+                  <span> — @ep.NombreResponsable@(ep.Empleado != null ? $" ({ep.Empleado.CodigoEmpleado})" : "")</span>
                 }
-                else
-                {
-                  <span class="text-muted">—</span>
-                }
-              </td>
-              <td>
                 @if (ep.Equipo != null)
                 {
-                  <a asp-controller="Equipos" asp-action="Details" asp-route-id="@ep.EquipoId"
-                     style="color:var(--accent);text-decoration:none;font-size:13px">
-                    @ep.Equipo.NombreEquipo
-                  </a>
-                  <div class="mono text-muted" style="font-size:11px">@ep.Equipo.NumeroSerie</div>
+                  <span> — <i class="bi bi-laptop"></i>
+                    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@ep.EquipoId" style="color:var(--accent);text-decoration:none">@ep.Equipo.NombreEquipo</a>
+                  </span>
                 }
-                else
-                {
-                  <span class="text-muted">—</span>
-                }
-              </td>
-              <td class="text-muted">@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
-              <td>
-                @if (esActivo)
-                {
-                  <span class="badge badge-green">Activo</span>
-                }
-                else
-                {
-                  <span class="text-muted">@ep.FechaDesvinculacion!.Value.ToString("dd/MM/yyyy")</span>
-                }
-              </td>
-              <td class="text-muted" style="font-size:12.5px">
-                @if (dias == 0)      { <span>Hoy</span> }
-                else if (dias == 1)  { <span>1 día</span> }
-                else if (dias < 30)  { <span>@dias días</span> }
-                else if (dias < 365) { <span>@(dias / 30) mes(es)</span> }
-                else                 { <span>@(dias / 365) año(s)</span> }
-                @if (esActivo) { <span class="text-muted"> (en curso)</span> }
-              </td>
-              <td>
-                @if (ep.Imagenes != null && ep.Imagenes.Any())
-                {
-                  <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-                    @foreach (var img in ep.Imagenes.Take(2))
-                    {
-                      <a href="@img.RutaImagen" target="_blank" title="@(img.Descripcion ?? "Ver foto")"
-                         style="display:inline-block;border-radius:6px;overflow:hidden;border:1px solid #dde2ec">
-                        <img src="@img.RutaImagen"
-                             style="width:52px;height:38px;object-fit:cover;display:block"
-                             loading="lazy"
-                             onerror="this.closest('a').style.display='none'"/>
-                      </a>
-                    }
-                    <a asp-action="PdfHallazgosPeriferico" asp-route-epId="@ep.Id" target="_blank" title="Hallazgos">
-                      <i class="bi bi-file-earmark-pdf"></i>
+                @if (ep.Sitio != null) { <span> — <i class="bi bi-geo-alt"></i> @ep.Sitio.Nombre</span> }
+                @if (!string.IsNullOrEmpty(ep.Observaciones)) { <div>@ep.Observaciones</div> }
+              </div>
+              @if (ep.Imagenes != null && ep.Imagenes.Any())
+              {
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+                  @foreach (var img in ep.Imagenes.Take(4))
+                  {
+                    <a href="@img.RutaImagen" target="_blank" title="@(img.Descripcion ?? "Ver foto")"
+                       style="display:inline-block;border-radius:6px;overflow:hidden;border:1px solid #dde2ec">
+                      <img src="@img.RutaImagen"
+                           style="width:48px;height:36px;object-fit:cover;display:block"
+                           loading="lazy"
+                           onerror="this.closest('a').style.display='none'"/>
                     </a>
-                  </div>
-                }
-                else { <span class="text-muted">—</span> }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-    <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
-  }
-  else
-  {
-    <div class="card-body">
-      <div class="empty-state">
-        <i class="bi bi-clock-history"></i> Sin historial de asignaciones.
-      </div>
-    </div>
-  }
+                  }
+                  @if (ep.Imagenes.Count > 4)
+                  {
+                    <span class="text-muted" style="font-size:12px">+@(ep.Imagenes.Count - 4) más</span>
+                  }
+                  <a asp-action="PdfHallazgosPeriferico" asp-route-epId="@ep.Id" target="_blank"
+                     class="btn btn-secondary btn-sm" style="margin-left:4px">
+                    <i class="bi bi-file-earmark-pdf"></i> Hallazgos
+                  </a>
+                </div>
+              }
+              @if ((ep.TipoMovimiento == "Asignacion" || ep.TipoMovimiento == "Prestamo") &&
+                   (ep.Empleado != null || ep.MiembroExterno != null || ep.Grupo != null))
+              {
+                <a asp-action="CartaDirecta" asp-route-asignacionId="@ep.Id" class="btn btn-secondary btn-sm" style="margin-top:8px">
+                  <i class="bi bi-file-earmark-pdf"></i> Ver carta
+                </a>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
 </div>
-
-

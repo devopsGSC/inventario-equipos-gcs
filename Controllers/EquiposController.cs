@@ -128,6 +128,11 @@ public class EquiposController : BaseController
             .ToListAsync();
         ViewBag.PerifeicosActivos = perifsActivos;
 
+        ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Where(la => la.EquipoId == id && la.FechaDesvinculacion == null)
+            .ToListAsync();
+
         ViewBag.Paginacion = new PaginacionViewModel
         {
             PaginaActual   = pagina,

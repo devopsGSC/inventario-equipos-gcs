@@ -255,6 +255,32 @@
           </div>
         </div>
 
+        <!-- Licencias — solo visible para Asignación y Préstamo -->
+        <div id="sec-licencias" style="display:none">
+          <div style="margin:4px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
+            Licencias a entregar
+          </div>
+          <input type="hidden" name="licenciasIds" id="licenciasIds"/>
+          <div id="licList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
+            <span class="text-muted" id="sinLicencias" style="font-size:12.5px;align-self:center">Sin licencias adjuntas</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalLic()">
+            <i class="bi bi-plus"></i> Adjuntar licencia
+          </button>
+        </div>
+
+        <!-- Modal selector licencias -->
+        <div id="licModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center">
+          <div style="background:var(--surface);border-radius:12px;padding:24px;width:500px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div style="font-size:15px;font-weight:600">Seleccionar licencia</div>
+              <button type="button" onclick="cerrarModalLic()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--dark-text2)">×</button>
+            </div>
+            <input type="text" id="buscarLic" class="form-control" placeholder="Buscar por nombre..." oninput="filtrarLic()" style="margin-bottom:12px"/>
+            <div id="licOpciones" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+
         <div class="gap-2">
           <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
           <a asp-controller="@volverControlador" asp-action="Details" asp-route-id="@volverId" class="btn btn-secondary">Cancelar</a>
@@ -304,9 +330,11 @@ function onTipo(val) {
   // Mostrar firma para Asignacion, Prestamo y Devolucion
   const secFirma = document.getElementById('sec-firma');
   const secPerif = document.getElementById('sec-perifericos');
+  const secLic = document.getElementById('sec-licencias');
   const esSalida = (val === 'Asignacion' || val === 'Prestamo');
   secFirma.style.display = (esSalida || val === 'Devolucion') ? 'block' : 'none';
   secPerif.style.display = esSalida ? 'block' : 'none';
+  secLic.style.display = esSalida ? 'block' : 'none';
   if (secFirma.style.display === 'block') initCanvas();
 
   document.getElementById('sec-fotos').style.display =
@@ -479,6 +507,65 @@ function renderChipsPerif() {
   document.getElementById('perifericosIds').value = perifs.map(p => p.id).join(',');
 }
 
+// ── Licencias ──────────────────────────────────────
+let licencias = [], todasLicencias = [];
+
+async function abrirModalLic() {
+  document.getElementById('licModal').style.display = 'flex';
+  if (!todasLicencias.length) {
+    const res = await fetch('/Licencias/Disponibles');
+    todasLicencias = await res.json();
+  }
+  renderOpcionesLic(todasLicencias);
+}
+function cerrarModalLic() { document.getElementById('licModal').style.display = 'none'; }
+function filtrarLic() {
+  const q = document.getElementById('buscarLic').value.toLowerCase();
+  renderOpcionesLic(todasLicencias.filter(l => l.nombre.toLowerCase().includes(q)));
+}
+function renderOpcionesLic(lista) {
+  const cont = document.getElementById('licOpciones');
+  cont.innerHTML = '';
+  const yaIds = licencias.map(l => l.id);
+  const disp  = lista.filter(l => !yaIds.includes(l.id));
+  if (!disp.length) {
+    cont.innerHTML = '<div class="text-muted" style="font-size:13px;padding:10px">No hay licencias disponibles.</div>';
+    return;
+  }
+  disp.forEach(l => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #dde2ec;border-radius:8px';
+    div.innerHTML = `
+      <div style="font-weight:500;font-size:13.5px">${l.nombre}</div>
+      <button type="button" class="btn btn-primary btn-sm">Adjuntar</button>`;
+    div.querySelector('button').onclick = () => {
+      licencias.push(l);
+      renderChipsLic();
+      cerrarModalLic();
+    };
+    cont.appendChild(div);
+  });
+}
+function quitarLic(id) {
+  licencias = licencias.filter(l => l.id !== id);
+  renderChipsLic();
+}
+function renderChipsLic() {
+  const cont = document.getElementById('licList');
+  cont.innerHTML = '';
+  if (!licencias.length) {
+    cont.innerHTML = '<span class="text-muted" style="font-size:12.5px;align-self:center">Sin licencias adjuntas</span>';
+  } else {
+    licencias.forEach(l => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<i class="bi bi-card-checklist" style="font-size:13px"></i> ${l.nombre} <span class="chip-remove" onclick="quitarLic(${l.id})">×</span>`;
+      cont.appendChild(chip);
+    });
+  }
+  document.getElementById('licenciasIds').value = licencias.map(l => l.id).join(',');
+}
+
 // ── Registro fotográfico (múltiples imágenes) ────────
 let fotosAgregadas   = []; // Array de { file, previewUrl, descripcion }
 let streamCamaraFotos = null;
@@ -527,6 +614,12 @@ function handleDropFotos(e) {
 }
 function agregarFotoMovimiento(file) {
   if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+  const extsValidas = ['.jpg', '.jpeg', '.png', '.webp'];
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+  if (!extsValidas.includes(ext)) {
+    alert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     fotosAgregadas.push({ file, previewUrl: e.target.result, descripcion: '' });
@@ -571,9 +664,17 @@ async function subirFotosMovimiento(movimientoId) {
     formData.append('imagenes', item.file);
     formData.append('descripciones', item.descripcion ?? '');
   });
-  await fetch(`/Movimientos/SubirImagenes?movimientoId=${movimientoId}`, {
-    method: 'POST', body: formData
-  });
+  try {
+    const res = await fetch(`/Movimientos/SubirImagenes?movimientoId=${movimientoId}`, {
+      method: 'POST', body: formData
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.omitidas && data.omitidas.length) {
+        alert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'));
+      }
+    }
+  } catch (e) { /* el movimiento ya quedó registrado; solo falló la subida de fotos */ }
 }
 
 // ── Envío del formulario vía AJAX ─────────────────────

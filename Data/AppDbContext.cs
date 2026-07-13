@@ -27,6 +27,8 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
     public DbSet<PermisoRol> PermisosRol => Set<PermisoRol>();
     public DbSet<OperacionMasiva> OperacionesMasivas => Set<OperacionMasiva>();
     public DbSet<DetalleOperacionMasiva> DetalleOperacionMasiva => Set<DetalleOperacionMasiva>();
+    public DbSet<TipoLicencia> TiposLicencia => Set<TipoLicencia>();
+    public DbSet<LicenciaAsignacion> LicenciasAsignaciones => Set<LicenciaAsignacion>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -154,6 +156,36 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .OnDelete(DeleteBehavior.Restrict);
         mb.Entity<Grupo>()
             .HasIndex(g => g.Nombre).IsUnique();
+
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.TipoLicencia)
+            .WithMany(t => t.Asignaciones)
+            .HasForeignKey(la => la.TipoLicenciaId)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.Equipo)
+            .WithMany()
+            .HasForeignKey(la => la.EquipoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.Empleado)
+            .WithMany()
+            .HasForeignKey(la => la.EmpleadoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.MiembroExterno)
+            .WithMany()
+            .HasForeignKey(la => la.MiembroExternoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.Grupo)
+            .WithMany()
+            .HasForeignKey(la => la.GrupoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         mb.Entity<TipoPeriferico>().HasData(
             new TipoPeriferico { Id = 1, Nombre = "Monitor" },

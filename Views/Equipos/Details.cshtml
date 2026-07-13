@@ -254,6 +254,35 @@
   }
 </div>
 
+<div class="card" style="margin-bottom:24px">
+  <div class="card-header">
+    <div class="card-title">Licencias adjuntas</div>
+    @{ var licenciasEq = ViewBag.LicenciasActuales as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>(); }
+    <span class="badge badge-asignado">@licenciasEq.Count</span>
+  </div>
+  @if (licenciasEq.Any())
+  {
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Licencia</th><th>Desde</th></tr></thead>
+        <tbody>
+          @foreach (var la in licenciasEq)
+          {
+            <tr>
+              <td><a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId" style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a></td>
+              <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  else
+  {
+    <div class="card-body"><div class="empty-state" style="padding:16px"><i class="bi bi-card-checklist"></i>Sin licencias adjuntas.</div></div>
+  }
+</div>
+
 <!-- Modal adjuntar periférico -->
 <div id="perifModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:12px;padding:24px;width:500px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)">

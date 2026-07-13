@@ -5,6 +5,8 @@
   var equipos            = ViewBag.EquiposActuales as List<Movimiento>       ?? new List<Movimiento>();
   var perifsActuales     = ViewBag.PerifsActuales as List<EquipoPeriferico> ?? new List<EquipoPeriferico>();
   var historialPerifs    = ViewBag.HistorialPerifericos as List<EquipoPeriferico> ?? new List<EquipoPeriferico>();
+  var licenciasActuales  = ViewBag.LicenciasActuales as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>();
+  var historialLicencias = ViewBag.HistorialLicencias as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>();
 }
 
 <div class="page-header">
@@ -231,6 +233,89 @@
       <div class="card-body">
         <div class="empty-state">
           <i class="bi bi-clock-history"></i> Sin historial de periféricos.
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (licenciasActuales.Any())
+{
+<div style="margin-top:20px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Licencias asignadas</div>
+      <span class="badge badge-asignado">@licenciasActuales.Count en uso</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Licencia</th><th>Vía equipo</th><th>Desde</th></tr></thead>
+        <tbody>
+          @foreach (var la in licenciasActuales)
+          {
+            <tr>
+              <td>
+                <a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId"
+                   style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
+              </td>
+              <td class="text-muted">
+                @if (la.EquipoId != null)
+                {
+                  <a asp-controller="Equipos" asp-action="Details" asp-route-id="@la.EquipoId"
+                     style="color:var(--accent);text-decoration:none;font-size:13px">@la.Equipo?.NombreEquipo</a>
+                }
+                else { <span>—</span> }
+              </td>
+              <td>@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+}
+
+<div style="margin-top:20px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Historial de licencias</div>
+      <span class="badge badge-asignado">@historialLicencias.Count registro(s)</span>
+    </div>
+    @if (historialLicencias.Any())
+    {
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Licencia</th><th>Vía equipo</th><th>Desde</th><th>Estado</th></tr></thead>
+          <tbody>
+            @foreach (var la in historialLicencias)
+            {
+              var esDirecto = la.EquipoId == null;
+              <tr>
+                <td>
+                  <a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId"
+                     style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
+                </td>
+                <td>
+                  @if (esDirecto) { <span class="badge badge-asignado">Directo</span> }
+                  else { <span class="badge badge-bodega">Vía equipo</span> }
+                </td>
+                <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+                <td>
+                  @if (!la.FechaDesvinculacion.HasValue) { <span class="badge badge-green">Activa</span> }
+                  else { <span class="text-muted">@la.FechaDesvinculacion.Value.ToString("dd/MM/yyyy")</span> }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else
+    {
+      <div class="card-body">
+        <div class="empty-state">
+          <i class="bi bi-clock-history"></i> Sin historial de licencias.
         </div>
       </div>
     }

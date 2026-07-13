@@ -294,3 +294,42 @@ public class EquipoPeriferico
     [NotMapped]
     public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }
+
+public class TipoLicencia
+{
+    public int Id { get; set; }
+    [Required(ErrorMessage = "El nombre de la licencia es obligatorio."), MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
+    public string Nombre { get; set; } = "";
+    [Display(Name = "Cantidad total")]
+    public int? CantidadTotal { get; set; }
+    public bool Activo { get; set; } = true;
+    public ICollection<LicenciaAsignacion> Asignaciones { get; set; } = [];
+}
+
+public class LicenciaAsignacion
+{
+    public int Id { get; set; }
+    public int TipoLicenciaId { get; set; }
+    public int? EquipoId { get; set; }
+    public int? EmpleadoId { get; set; }
+    public int? MiembroExternoId { get; set; }
+    public int? GrupoId { get; set; }
+    public string TipoAsignacion { get; set; } = "Directo"; // "Directo" | "Equipo"
+    public string TipoMovimiento { get; set; } = "Asignacion"; // "Asignacion" | "Devolucion"
+    public DateTime FechaAsignacion { get; set; } = DateTime.Now;
+    public DateTime? FechaDesvinculacion { get; set; }
+    [MaxLength(500, ErrorMessage = "Máximo 500 caracteres.")]
+    public string? Observaciones { get; set; }
+
+    public TipoLicencia? TipoLicencia { get; set; }
+    public Equipo? Equipo { get; set; }
+    public Empleado? Empleado { get; set; }
+    public MiembroExterno? MiembroExterno { get; set; }
+    public Grupo? Grupo { get; set; }
+
+    [NotMapped]
+    public string TipoResponsable =>
+        Empleado != null ? "Empleado" : MiembroExterno != null ? "MiembroExterno" : Grupo != null ? "Grupo" : "";
+    [NotMapped]
+    public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
+}

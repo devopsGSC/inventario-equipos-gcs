@@ -17,7 +17,7 @@
 <div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
   <div class="card">
     <div class="card-body">
-      <form asp-action="Devolver" asp-route-id="@Model.Id" method="post">
+      <form asp-action="Devolver" asp-route-id="@Model.Id" method="post" id="frmDevolver">
         @Html.AntiForgeryToken()
 
         <div class="alert alert-warning" style="margin-bottom:20px;font-size:13px">
@@ -207,6 +207,12 @@ function handleDropFotos(e) {
 }
 function agregarFotoPeriferico(file) {
   if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+  const extsValidas = ['.jpg', '.jpeg', '.png', '.webp'];
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+  if (!extsValidas.includes(ext)) {
+    alert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     fotosAgregadas.push({ file, previewUrl: e.target.result, descripcion: '' });
@@ -250,13 +256,21 @@ async function subirFotosPeriferico(epId) {
     formData.append('imagenes', item.file);
     formData.append('descripciones', item.descripcion ?? '');
   });
-  await fetch(`/Perifericos/SubirImagenesPeriferico?epId=${epId}`, {
-    method: 'POST', body: formData
-  });
+  try {
+    const res = await fetch(`/Perifericos/SubirImagenesPeriferico?epId=${epId}`, {
+      method: 'POST', body: formData
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.omitidas && data.omitidas.length) {
+        alert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'));
+      }
+    }
+  } catch (e) { /* la devolución ya quedó registrada; solo falló la subida de fotos */ }
 }
 
 // ── Envío del formulario vía AJAX ─────────────────────
-document.querySelector('form').addEventListener('submit', async function(e) {
+document.getElementById('frmDevolver').addEventListener('submit', async function(e) {
   e.preventDefault();
   prepararFirma();
   const fd = new FormData(this);

@@ -1,0 +1,54 @@
+@model LicenciaAsignacion
+@using InventarioTI.Models
+@{ ViewData["Title"] = "Revocar licencia"; }
+
+<div class="page-header">
+  <div>
+    <a asp-action="Details" asp-route-id="@Model.TipoLicenciaId" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @Model.TipoLicencia?.Nombre</a>
+    <div class="page-title" style="margin-top:4px">Revocar licencia</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-body">
+      <form asp-action="Devolver" asp-route-asignacionId="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="alert alert-warning" style="margin-bottom:20px;font-size:13px">
+          <i class="bi bi-arrow-return-left"></i>
+          Al confirmar, la licencia quedará disponible para reasignar.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observaciones <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+          <textarea name="observaciones" class="form-control" rows="2" placeholder="Motivo de la revocación..."></textarea>
+        </div>
+
+        <div class="gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar revocación</button>
+          <a asp-action="Details" asp-route-id="@Model.TipoLicenciaId" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Resumen</div></div>
+    <div class="card-body">
+      <div style="margin-bottom:14px">
+        <div class="form-label">Licencia</div>
+        <div style="font-weight:600">@Model.TipoLicencia?.Nombre</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div class="form-label">Responsable</div>
+        <div style="font-weight:600">@Model.NombreResponsable</div>
+        <div class="text-muted">@(Model.Empleado?.CodigoEmpleado ?? Model.MiembroExterno?.Organizacion)</div>
+      </div>
+      <div>
+        <div class="form-label">Asignada desde</div>
+        <div>@Model.FechaAsignacion.ToString("dd/MM/yyyy")</div>
+      </div>
+    </div>
+  </div>
+</div>

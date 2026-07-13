@@ -57,7 +57,10 @@
     .sidebar-brand .logo-sub { font-size: 10px; color: var(--text3); font-weight: 400; }
     .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
     .nav-section { margin-bottom: 24px; }
-    .nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); padding: 0 8px; margin-bottom: 6px; }
+    .nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); padding: 0 8px; margin-bottom: 6px; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; }
+    .nav-label::after { content: "▾"; font-size: 9px; transition: transform .15s; }
+    .nav-section.collapsed .nav-label::after { transform: rotate(-90deg); }
+    .nav-section.collapsed .nav-link { display: none; }
     .nav-link {
       display: flex; align-items: center;
       padding: 8px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
@@ -344,6 +347,15 @@
         </a>
       }
     </div>
+    @if (await PermisoSvc.TienePermiso(User, "licencias.ver"))
+    {
+      <div class="nav-section">
+        <div class="nav-label">Licencias</div>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Licencias"?"active":"")" asp-controller="Licencias" asp-action="Index" onclick="closeSidebar()">
+          Licencias
+        </a>
+      </div>
+    }
     <div class="nav-section">
       <div class="nav-label">Reportes</div>
       @{
@@ -375,8 +387,9 @@
       bool _puedeEmpleadoCrear= await PermisoSvc.TienePermiso(User, "empleados.crear");
       bool _puedeMiembroExternoCrear = await PermisoSvc.TienePermiso(User, "miembrosexternos.crear");
       bool _puedeGrupoCrear  = await PermisoSvc.TienePermiso(User, "grupos.crear");
+      bool _puedeLicenciaCrear = await PermisoSvc.TienePermiso(User, "licencias.crear");
     }
-    @if (_puedeEquipoCrear || _puedeCargaMasiva || _puedePerifCrear || _puedeEmpleadoCrear || _puedeMiembroExternoCrear || _puedeGrupoCrear)
+    @if (_puedeEquipoCrear || _puedeCargaMasiva || _puedePerifCrear || _puedeEmpleadoCrear || _puedeMiembroExternoCrear || _puedeGrupoCrear || _puedeLicenciaCrear)
     {
       <div class="nav-section">
         <div class="nav-label">Acciones</div>
@@ -414,6 +427,12 @@
         {
           <a class="nav-link" asp-controller="Grupos" asp-action="Create" onclick="closeSidebar()">
             Registrar grupo
+          </a>
+        }
+        @if (_puedeLicenciaCrear)
+        {
+          <a class="nav-link" asp-controller="Licencias" asp-action="Create" onclick="closeSidebar()">
+            Registrar tipo de licencia
           </a>
         }
       </div>
@@ -632,6 +651,18 @@
 
   // Cerrar con tecla Escape
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+
+  // Sidebar: secciones plegables (se recuerda el estado por sección)
+  document.querySelectorAll('.nav-section').forEach(section => {
+    const label = section.querySelector(':scope > .nav-label');
+    if (!label) return;
+    const key = 'navCollapsed_' + label.textContent.trim();
+    if (localStorage.getItem(key) === '1') section.classList.add('collapsed');
+    label.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+      localStorage.setItem(key, section.classList.contains('collapsed') ? '1' : '0');
+    });
+  });
 
   @await RenderSectionAsync("Scripts", required: false)
 </script>

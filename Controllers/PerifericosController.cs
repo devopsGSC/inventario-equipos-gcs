@@ -358,11 +358,25 @@ public class PerifericosController : BaseController
                                        ep.FechaDesvinculacion == null);
         if (asignacion == null) return NotFound();
 
-        asignacion.FechaDesvinculacion = DateTime.Now;
-        asignacion.TipoMovimiento      = "Devolucion";
-        asignacion.Observaciones       = observaciones;
-        if (!string.IsNullOrEmpty(firmaEmpleado))
-            asignacion.FirmaEmpleado   = firmaEmpleado;
+        var ahora = DateTime.Now;
+        asignacion.FechaDesvinculacion = ahora;
+
+        var devolucion = new EquipoPeriferico
+        {
+            EquipoId            = asignacion.EquipoId,
+            PerifericoId         = asignacion.PerifericoId,
+            EmpleadoId           = asignacion.EmpleadoId,
+            MiembroExternoId     = asignacion.MiembroExternoId,
+            GrupoId              = asignacion.GrupoId,
+            TipoAsignacion       = asignacion.TipoAsignacion,
+            TipoMovimiento       = "Devolucion",
+            FechaAsignacion      = ahora,
+            FechaDesvinculacion  = ahora,
+            Observaciones        = observaciones,
+            FirmaEmpleado        = firmaEmpleado,
+            SitioId              = asignacion.SitioId
+        };
+        _db.EquiposPerifericos.Add(devolucion);
 
         var p = await _db.Perifericos.FindAsync(id);
         if (p != null) p.Estado = "Disponible";
@@ -371,7 +385,7 @@ public class PerifericosController : BaseController
         TempData["OK"] = "Devolución registrada. El periférico está disponible nuevamente.";
 
         var redirectUrl = Url.Action(nameof(Details), new { id })!;
-        if (esAjax) return Json(new { asignacionId = asignacion.Id, redirectUrl });
+        if (esAjax) return Json(new { asignacionId = devolucion.Id, redirectUrl });
         return Redirect(redirectUrl);
     }
 
@@ -389,15 +403,20 @@ public class PerifericosController : BaseController
         Directory.CreateDirectory(carpeta);
 
         int orden = 1;
+        var omitidas = new List<string>();
+        var extensionesValidas = new[] { ".jpg", ".jpeg", ".png", ".webp" };
         for (int i = 0; i < imagenes.Count; i++)
         {
             var archivo = imagenes[i];
             if (archivo.Length == 0) continue;
-            if (archivo.Length > 10 * 1024 * 1024) continue; // max 10 MB por imagen
+            if (archivo.Length > 10 * 1024 * 1024) { omitidas.Add($"{archivo.FileName} (supera 10 MB)"); continue; }
 
-            var ext   = Path.GetExtension(archivo.FileName).ToLower();
-            var valid = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            if (!valid.Contains(ext)) continue;
+            var ext = Path.GetExtension(archivo.FileName).ToLower();
+            if (!extensionesValidas.Contains(ext))
+            {
+                omitidas.Add($"{archivo.FileName} (formato no soportado, usa JPG/PNG/WEBP)");
+                continue;
+            }
 
             var nombre = $"perif_{epId}_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N")[..6]}{ext}";
             var ruta   = Path.Combine(carpeta, nombre);
@@ -416,7 +435,7 @@ public class PerifericosController : BaseController
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Imágenes guardadas correctamente." });
+        return Ok(new { mensaje = "Imágenes guardadas correctamente.", omitidas });
     }
 
     // Generar PDF de hallazgos de un periférico asignado directamente

@@ -220,10 +220,51 @@ public class MovimientosController : BaseController
                 .Include(ep => ep.Periferico)
                 .Where(ep => ep.EquipoId == vm.EquipoId && ep.FechaDesvinculacion == null)
                 .ToListAsync();
+            var ahoraPerifs = DateTime.Now;
+            var sitioPerifs = await Puede("movimientos.sitio") ? vm.SitioId : null;
             foreach (var ep in perifsActivos)
             {
-                ep.FechaDesvinculacion = DateTime.Now;
+                ep.FechaDesvinculacion = ahoraPerifs;
                 if (ep.Periferico != null) ep.Periferico.Estado = "Disponible";
+
+                _db.EquiposPerifericos.Add(new EquipoPeriferico
+                {
+                    EquipoId            = ep.EquipoId,
+                    PerifericoId         = ep.PerifericoId,
+                    EmpleadoId           = ep.EmpleadoId,
+                    MiembroExternoId     = ep.MiembroExternoId,
+                    GrupoId              = ep.GrupoId,
+                    TipoAsignacion       = ep.TipoAsignacion,
+                    TipoMovimiento       = "Devolucion",
+                    FechaAsignacion      = ahoraPerifs,
+                    FechaDesvinculacion  = ahoraPerifs,
+                    Observaciones        = vm.Observaciones,
+                    FirmaEmpleado        = vm.FirmaEmpleado,
+                    SitioId              = sitioPerifs
+                });
+            }
+
+            // Desvincular licencias adjuntas al equipo
+            var licenciasActivas = await _db.LicenciasAsignaciones
+                .Where(la => la.EquipoId == vm.EquipoId && la.FechaDesvinculacion == null)
+                .ToListAsync();
+            foreach (var la in licenciasActivas)
+            {
+                la.FechaDesvinculacion = ahoraPerifs;
+
+                _db.LicenciasAsignaciones.Add(new LicenciaAsignacion
+                {
+                    TipoLicenciaId      = la.TipoLicenciaId,
+                    EquipoId            = la.EquipoId,
+                    EmpleadoId          = la.EmpleadoId,
+                    MiembroExternoId    = la.MiembroExternoId,
+                    GrupoId             = la.GrupoId,
+                    TipoAsignacion      = la.TipoAsignacion,
+                    TipoMovimiento      = "Devolucion",
+                    FechaAsignacion     = ahoraPerifs,
+                    FechaDesvinculacion = ahoraPerifs,
+                    Observaciones       = vm.Observaciones
+                });
             }
         }
 
@@ -300,6 +341,34 @@ public class MovimientosController : BaseController
             await _db.SaveChangesAsync();
         }
 
+        // Adjuntar licencias si se seleccionaron (solo Asignacion y Prestamo)
+        if (requiereResponsable && !string.IsNullOrEmpty(Request.Form["licenciasIds"]))
+        {
+            var licenciaIds = Request.Form["licenciasIds"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(int.Parse);
+            foreach (var tid in licenciaIds)
+            {
+                var tipoLicencia = await _db.TiposLicencia.FindAsync(tid);
+                if (tipoLicencia != null && tipoLicencia.Activo)
+                {
+                    _db.LicenciasAsignaciones.Add(new LicenciaAsignacion
+                    {
+                        TipoLicenciaId = tid,
+                        EquipoId = vm.EquipoId,
+                        EmpleadoId = nuevoEmpleadoId,
+                        MiembroExternoId = nuevoMiembroExternoId,
+                        GrupoId = nuevoGrupoId,
+                        TipoAsignacion = "Equipo",
+                        TipoMovimiento = "Asignacion",
+                        FechaAsignacion = DateTime.Now,
+                        Observaciones = vm.Observaciones
+                    });
+                }
+            }
+            await _db.SaveChangesAsync();
+        }
+
         TempData["OK"] = "Movimiento registrado correctamente.";
 
         // Carta de préstamo/asignación → va a Carta (descarga inmediata)
@@ -332,15 +401,20 @@ public class MovimientosController : BaseController
         Directory.CreateDirectory(carpeta);
 
         int orden = 1;
+        var omitidas = new List<string>();
+        var extensionesValidas = new[] { ".jpg", ".jpeg", ".png", ".webp" };
         for (int i = 0; i < imagenes.Count; i++)
         {
             var archivo = imagenes[i];
             if (archivo.Length == 0) continue;
-            if (archivo.Length > 10 * 1024 * 1024) continue; // max 10 MB por imagen
+            if (archivo.Length > 10 * 1024 * 1024) { omitidas.Add($"{archivo.FileName} (supera 10 MB)"); continue; }
 
-            var ext   = Path.GetExtension(archivo.FileName).ToLower();
-            var valid = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            if (!valid.Contains(ext)) continue;
+            var ext = Path.GetExtension(archivo.FileName).ToLower();
+            if (!extensionesValidas.Contains(ext))
+            {
+                omitidas.Add($"{archivo.FileName} (formato no soportado, usa JPG/PNG/WEBP)");
+                continue;
+            }
 
             var nombre = $"mov_{movimientoId}_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N")[..6]}{ext}";
             var ruta   = Path.Combine(carpeta, nombre);
@@ -359,7 +433,7 @@ public class MovimientosController : BaseController
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Imágenes guardadas correctamente." });
+        return Ok(new { mensaje = "Imágenes guardadas correctamente.", omitidas });
     }
 
     // Eliminar una imagen específica

@@ -56,6 +56,7 @@ public class SeedService
             new() { Nombre = "Empleados",         Icono = "bi-people" },
             new() { Nombre = "Miembros Externos", Icono = "bi-person-badge" },
             new() { Nombre = "Grupos",            Icono = "bi-diagram-3" },
+            new() { Nombre = "Licencias",         Icono = "bi-card-checklist" },
             new() { Nombre = "Movimientos",       Icono = "bi-arrow-left-right" },
             new() { Nombre = "Reportes",          Icono = "bi-bar-chart" },
             new() { Nombre = "Carga Masiva",      Icono = "bi-file-earmark-arrow-up" },
@@ -67,7 +68,8 @@ public class SeedService
         var idPorNombre = modulos.ToDictionary(m => m.Nombre, m => m.Id);
         int equipos = idPorNombre["Equipos"], perifericos = idPorNombre["Periféricos"],
             empleados = idPorNombre["Empleados"], miembrosExternos = idPorNombre["Miembros Externos"],
-            grupos = idPorNombre["Grupos"], movimientos = idPorNombre["Movimientos"],
+            grupos = idPorNombre["Grupos"], licencias = idPorNombre["Licencias"],
+            movimientos = idPorNombre["Movimientos"],
             reportes = idPorNombre["Reportes"], cargaMasiva = idPorNombre["Carga Masiva"],
             usuarios = idPorNombre["Usuarios"];
 
@@ -110,6 +112,12 @@ public class SeedService
             new() { ModuloId=grupos, Clave="grupos.detalle", Nombre="Ver detalle de grupo" },
             new() { ModuloId=grupos, Clave="grupos.crear",   Nombre="Registrar grupo" },
             new() { ModuloId=grupos, Clave="grupos.editar",  Nombre="Editar grupo" },
+            // Licencias
+            new() { ModuloId=licencias, Clave="licencias.ver",     Nombre="Ver listado de licencias" },
+            new() { ModuloId=licencias, Clave="licencias.detalle", Nombre="Ver detalle de licencia" },
+            new() { ModuloId=licencias, Clave="licencias.crear",   Nombre="Registrar tipo de licencia" },
+            new() { ModuloId=licencias, Clave="licencias.editar",  Nombre="Editar tipo de licencia" },
+            new() { ModuloId=licencias, Clave="licencias.asignar", Nombre="Asignar/revocar licencia" },
             // Movimientos
             new() { ModuloId=movimientos, Clave="movimientos.ver",         Nombre="Ver historial de movimientos" },
             new() { ModuloId=movimientos, Clave="movimientos.asignar",     Nombre="Registrar asignación" },

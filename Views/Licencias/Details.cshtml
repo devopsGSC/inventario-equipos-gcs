@@ -1,0 +1,141 @@
+@model TipoLicencia
+@using InventarioTI.Models
+@{
+  ViewData["Title"] = Model.Nombre;
+  var actuales  = ViewBag.AsignacionesActuales as List<LicenciaAsignacion> ?? new();
+  var historial = ViewBag.Historial as List<LicenciaAsignacion> ?? new();
+  var disponibles = Model.CantidadTotal.HasValue ? Model.CantidadTotal.Value - actuales.Count : (int?)null;
+}
+
+<div class="page-header">
+  <div>
+    <a asp-action="Index" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Licencias</a>
+    <div class="page-title" style="margin-top:4px">@Model.Nombre</div>
+  </div>
+  <div style="display:flex;gap:8px">
+    @if (Model.Activo && await PermisoSvc.TienePermiso(User, "licencias.asignar"))
+    {
+      <a asp-action="AsignarDirecto" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-person-check"></i> Asignar</a>
+    }
+    @if (await PermisoSvc.TienePermiso(User, "licencias.editar"))
+    {
+      <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary"><i class="bi bi-pencil"></i> Editar</a>
+    }
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Datos de la licencia</div>
+      @if (Model.Activo) { <span class="badge badge-green">Activo</span> }
+      else { <span class="badge badge-baja">Inactivo</span> }
+    </div>
+    <div class="card-body">
+      <div class="form-grid" style="gap:14px">
+        <div>
+          <div class="form-label">Cantidad total</div>
+          <div style="font-size:14px;font-weight:500">@(Model.CantidadTotal?.ToString() ?? "—")</div>
+        </div>
+        <div>
+          <div class="form-label">Disponibles</div>
+          <div style="font-size:14px;font-weight:500">@(disponibles?.ToString() ?? "—")</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Asignaciones actuales</div>
+      <span class="badge badge-asignado">@actuales.Count</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Responsable</th><th>Vía equipo</th><th>Desde</th><th></th></tr></thead>
+        <tbody>
+          @foreach (var la in actuales)
+          {
+            <tr>
+              <td>
+                <div style="font-weight:500;font-size:13px">@la.NombreResponsable</div>
+                <div class="text-muted" style="font-size:11.5px">@(la.Empleado?.CodigoEmpleado ?? la.MiembroExterno?.Organizacion)</div>
+              </td>
+              <td>
+                @if (la.Equipo != null)
+                {
+                  <a asp-controller="Equipos" asp-action="Details" asp-route-id="@la.EquipoId" style="color:var(--accent);text-decoration:none;font-size:13px">@la.Equipo.NombreEquipo</a>
+                }
+                else { <span class="text-muted">—</span> }
+              </td>
+              <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+              <td>
+                @if (await PermisoSvc.TienePermiso(User, "licencias.asignar"))
+                {
+                  <a asp-action="Devolver" asp-route-asignacionId="@la.Id" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-return-left"></i> Revocar
+                  </a>
+                }
+              </td>
+            </tr>
+          }
+          @if (!actuales.Any())
+          {
+            <tr><td colspan="4"><div class="empty-state" style="padding:20px"><i class="bi bi-card-checklist"></i>Sin asignaciones activas.</div></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+  <div class="card-header">
+    <div class="card-title">Historial de movimientos</div>
+    <span class="badge badge-asignado">@((ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel)?.TotalRegistros ?? 0) registros</span>
+  </div>
+  <div class="card-body">
+    @if (!historial.Any())
+    {
+      <div class="empty-state"><i class="bi bi-clock-history"></i>Sin movimientos registrados.</div>
+    }
+    else
+    {
+      <ul class="timeline">
+        @foreach (var la in historial)
+        {
+          var dotBg    = la.TipoMovimiento == "Devolucion" ? "var(--green-bg)" : "var(--blue-bg)";
+          var dotColor = la.TipoMovimiento == "Devolucion" ? "var(--green-text)" : "var(--blue-text)";
+          var icon     = la.TipoMovimiento == "Devolucion" ? "bi-arrow-return-left" : "bi-person-check-fill";
+          var label    = la.TipoMovimiento == "Devolucion" ? "Devolución / revocación" : "Asignación";
+          var esDirecto = la.EquipoId == null;
+          <li class="timeline-item">
+            <div class="timeline-dot" style="background:@dotBg;color:@dotColor"><i class="bi @icon"></i></div>
+            <div class="timeline-body">
+              <div class="timeline-title">
+                @label
+                @if (esDirecto) { <span class="badge badge-asignado" style="font-size:10px;margin-left:6px">Directo</span> }
+                else { <span class="badge badge-bodega" style="font-size:10px;margin-left:6px">Vía equipo</span> }
+              </div>
+              <div class="timeline-meta">
+                @la.FechaAsignacion.ToString("dd/MM/yyyy HH:mm")
+                @if (la.Empleado != null || la.MiembroExterno != null || la.Grupo != null)
+                {
+                  <span> — @la.NombreResponsable@(la.Empleado != null ? $" ({la.Empleado.CodigoEmpleado})" : "")</span>
+                }
+                @if (la.Equipo != null)
+                {
+                  <span> — <i class="bi bi-laptop"></i>
+                    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@la.EquipoId" style="color:var(--accent);text-decoration:none">@la.Equipo.NombreEquipo</a>
+                  </span>
+                }
+                @if (!string.IsNullOrEmpty(la.Observaciones)) { <div>@la.Observaciones</div> }
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
+</div>

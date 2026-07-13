@@ -70,8 +70,22 @@ public class MiembrosExternosController : BaseController
         ViewBag.HistorialPerifericos = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Equipo)
-            .Where(ep => ep.MiembroExternoId == id)
+            .Where(ep => ep.MiembroExternoId == id && ep.TipoMovimiento != "Devolucion")
             .OrderByDescending(ep => ep.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.MiembroExternoId == id && la.FechaDesvinculacion == null)
+            .OrderByDescending(la => la.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.HistorialLicencias = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.MiembroExternoId == id && la.TipoMovimiento != "Devolucion")
+            .OrderByDescending(la => la.FechaAsignacion)
             .ToListAsync();
 
         var totalHistorial = await _db.Movimientos.CountAsync(m => m.MiembroExternoId == id);

@@ -69,8 +69,22 @@ public class GruposController : BaseController
         ViewBag.HistorialPerifericos = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Equipo)
-            .Where(ep => ep.GrupoId == id)
+            .Where(ep => ep.GrupoId == id && ep.TipoMovimiento != "Devolucion")
             .OrderByDescending(ep => ep.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.GrupoId == id && la.FechaDesvinculacion == null)
+            .OrderByDescending(la => la.FechaAsignacion)
+            .ToListAsync();
+
+        ViewBag.HistorialLicencias = await _db.LicenciasAsignaciones
+            .Include(la => la.TipoLicencia)
+            .Include(la => la.Equipo)
+            .Where(la => la.GrupoId == id && la.TipoMovimiento != "Devolucion")
+            .OrderByDescending(la => la.FechaAsignacion)
             .ToListAsync();
 
         var totalHistorial = await _db.Movimientos.CountAsync(m => m.GrupoId == id);
