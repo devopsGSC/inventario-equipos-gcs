@@ -35,6 +35,8 @@ public class HomeController : Controller
             UltimosMovimientos = await _db.Movimientos
                 .Include(m => m.Equipo)
                 .Include(m => m.Empleado)
+                .Include(m => m.MiembroExterno)
+                .Include(m => m.Grupo)
                 .OrderByDescending(m => m.FechaInicio)
                 .Take(6).ToListAsync()
         };
@@ -47,6 +49,12 @@ public class HomeController : Controller
                 .Include(e => e.Movimientos.Where(m => m.FechaDevolucion == null &&
                     (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo" || m.TipoMovimiento == "EntradaGarantia")))
                     .ThenInclude(m => m.Empleado).ThenInclude(emp => emp!.Departamento)
+                .Include(e => e.Movimientos.Where(m => m.FechaDevolucion == null &&
+                    (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo" || m.TipoMovimiento == "EntradaGarantia")))
+                    .ThenInclude(m => m.MiembroExterno)
+                .Include(e => e.Movimientos.Where(m => m.FechaDevolucion == null &&
+                    (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo" || m.TipoMovimiento == "EntradaGarantia")))
+                    .ThenInclude(m => m.Grupo)
                 .FirstOrDefaultAsync(e => e.NumeroSerie == serie);
         }
 

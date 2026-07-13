@@ -37,6 +37,32 @@ public class Sitio
     public bool Activo { get; set; } = true;
 }
 
+public class MiembroExterno
+{
+    public int Id { get; set; }
+    [Required(ErrorMessage = "El nombre es obligatorio."), MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
+    public string Nombre { get; set; } = "";
+    [MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
+    public string? Organizacion { get; set; }
+    [MaxLength(20, ErrorMessage = "Máximo 20 caracteres.")]
+    public string? Identificacion { get; set; }
+    [MaxLength(100, ErrorMessage = "Máximo 100 caracteres.")]
+    public string? Referencia { get; set; }
+    public bool Activo { get; set; } = true;
+    public ICollection<Movimiento> Movimientos { get; set; } = [];
+}
+
+public class Grupo
+{
+    public int Id { get; set; }
+    [Required(ErrorMessage = "El nombre del grupo es obligatorio."), MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
+    public string Nombre { get; set; } = "";
+    [MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
+    public string? Descripcion { get; set; }
+    public bool Activo { get; set; } = true;
+    public ICollection<Movimiento> Movimientos { get; set; } = [];
+}
+
 public class TipoEquipo
 {
     public int Id { get; set; }
@@ -101,6 +127,8 @@ public class Movimiento
     public int Id { get; set; }
     public int EquipoId { get; set; }
     public int? EmpleadoId { get; set; }
+    public int? MiembroExternoId { get; set; }
+    public int? GrupoId { get; set; }
     [Required(ErrorMessage = "El tipo de movimiento es obligatorio."), MaxLength(20, ErrorMessage = "Máximo 20 caracteres."), Display(Name = "Tipo")]
     public string TipoMovimiento { get; set; } = "";
     [Display(Name = "Fecha inicio")]
@@ -117,8 +145,16 @@ public class Movimiento
     public int? SitioId { get; set; }
     public Equipo? Equipo { get; set; }
     public Empleado? Empleado { get; set; }
+    public MiembroExterno? MiembroExterno { get; set; }
+    public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
+
+    [NotMapped]
+    public string TipoResponsable =>
+        Empleado != null ? "Empleado" : MiembroExterno != null ? "MiembroExterno" : Grupo != null ? "Grupo" : "";
+    [NotMapped]
+    public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }
 
 public class ImagenMovimiento
@@ -233,6 +269,8 @@ public class EquipoPeriferico
     public int? EquipoId { get; set; }
     public int PerifericoId { get; set; }
     public int? EmpleadoId { get; set; }
+    public int? MiembroExternoId { get; set; }
+    public int? GrupoId { get; set; }
     public string TipoAsignacion { get; set; } = "Equipo"; // "Equipo" | "Directo"
     public string TipoMovimiento { get; set; } = "Asignacion"; // "Asignacion" | "Prestamo" | "Devolucion"
     public DateTime FechaAsignacion { get; set; } = DateTime.Now;
@@ -245,6 +283,14 @@ public class EquipoPeriferico
     public Equipo? Equipo { get; set; }
     public Periferico? Periferico { get; set; }
     public Empleado? Empleado { get; set; }
+    public MiembroExterno? MiembroExterno { get; set; }
+    public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
+
+    [NotMapped]
+    public string TipoResponsable =>
+        Empleado != null ? "Empleado" : MiembroExterno != null ? "MiembroExterno" : Grupo != null ? "Grupo" : "";
+    [NotMapped]
+    public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }

@@ -331,6 +331,18 @@
       <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Empleados"?"active":"")" asp-controller="Empleados" asp-action="Index" onclick="closeSidebar()">
         Empleados
       </a>
+      @if (await PermisoSvc.TienePermiso(User, "miembrosexternos.ver"))
+      {
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="MiembrosExternos"?"active":"")" asp-controller="MiembrosExternos" asp-action="Index" onclick="closeSidebar()">
+          Miembros Externos
+        </a>
+      }
+      @if (await PermisoSvc.TienePermiso(User, "grupos.ver"))
+      {
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Grupos"?"active":"")" asp-controller="Grupos" asp-action="Index" onclick="closeSidebar()">
+          Grupos
+        </a>
+      }
     </div>
     <div class="nav-section">
       <div class="nav-label">Reportes</div>
@@ -361,8 +373,10 @@
       bool _puedeCargaMasiva  = await PermisoSvc.TienePermiso(User, "cargamasiva.usar");
       bool _puedePerifCrear   = await PermisoSvc.TienePermiso(User, "perifericos.crear");
       bool _puedeEmpleadoCrear= await PermisoSvc.TienePermiso(User, "empleados.crear");
+      bool _puedeMiembroExternoCrear = await PermisoSvc.TienePermiso(User, "miembrosexternos.crear");
+      bool _puedeGrupoCrear  = await PermisoSvc.TienePermiso(User, "grupos.crear");
     }
-    @if (_puedeEquipoCrear || _puedeCargaMasiva || _puedePerifCrear || _puedeEmpleadoCrear)
+    @if (_puedeEquipoCrear || _puedeCargaMasiva || _puedePerifCrear || _puedeEmpleadoCrear || _puedeMiembroExternoCrear || _puedeGrupoCrear)
     {
       <div class="nav-section">
         <div class="nav-label">Acciones</div>
@@ -388,6 +402,18 @@
         {
           <a class="nav-link" asp-controller="Empleados" asp-action="Create" onclick="closeSidebar()">
             Registrar empleado
+          </a>
+        }
+        @if (_puedeMiembroExternoCrear)
+        {
+          <a class="nav-link" asp-controller="MiembrosExternos" asp-action="Create" onclick="closeSidebar()">
+            Registrar miembro externo
+          </a>
+        }
+        @if (_puedeGrupoCrear)
+        {
+          <a class="nav-link" asp-controller="Grupos" asp-action="Create" onclick="closeSidebar()">
+            Registrar grupo
           </a>
         }
       </div>

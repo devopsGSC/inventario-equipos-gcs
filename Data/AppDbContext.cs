@@ -10,6 +10,8 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
 
     public DbSet<Departamento> Departamentos => Set<Departamento>();
     public DbSet<Empleado> Empleados => Set<Empleado>();
+    public DbSet<MiembroExterno> MiembrosExternos => Set<MiembroExterno>();
+    public DbSet<Grupo> Grupos => Set<Grupo>();
     public DbSet<Sitio> Sitios => Set<Sitio>();
     public DbSet<TipoEquipo> TiposEquipo => Set<TipoEquipo>();
     public DbSet<PlanData> PlanesData => Set<PlanData>();
@@ -54,6 +56,18 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .HasOne(m => m.Sitio)
             .WithMany()
             .HasForeignKey(m => m.SitioId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<Movimiento>()
+            .HasOne(m => m.MiembroExterno)
+            .WithMany(x => x.Movimientos)
+            .HasForeignKey(m => m.MiembroExternoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<Movimiento>()
+            .HasOne(m => m.Grupo)
+            .WithMany(x => x.Movimientos)
+            .HasForeignKey(m => m.GrupoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
         mb.Entity<Equipo>()
@@ -126,6 +140,20 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .HasForeignKey(ep => ep.SitioId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<EquipoPeriferico>()
+            .HasOne(ep => ep.MiembroExterno)
+            .WithMany()
+            .HasForeignKey(ep => ep.MiembroExternoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<EquipoPeriferico>()
+            .HasOne(ep => ep.Grupo)
+            .WithMany()
+            .HasForeignKey(ep => ep.GrupoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<Grupo>()
+            .HasIndex(g => g.Nombre).IsUnique();
 
         mb.Entity<TipoPeriferico>().HasData(
             new TipoPeriferico { Id = 1, Nombre = "Monitor" },

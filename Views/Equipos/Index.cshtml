@@ -13,10 +13,41 @@
   }
 </div>
 
+@{
+  bool enModoSeleccion = ViewBag.ParaEmpleado != null || ViewBag.ParaMiembroExterno != null || ViewBag.ParaGrupo != null;
+}
+
+@if (enModoSeleccion)
+{
+  <div class="card" style="margin-bottom:16px;background:var(--blue-bg)">
+    <div class="card-body" style="padding:12px 20px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:13.5px">
+        <i class="bi bi-person-check"></i>
+        Seleccionando equipo para asignar a <strong>@ViewBag.NombreDestino</strong>
+      </div>
+      <a asp-controller="@ViewBag.ControladorDestino" asp-action="Details"
+         asp-route-id="@(ViewBag.ParaEmpleado ?? ViewBag.ParaMiembroExterno ?? ViewBag.ParaGrupo)"
+         class="btn btn-secondary btn-sm">Cancelar</a>
+    </div>
+  </div>
+}
+
 <div class="card" style="margin-bottom:16px">
   <div class="card-body" style="padding:14px 20px">
     <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <input type="hidden" name="estado" value="@ViewBag.Estado"/>
+      @if (ViewBag.ParaEmpleado != null)
+      {
+        <input type="hidden" name="paraEmpleado" value="@ViewBag.ParaEmpleado"/>
+      }
+      else if (ViewBag.ParaMiembroExterno != null)
+      {
+        <input type="hidden" name="paraMiembroExterno" value="@ViewBag.ParaMiembroExterno"/>
+      }
+      else if (ViewBag.ParaGrupo != null)
+      {
+        <input type="hidden" name="paraGrupo" value="@ViewBag.ParaGrupo"/>
+      }
 
       <div class="search-box" style="flex:1;min-width:200px">
         <i class="bi bi-search"></i>
@@ -87,6 +118,15 @@
             <td class="text-muted" style="font-size:12px">@e.FechaRegistro.ToString("dd/MM/yyyy")</td>
             <td>
               <div class="gap-2">
+                @if (enModoSeleccion && e.Estado == "Bodega" &&
+                     (await PermisoSvc.TienePermiso(User, "movimientos.asignar") || await PermisoSvc.TienePermiso(User, "movimientos.prestamo")))
+                {
+                  <a asp-controller="Movimientos" asp-action="Registrar" asp-route-equipoId="@e.Id"
+                     asp-route-empleadoId="@ViewBag.ParaEmpleado" asp-route-miembroExternoId="@ViewBag.ParaMiembroExterno" asp-route-grupoId="@ViewBag.ParaGrupo"
+                     class="btn btn-primary btn-sm">
+                    <i class="bi bi-box-arrow-right"></i> Asignar
+                  </a>
+                }
                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
                 @if (await PermisoSvc.TienePermiso(User, "equipos.editar"))
                 {

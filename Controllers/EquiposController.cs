@@ -12,7 +12,7 @@ public class EquiposController : BaseController
     private readonly AppDbContext _db;
     public EquiposController(AppDbContext db, PermisoService permisos) : base(permisos) => _db = db;
 
-    public async Task<IActionResult> Index(string? estado, string? tipo, string? buscar, bool? garantiaVencida, bool? garantiaPorVencer, int pagina = 1)
+    public async Task<IActionResult> Index(string? estado, string? tipo, string? buscar, bool? garantiaVencida, bool? garantiaPorVencer, int pagina = 1, int? paraEmpleado = null, int? paraMiembroExterno = null, int? paraGrupo = null)
     {
         if (!await Puede("equipos.ver")) return AccesoDenegado();
 
@@ -49,6 +49,41 @@ public class EquiposController : BaseController
         ViewBag.Buscar = buscar;
         ViewBag.GarantiaVencida   = garantiaVencida;
         ViewBag.GarantiaPorVencer = garantiaPorVencer;
+
+        ViewBag.ParaEmpleado = null;
+        ViewBag.ParaMiembroExterno = null;
+        ViewBag.ParaGrupo = null;
+        if (paraEmpleado.HasValue)
+        {
+            var empleadoDestino = await _db.Empleados.FindAsync(paraEmpleado.Value);
+            if (empleadoDestino != null)
+            {
+                ViewBag.ParaEmpleado = empleadoDestino.Id;
+                ViewBag.NombreDestino = empleadoDestino.Nombre;
+                ViewBag.ControladorDestino = "Empleados";
+            }
+        }
+        else if (paraMiembroExterno.HasValue)
+        {
+            var miembroDestino = await _db.MiembrosExternos.FindAsync(paraMiembroExterno.Value);
+            if (miembroDestino != null)
+            {
+                ViewBag.ParaMiembroExterno = miembroDestino.Id;
+                ViewBag.NombreDestino = miembroDestino.Nombre;
+                ViewBag.ControladorDestino = "MiembrosExternos";
+            }
+        }
+        else if (paraGrupo.HasValue)
+        {
+            var grupoDestino = await _db.Grupos.FindAsync(paraGrupo.Value);
+            if (grupoDestino != null)
+            {
+                ViewBag.ParaGrupo = grupoDestino.Id;
+                ViewBag.NombreDestino = grupoDestino.Nombre;
+                ViewBag.ControladorDestino = "Grupos";
+            }
+        }
+
         ViewBag.Tipos  = await _db.TiposEquipo
             .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
@@ -77,6 +112,8 @@ public class EquiposController : BaseController
 
         var historial = await _db.Movimientos
             .Include(m => m.Empleado).ThenInclude(emp => emp!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .Include(m => m.Sitio)
             .Include(m => m.Imagenes.OrderBy(i => i.Orden))
             .Where(m => m.EquipoId == id)
@@ -359,6 +396,8 @@ public class EquiposController : BaseController
             EquipoId                = dto.EquipoId,
             PerifericoId            = dto.PerifericoId,
             EmpleadoId              = movActivo?.EmpleadoId,
+            MiembroExternoId        = movActivo?.MiembroExternoId,
+            GrupoId                 = movActivo?.GrupoId,
             TipoMovimiento          = movActivo?.TipoMovimiento ?? "Asignacion",
             FechaAsignacion         = DateTime.Now,
             FechaDevolucionEstimada = movActivo?.FechaFinEstimada,

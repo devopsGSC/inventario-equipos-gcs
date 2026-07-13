@@ -29,6 +29,7 @@ public class ReportesController : BaseController
     public async Task<IActionResult> Equipos(
         string? buscar, string? tipoEquipo, string? estadoEquipo,
         string? marcaEquipo, string? departamento, string? empleadoId,
+        string? miembroExternoId, string? grupoId,
         string? sitio,
         DateTime? fechaCompraDesde, DateTime? fechaCompraHasta,
         DateTime? fechaGarantiaDesde, DateTime? fechaGarantiaHasta,
@@ -96,6 +97,24 @@ public class ReportesController : BaseController
                 .Select(m => m.EquipoId).Distinct().ToListAsync();
             query = query.Where(e => idsDept.Contains(e.Id));
         }
+        if (!string.IsNullOrEmpty(miembroExternoId) && int.TryParse(miembroExternoId, out int miembroIdEq))
+        {
+            var idsMiembro = await _db.Movimientos
+                .Where(m => m.MiembroExternoId == miembroIdEq &&
+                            m.FechaDevolucion == null &&
+                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
+                .Select(m => m.EquipoId).ToListAsync();
+            query = query.Where(e => idsMiembro.Contains(e.Id));
+        }
+        if (!string.IsNullOrEmpty(grupoId) && int.TryParse(grupoId, out int grupoIdEq))
+        {
+            var idsGrupo = await _db.Movimientos
+                .Where(m => m.GrupoId == grupoIdEq &&
+                            m.FechaDevolucion == null &&
+                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
+                .Select(m => m.EquipoId).ToListAsync();
+            query = query.Where(e => idsGrupo.Contains(e.Id));
+        }
         if (!string.IsNullOrEmpty(sitio))
         {
             var idsConSitio = await _db.Movimientos
@@ -112,6 +131,8 @@ public class ReportesController : BaseController
 
         var movsActivos = (await _db.Movimientos
             .Include(m => m.Empleado).ThenInclude(emp => emp!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .Include(m => m.Sitio)
             .Where(m => equipoIds.Contains(m.EquipoId) &&
                         m.FechaDevolucion == null &&
@@ -134,6 +155,8 @@ public class ReportesController : BaseController
         ViewBag.MarcaEquipo        = marcaEquipo;
         ViewBag.Departamento       = departamento;
         ViewBag.EmpleadoId         = empleadoId;
+        ViewBag.MiembroExternoId   = miembroExternoId;
+        ViewBag.GrupoId            = grupoId;
         ViewBag.SitioFiltro        = sitio;
         ViewBag.FechaCompraDesde   = fechaCompraDesde?.ToString("yyyy-MM-dd");
         ViewBag.FechaCompraHasta   = fechaCompraHasta?.ToString("yyyy-MM-dd");
@@ -157,6 +180,10 @@ public class ReportesController : BaseController
         ViewBag.Departamentos = await _db.Departamentos.OrderBy(d => d.Nombre).Select(d => d.Nombre).ToListAsync();
         ViewBag.Empleados     = await _db.Empleados.Where(e => e.Activo)
             .OrderBy(e => e.Nombre).Select(e => new { e.Id, e.Nombre, e.CodigoEmpleado }).ToListAsync();
+        ViewBag.MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo)
+            .OrderBy(m => m.Nombre).Select(m => new { m.Id, m.Nombre }).ToListAsync();
+        ViewBag.Grupos        = await _db.Grupos.Where(g => g.Activo)
+            .OrderBy(g => g.Nombre).Select(g => new { g.Id, g.Nombre }).ToListAsync();
         ViewBag.Sitios        = await _db.Sitios.Where(s => s.Activo).OrderBy(s => s.Nombre).Select(s => s.Nombre).ToListAsync();
 
         return View(paginaDatos);
@@ -168,6 +195,7 @@ public class ReportesController : BaseController
     public async Task<IActionResult> Perifericos(
         string? buscar, string? tipoPeriferico, string? estadoPeriferico,
         string? marcaPeriferico, string? empleadoId,
+        string? miembroExternoId, string? grupoId,
         DateTime? fechaCompraDesde, DateTime? fechaCompraHasta,
         int pagina = 1, string? formato = null)
     {
@@ -205,6 +233,36 @@ public class ReportesController : BaseController
             var todosPf = perPorEq.Union(perDirect).ToList();
             query = query.Where(p => todosPf.Contains(p.Id));
         }
+        if (!string.IsNullOrEmpty(miembroExternoId) && int.TryParse(miembroExternoId, out int miembroIdPf))
+        {
+            var equiposDel = await _db.Movimientos
+                .Where(m => m.MiembroExternoId == miembroIdPf && m.FechaDevolucion == null &&
+                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
+                .Select(m => m.EquipoId).ToListAsync();
+            var perPorEq = await _db.EquiposPerifericos
+                .Where(ep => equiposDel.Contains(ep.EquipoId ?? 0) && ep.FechaDesvinculacion == null)
+                .Select(ep => ep.PerifericoId).ToListAsync();
+            var perDirect = await _db.EquiposPerifericos
+                .Where(ep => ep.MiembroExternoId == miembroIdPf && ep.FechaDesvinculacion == null)
+                .Select(ep => ep.PerifericoId).ToListAsync();
+            var todosPf = perPorEq.Union(perDirect).ToList();
+            query = query.Where(p => todosPf.Contains(p.Id));
+        }
+        if (!string.IsNullOrEmpty(grupoId) && int.TryParse(grupoId, out int grupoIdPf))
+        {
+            var equiposDel = await _db.Movimientos
+                .Where(m => m.GrupoId == grupoIdPf && m.FechaDevolucion == null &&
+                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
+                .Select(m => m.EquipoId).ToListAsync();
+            var perPorEq = await _db.EquiposPerifericos
+                .Where(ep => equiposDel.Contains(ep.EquipoId ?? 0) && ep.FechaDesvinculacion == null)
+                .Select(ep => ep.PerifericoId).ToListAsync();
+            var perDirect = await _db.EquiposPerifericos
+                .Where(ep => ep.GrupoId == grupoIdPf && ep.FechaDesvinculacion == null)
+                .Select(ep => ep.PerifericoId).ToListAsync();
+            var todosPf = perPorEq.Union(perDirect).ToList();
+            query = query.Where(p => todosPf.Contains(p.Id));
+        }
 
         var perifericos = await query.OrderBy(p => p.TipoPeriferico!.Nombre).ThenBy(p => p.Marca).ToListAsync();
         var perifIds    = perifericos.Select(p => p.Id).ToList();
@@ -212,6 +270,8 @@ public class ReportesController : BaseController
         var asignActivas = (await _db.EquiposPerifericos
             .Include(ep => ep.Equipo)
             .Include(ep => ep.Empleado).ThenInclude(emp => emp!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .Where(ep => perifIds.Contains(ep.PerifericoId) && ep.FechaDesvinculacion == null)
             .ToListAsync())
             .GroupBy(ep => ep.PerifericoId).ToDictionary(g => g.Key, g => g.First());
@@ -229,6 +289,8 @@ public class ReportesController : BaseController
         ViewBag.EstadoPeriferico= estadoPeriferico;
         ViewBag.MarcaPeriferico = marcaPeriferico;
         ViewBag.EmpleadoId      = empleadoId;
+        ViewBag.MiembroExternoId = miembroExternoId;
+        ViewBag.GrupoId         = grupoId;
         ViewBag.FechaCompraDesde= fechaCompraDesde?.ToString("yyyy-MM-dd");
         ViewBag.FechaCompraHasta= fechaCompraHasta?.ToString("yyyy-MM-dd");
         ViewBag.TotalSinPaginar = total;
@@ -242,6 +304,10 @@ public class ReportesController : BaseController
         ViewBag.Marcas    = await _db.Perifericos.Select(p => p.Marca).Distinct().OrderBy(m => m).ToListAsync();
         ViewBag.Empleados = await _db.Empleados.Where(e => e.Activo)
             .OrderBy(e => e.Nombre).Select(e => new { e.Id, e.Nombre, e.CodigoEmpleado }).ToListAsync();
+        ViewBag.MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo)
+            .OrderBy(m => m.Nombre).Select(m => new { m.Id, m.Nombre }).ToListAsync();
+        ViewBag.Grupos    = await _db.Grupos.Where(g => g.Activo)
+            .OrderBy(g => g.Nombre).Select(g => new { g.Id, g.Nombre }).ToListAsync();
 
         return View(perifericos.Skip((pagina - 1) * tam).Take(tam).ToList());
     }
@@ -346,7 +412,7 @@ public class ReportesController : BaseController
     private static string[] EncabezadosEquipos => new[]
         { "Nombre", "Tipo", "Marca", "Modelo", "Serie", "IMEI", "Estado",
           "RAM", "Procesador", "Almacenamiento", "Plan de datos",
-          "Accesorios", "Empleado asignado", "Departamento", "Sitio", "Tipo movimiento",
+          "Accesorios", "Responsable", "Departamento / Organización", "Sitio", "Tipo movimiento",
           "Fecha asignación", "Fecha compra", "Garantía" };
 
     private static List<string[]> FilasEquipos(List<Equipo> equipos, Dictionary<int, Movimiento> movs) =>
@@ -357,7 +423,8 @@ public class ReportesController : BaseController
                 e.NumeroSerie, e.IMEI ?? "", e.Estado,
                 e.RAM ?? "—", e.Procesador ?? "—", e.Almacenamiento ?? "—", e.PlanData?.Nombre ?? "—",
                 e.Accesorios ?? "",
-                m?.Empleado?.Nombre ?? "—", m?.Empleado?.Departamento?.Nombre ?? "—",
+                m?.NombreResponsable ?? "—",
+                m?.Empleado?.Departamento?.Nombre ?? m?.MiembroExterno?.Organizacion ?? m?.Grupo?.Descripcion ?? "—",
                 m?.Sitio?.Nombre ?? "—",
                 m?.TipoMovimiento ?? "—", m?.FechaInicio.ToString("dd/MM/yyyy") ?? "—",
                 e.FechaCompra?.ToString("dd/MM/yyyy") ?? "—",
@@ -392,7 +459,7 @@ public class ReportesController : BaseController
 
     private static string[] EncabezadosPerifericos => new[]
         { "Tipo", "Marca", "Modelo", "Serie", "Estado",
-          "Equipo adjunto", "Empleado", "Departamento", "Fecha compra", "Registrado" };
+          "Equipo adjunto", "Responsable", "Departamento / Organización", "Fecha compra", "Registrado" };
 
     private static List<string[]> FilasPerifericos(List<Periferico> perifericos,
         Dictionary<int, EquipoPeriferico> asignActivas) =>
@@ -403,8 +470,8 @@ public class ReportesController : BaseController
             else
             {
                 equipo   = ep.Equipo?.NombreEquipo ?? "—";
-                empleado = ep.Empleado?.Nombre ?? "—";
-                depto    = ep.Empleado?.Departamento?.Nombre ?? "—";
+                empleado = ep.NombreResponsable;
+                depto    = ep.Empleado?.Departamento?.Nombre ?? ep.MiembroExterno?.Organizacion ?? ep.Grupo?.Descripcion ?? "—";
             }
             return new[] {
                 p.TipoPeriferico?.Nombre ?? "", p.Marca, p.Modelo, p.NumeroSerie,

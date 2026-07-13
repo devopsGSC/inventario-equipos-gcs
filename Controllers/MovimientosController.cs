@@ -19,6 +19,9 @@ public class MovimientosController : BaseController
     private static readonly string[] ClavesMovimiento =
         ["movimientos.asignar", "movimientos.prestamo", "movimientos.devolucion", "movimientos.garantia", "equipos.baja"];
 
+    private static string SanitizarNombreArchivo(string nombre) =>
+        string.Join("_", nombre.Split(Path.GetInvalidFileNameChars().Append(' ').ToArray(), StringSplitOptions.RemoveEmptyEntries));
+
     private static string ClaveParaTipo(string? tipo) => tipo switch
     {
         "Asignacion"      => "movimientos.asignar",
@@ -31,7 +34,7 @@ public class MovimientosController : BaseController
         _                 => ""
     };
 
-    public async Task<IActionResult> Registrar(int equipoId)
+    public async Task<IActionResult> Registrar(int equipoId, int? empleadoId = null, int? miembroExternoId = null, int? grupoId = null)
     {
         if (!await PuedeAlguno(ClavesMovimiento)) return AccesoDenegado();
 
@@ -47,9 +50,15 @@ public class MovimientosController : BaseController
         {
             EquipoId = equipoId,
             Equipo = equipo,
+            TipoResponsable = miembroExternoId.HasValue ? "MiembroExterno" : grupoId.HasValue ? "Grupo" : "Empleado",
+            EmpleadoId = empleadoId,
+            MiembroExternoId = miembroExternoId,
+            GrupoId = grupoId,
             Empleados = await _db.Empleados.Where(e => e.Activo)
                 .Include(e => e.Departamento)
                 .OrderBy(e => e.Nombre).ToListAsync(),
+            MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo).OrderBy(m => m.Nombre).ToListAsync(),
+            Grupos = await _db.Grupos.Where(g => g.Activo).OrderBy(g => g.Nombre).ToListAsync(),
             Sitios = await _db.Sitios.Where(s => s.Activo).OrderBy(s => s.Nombre).ToListAsync()
         };
         return View(vm);
@@ -132,22 +141,35 @@ public class MovimientosController : BaseController
         // Limpiar ModelState de campos complejos que no vienen del form
         ModelState.Remove("Equipo");
         ModelState.Remove("Empleados");
+        ModelState.Remove("MiembrosExternos");
+        ModelState.Remove("Grupos");
         ModelState.Remove("Sitios");
         ModelState.Remove("EmpleadoId");
+        ModelState.Remove("MiembroExternoId");
+        ModelState.Remove("GrupoId");
         ModelState.Remove("FechaFinEstimada");
         ModelState.Remove("FechaInicio");
 
         if (vm.FechaInicio == default)
             vm.FechaInicio = DateTime.Now;
 
-        bool requiereEmpleado = vm.TipoMovimiento == "Asignacion" || vm.TipoMovimiento == "Prestamo";
+        bool requiereResponsable = vm.TipoMovimiento == "Asignacion" || vm.TipoMovimiento == "Prestamo";
 
         // Validaciones manuales
         if (string.IsNullOrEmpty(vm.TipoMovimiento))
             ModelState.AddModelError("TipoMovimiento", "Seleccione un tipo de movimiento.");
 
-        if (requiereEmpleado && vm.EmpleadoId == null)
-            ModelState.AddModelError("EmpleadoId", "Debe seleccionar un empleado.");
+        if (requiereResponsable)
+        {
+            bool tieneResponsable = vm.TipoResponsable switch
+            {
+                "MiembroExterno" => vm.MiembroExternoId != null,
+                "Grupo"          => vm.GrupoId != null,
+                _                => vm.EmpleadoId != null
+            };
+            if (!tieneResponsable)
+                ModelState.AddModelError("EmpleadoId", "Debe seleccionar un responsable.");
+        }
 
         // FechaFinEstimada es opcional para préstamos
 
@@ -164,6 +186,8 @@ public class MovimientosController : BaseController
             vm.Equipo = await _db.Equipos.Include(e => e.TipoEquipo).FirstAsync(e => e.Id == vm.EquipoId);
             vm.Empleados = await _db.Empleados.Where(e => e.Activo)
                 .Include(e => e.Departamento).OrderBy(e => e.Nombre).ToListAsync();
+            vm.MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo).OrderBy(m => m.Nombre).ToListAsync();
+            vm.Grupos = await _db.Grupos.Where(g => g.Activo).OrderBy(g => g.Nombre).ToListAsync();
             vm.Sitios = await _db.Sitios.OrderBy(s => s.Nombre).ToListAsync();
             return View(vm);
         }
@@ -171,6 +195,8 @@ public class MovimientosController : BaseController
         // Cerrar movimiento activo si es devolución o salida de garantía
         // *** Sin .Contains() en la query EF — comparaciones explícitas ***
         int? empleadoAnteriorId = null;
+        int? miembroExternoAnteriorId = null;
+        int? grupoAnteriorId = null;
         if (vm.TipoMovimiento == "Devolucion" || vm.TipoMovimiento == "SalidaGarantia")
         {
             var activo = await _db.Movimientos.FirstOrDefaultAsync(m =>
@@ -183,7 +209,10 @@ public class MovimientosController : BaseController
             if (activo != null)
             {
                 activo.FechaDevolucion = DateTime.Now;
-                empleadoAnteriorId = activo.EmpleadoId; // guardar para el finiquito
+                // guardar para el finiquito
+                empleadoAnteriorId = activo.EmpleadoId;
+                miembroExternoAnteriorId = activo.MiembroExternoId;
+                grupoAnteriorId = activo.GrupoId;
             }
 
             // Desvincular periféricos — regresan al stock disponible
@@ -211,12 +240,26 @@ public class MovimientosController : BaseController
             _                 => equipo.Estado
         };
 
+        int? nuevoEmpleadoId = null, nuevoMiembroExternoId = null, nuevoGrupoId = null;
+        if (requiereResponsable)
+        {
+            nuevoEmpleadoId = vm.TipoResponsable == "Empleado" ? vm.EmpleadoId : null;
+            nuevoMiembroExternoId = vm.TipoResponsable == "MiembroExterno" ? vm.MiembroExternoId : null;
+            nuevoGrupoId = vm.TipoResponsable == "Grupo" ? vm.GrupoId : null;
+        }
+        else if (vm.TipoMovimiento == "Devolucion")
+        {
+            nuevoEmpleadoId = empleadoAnteriorId;
+            nuevoMiembroExternoId = miembroExternoAnteriorId;
+            nuevoGrupoId = grupoAnteriorId;
+        }
+
         var movimiento = new Movimiento
         {
             EquipoId         = vm.EquipoId,
-            EmpleadoId       = requiereEmpleado ? vm.EmpleadoId
-                             : vm.TipoMovimiento == "Devolucion" ? empleadoAnteriorId
-                             : null,
+            EmpleadoId       = nuevoEmpleadoId,
+            MiembroExternoId = nuevoMiembroExternoId,
+            GrupoId          = nuevoGrupoId,
             TipoMovimiento   = vm.TipoMovimiento!,
             FechaInicio      = vm.FechaInicio,
             FechaFinEstimada = vm.FechaFinEstimada,
@@ -228,7 +271,7 @@ public class MovimientosController : BaseController
         await _db.SaveChangesAsync();
 
         // Adjuntar periféricos si se seleccionaron (solo Asignacion y Prestamo)
-        if (requiereEmpleado && !string.IsNullOrEmpty(Request.Form["perifericosIds"]))
+        if (requiereResponsable && !string.IsNullOrEmpty(Request.Form["perifericosIds"]))
         {
             var ids = Request.Form["perifericosIds"].ToString()
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -242,7 +285,9 @@ public class MovimientosController : BaseController
                     _db.EquiposPerifericos.Add(new EquipoPeriferico
                     {
                         EquipoId = vm.EquipoId, PerifericoId = pid,
-                        EmpleadoId = vm.EmpleadoId,
+                        EmpleadoId = nuevoEmpleadoId,
+                        MiembroExternoId = nuevoMiembroExternoId,
+                        GrupoId = nuevoGrupoId,
                         TipoMovimiento = vm.TipoMovimiento!,
                         FechaAsignacion = DateTime.Now,
                         FechaDevolucionEstimada = vm.FechaFinEstimada,
@@ -258,11 +303,12 @@ public class MovimientosController : BaseController
         TempData["OK"] = "Movimiento registrado correctamente.";
 
         // Carta de préstamo/asignación → va a Carta (descarga inmediata)
-        // Devolución con empleado identificado → va al Finiquito TI
+        // Devolución con responsable identificado → va al Finiquito TI
         // Resto → detalle del equipo
+        bool tieneResponsableFinal = movimiento.EmpleadoId != null || movimiento.MiembroExternoId != null || movimiento.GrupoId != null;
         string redirectUrl = (vm.TipoMovimiento == "Prestamo" || vm.TipoMovimiento == "Asignacion")
             ? Url.Action(nameof(Carta), new { id = movimiento.Id })!
-            : (vm.TipoMovimiento == "Devolucion" && movimiento.EmpleadoId != null)
+            : (vm.TipoMovimiento == "Devolucion" && tieneResponsableFinal)
                 ? Url.Action(nameof(Finiquito), new { movimientoId = movimiento.Id })!
                 : Url.Action("Details", "Equipos", new { id = vm.EquipoId })!;
 
@@ -343,6 +389,8 @@ public class MovimientosController : BaseController
         var movimiento = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .Include(m => m.Imagenes.OrderBy(i => i.Orden))
             .Include(m => m.Sitio)
             .FirstOrDefaultAsync(m => m.Id == id);
@@ -367,6 +415,8 @@ public class MovimientosController : BaseController
         var movimiento = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movimiento == null) return NotFound();
         return View(movimiento);
@@ -381,8 +431,11 @@ public class MovimientosController : BaseController
             .Include(m => m.Equipo).ThenInclude(e => e!.EquiposPerifericos.Where(ep => ep.FechaDesvinculacion == null))
                 .ThenInclude(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .FirstOrDefaultAsync(m => m.Id == id);
-        if (movimiento == null || movimiento.Empleado == null) return NotFound();
+        if (movimiento == null || (movimiento.Empleado == null && movimiento.MiembroExterno == null && movimiento.Grupo == null))
+            return NotFound();
 
         // Obtener firma del usuario logueado
         var usuarioActual = await _users.GetUserAsync(User);
@@ -395,7 +448,7 @@ public class MovimientosController : BaseController
         movimiento.CartaGenerada = true;
         await _db.SaveChangesAsync();
 
-        var nombre = $"Carta_{movimiento.TipoMovimiento}_{movimiento.Empleado.CodigoEmpleado}_{DateTime.Now:yyyyMMdd}.pdf";
+        var nombre = $"Carta_{movimiento.TipoMovimiento}_{SanitizarNombreArchivo(movimiento.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
 
@@ -406,12 +459,16 @@ public class MovimientosController : BaseController
         var mov = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .FirstOrDefaultAsync(m => m.Id == movimientoId);
         if (mov == null) return NotFound();
 
         // Buscar el movimiento anterior (asignación/préstamo) para precargar datos
         var movAnterior = await _db.Movimientos
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .Where(m => m.EquipoId == mov.EquipoId &&
                         m.Id != movimientoId &&
                         (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
@@ -444,11 +501,13 @@ public class MovimientosController : BaseController
         var mov = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
             .FirstOrDefaultAsync(m => m.Id == movimientoId);
-        if (mov == null || mov.Empleado == null) return NotFound();
+        if (mov == null || (mov.Empleado == null && mov.MiembroExterno == null && mov.Grupo == null))
+            return NotFound();
 
-        var eq  = mov.Equipo!;
-        var emp = mov.Empleado;
+        var eq = mov.Equipo!;
 
         // Cargar periféricos devueltos hoy con este equipo
         var perifsDevueltos = await _db.EquiposPerifericos
@@ -466,11 +525,11 @@ public class MovimientosController : BaseController
         {
             RutaFirmaIT    = rutaFirmaIT,
             Fecha          = mov.FechaInicio.ToString("dd/MMM/yyyy"),
-            Colaborador    = emp.Nombre,
-            Centro         = emp.Departamento?.Nombre ?? "",
-            Area           = emp.Cargo,
-            CodEmpleado    = emp.CodigoEmpleado,
-            Identificacion = emp.DUI,
+            Colaborador    = mov.NombreResponsable,
+            Centro         = mov.Empleado?.Departamento?.Nombre ?? mov.MiembroExterno?.Organizacion ?? mov.Grupo?.Descripcion ?? "",
+            Area           = mov.Empleado?.Cargo ?? mov.MiembroExterno?.Referencia ?? "",
+            CodEmpleado    = mov.Empleado?.CodigoEmpleado ?? "N/A",
+            Identificacion = mov.Empleado?.DUI ?? mov.MiembroExterno?.Identificacion ?? "",
             Tipo           = eq.TipoEquipo?.Nombre ?? "",
             Marca          = eq.Marca,
             Modelo         = eq.Modelo,
@@ -503,7 +562,7 @@ public class MovimientosController : BaseController
         mov.CartaGenerada = true;
         await _db.SaveChangesAsync();
 
-        var nombre = $"Finiquito_TI_{emp.CodigoEmpleado}_{DateTime.Now:yyyyMMdd}.pdf";
+        var nombre = $"Finiquito_TI_{SanitizarNombreArchivo(mov.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
 }

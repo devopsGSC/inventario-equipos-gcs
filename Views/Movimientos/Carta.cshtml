@@ -35,13 +35,13 @@
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <div>
-        <div class="form-label">Colaborador</div>
-        <div style="font-weight:600">@Model.Empleado?.Nombre</div>
-        <div class="text-muted">@Model.Empleado?.CodigoEmpleado</div>
+        <div class="form-label">Responsable</div>
+        <div style="font-weight:600">@Model.NombreResponsable</div>
+        <div class="text-muted">@(Model.Empleado?.CodigoEmpleado ?? Model.MiembroExterno?.Organizacion)</div>
       </div>
       <div>
-        <div class="form-label">Departamento</div>
-        <div>@Model.Empleado?.Departamento?.Nombre</div>
+        <div class="form-label">@(Model.Empleado != null ? "Departamento" : Model.MiembroExterno != null ? "Organización" : "Descripción")</div>
+        <div>@(Model.Empleado?.Departamento?.Nombre ?? Model.MiembroExterno?.Organizacion ?? Model.Grupo?.Descripcion ?? "—")</div>
       </div>
       <div>
         <div class="form-label">Fecha</div>

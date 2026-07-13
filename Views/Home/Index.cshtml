@@ -95,11 +95,14 @@
           <div class="result-grid">
             <div class="result-field"><label>Tipo</label><p>@eq.TipoEquipo?.Nombre</p></div>
             <div class="result-field"><label>Estado</label><p>@eq.Estado</p></div>
-            @if (mov?.Empleado != null)
+            @if (mov != null && (mov.Empleado != null || mov.MiembroExterno != null || mov.Grupo != null))
             {
-              <div class="result-field"><label>Responsable</label><p>@mov.Empleado.Nombre (@mov.Empleado.CodigoEmpleado)</p></div>
-              <div class="result-field"><label>Departamento</label><p>@mov.Empleado.Departamento?.Nombre</p></div>
-              <div class="result-field"><label>Cargo</label><p>@mov.Empleado.Cargo</p></div>
+              <div class="result-field"><label>Responsable</label><p>@mov.NombreResponsable@(mov.Empleado != null ? $" ({mov.Empleado.CodigoEmpleado})" : "")</p></div>
+              <div class="result-field"><label>@(mov.Empleado != null ? "Departamento" : mov.MiembroExterno != null ? "Organización" : "Descripción")</label><p>@(mov.Empleado?.Departamento?.Nombre ?? mov.MiembroExterno?.Organizacion ?? mov.Grupo?.Descripcion ?? "—")</p></div>
+              @if (mov.Empleado != null)
+              {
+                <div class="result-field"><label>Cargo</label><p>@mov.Empleado.Cargo</p></div>
+              }
               <div class="result-field"><label>Desde</label><p>@mov.FechaInicio.ToString("dd/MM/yyyy")</p></div>
             }
           </div>
@@ -173,10 +176,10 @@
               </td>
               <td><span class="badge @badgeCls">@badgeLbl</span></td>
               <td>
-                @if (m.Empleado != null)
+                @if (m.Empleado != null || m.MiembroExterno != null || m.Grupo != null)
                 {
-                  <div style="font-weight:500;font-size:13px">@m.Empleado.Nombre</div>
-                  <div class="text-muted">@m.Empleado.CodigoEmpleado</div>
+                  <div style="font-weight:500;font-size:13px">@m.NombreResponsable</div>
+                  <div class="text-muted">@(m.Empleado?.CodigoEmpleado ?? m.MiembroExterno?.Organizacion)</div>
                 }
                 else { <span class="text-muted">—</span> }
               </td>

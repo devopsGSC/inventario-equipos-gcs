@@ -23,13 +23,18 @@ public class MovimientoCreateViewModel
     public int EquipoId { get; set; }
     public Equipo? Equipo { get; set; }
     public string? TipoMovimiento { get; set; }
+    public string TipoResponsable { get; set; } = "Empleado"; // "Empleado" | "MiembroExterno" | "Grupo"
     public int? EmpleadoId { get; set; }
+    public int? MiembroExternoId { get; set; }
+    public int? GrupoId { get; set; }
     public DateTime FechaInicio { get; set; } = DateTime.Now;
     public DateTime? FechaFinEstimada { get; set; }
     public string? Observaciones { get; set; }
     public string? FirmaEmpleado { get; set; }
     public int? SitioId { get; set; }
     public List<Empleado> Empleados { get; set; } = [];
+    public List<MiembroExterno> MiembrosExternos { get; set; } = [];
+    public List<Grupo> Grupos { get; set; } = [];
     public List<Sitio> Sitios { get; set; } = [];
 }
 

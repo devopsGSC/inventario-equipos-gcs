@@ -51,20 +51,23 @@ public class SeedService
 
         var modulos = new List<Modulo>
         {
-            new() { Nombre = "Equipos",      Icono = "bi-laptop" },
-            new() { Nombre = "Periféricos",  Icono = "bi-plug" },
-            new() { Nombre = "Empleados",    Icono = "bi-people" },
-            new() { Nombre = "Movimientos",  Icono = "bi-arrow-left-right" },
-            new() { Nombre = "Reportes",     Icono = "bi-bar-chart" },
-            new() { Nombre = "Carga Masiva", Icono = "bi-file-earmark-arrow-up" },
-            new() { Nombre = "Usuarios",     Icono = "bi-person-gear" },
+            new() { Nombre = "Equipos",           Icono = "bi-laptop" },
+            new() { Nombre = "Periféricos",       Icono = "bi-plug" },
+            new() { Nombre = "Empleados",         Icono = "bi-people" },
+            new() { Nombre = "Miembros Externos", Icono = "bi-person-badge" },
+            new() { Nombre = "Grupos",            Icono = "bi-diagram-3" },
+            new() { Nombre = "Movimientos",       Icono = "bi-arrow-left-right" },
+            new() { Nombre = "Reportes",          Icono = "bi-bar-chart" },
+            new() { Nombre = "Carga Masiva",      Icono = "bi-file-earmark-arrow-up" },
+            new() { Nombre = "Usuarios",          Icono = "bi-person-gear" },
         };
         _db.Modulos.AddRange(modulos);
         await _db.SaveChangesAsync();
 
         var idPorNombre = modulos.ToDictionary(m => m.Nombre, m => m.Id);
         int equipos = idPorNombre["Equipos"], perifericos = idPorNombre["Periféricos"],
-            empleados = idPorNombre["Empleados"], movimientos = idPorNombre["Movimientos"],
+            empleados = idPorNombre["Empleados"], miembrosExternos = idPorNombre["Miembros Externos"],
+            grupos = idPorNombre["Grupos"], movimientos = idPorNombre["Movimientos"],
             reportes = idPorNombre["Reportes"], cargaMasiva = idPorNombre["Carga Masiva"],
             usuarios = idPorNombre["Usuarios"];
 
@@ -97,6 +100,16 @@ public class SeedService
             new() { ModuloId=empleados, Clave="empleados.detalle", Nombre="Ver detalle de empleado" },
             new() { ModuloId=empleados, Clave="empleados.crear",   Nombre="Registrar empleado" },
             new() { ModuloId=empleados, Clave="empleados.editar",  Nombre="Editar empleado" },
+            // Miembros Externos
+            new() { ModuloId=miembrosExternos, Clave="miembrosexternos.ver",     Nombre="Ver listado de miembros externos" },
+            new() { ModuloId=miembrosExternos, Clave="miembrosexternos.detalle", Nombre="Ver detalle de miembro externo" },
+            new() { ModuloId=miembrosExternos, Clave="miembrosexternos.crear",   Nombre="Registrar miembro externo" },
+            new() { ModuloId=miembrosExternos, Clave="miembrosexternos.editar",  Nombre="Editar miembro externo" },
+            // Grupos
+            new() { ModuloId=grupos, Clave="grupos.ver",     Nombre="Ver listado de grupos" },
+            new() { ModuloId=grupos, Clave="grupos.detalle", Nombre="Ver detalle de grupo" },
+            new() { ModuloId=grupos, Clave="grupos.crear",   Nombre="Registrar grupo" },
+            new() { ModuloId=grupos, Clave="grupos.editar",  Nombre="Editar grupo" },
             // Movimientos
             new() { ModuloId=movimientos, Clave="movimientos.ver",         Nombre="Ver historial de movimientos" },
             new() { ModuloId=movimientos, Clave="movimientos.asignar",     Nombre="Registrar asignación" },

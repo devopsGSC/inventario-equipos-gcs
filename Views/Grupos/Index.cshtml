@@ -1,0 +1,66 @@
+@model List<Grupo>
+@{ ViewData["Title"] = "Grupos"; }
+
+<div class="page-header">
+  <div class="page-title">Grupos</div>
+  @if (await PermisoSvc.TienePermiso(User, "grupos.crear"))
+  {
+    <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Registrar grupo</a>
+  }
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-body" style="padding:14px 20px">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div class="search-box" style="flex:1;min-width:200px">
+        <i class="bi bi-search"></i>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre o descripción..." value="@ViewBag.Buscar"/>
+      </div>
+
+      <select name="activo" class="form-control" style="width:140px">
+        <option value="">Todos los estados</option>
+        <option value="true"  selected="@(ViewBag.Activo == true  ? "selected" : null)">Activos</option>
+        <option value="false" selected="@(ViewBag.Activo == false ? "selected" : null)">Inactivos</option>
+      </select>
+
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+      @if (!string.IsNullOrEmpty(ViewBag.Buscar as string) || ViewBag.Activo != null)
+      {
+        <a asp-action="Index" class="btn btn-secondary">Limpiar</a>
+      }
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var g in Model)
+        {
+          <tr>
+            <td><a asp-action="Details" asp-route-id="@g.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@g.Nombre</a></td>
+            <td>@(g.Descripcion ?? "—")</td>
+            <td>
+              @if (g.Activo) { <span class="badge badge-green">Activo</span> }
+              else { <span class="badge badge-baja">Inactivo</span> }
+            </td>
+            <td>
+              <div class="gap-2">
+                <a asp-action="Details" asp-route-id="@g.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
+                @if (await PermisoSvc.TienePermiso(User, "grupos.editar"))
+                {
+                  <a asp-action="Edit" asp-route-id="@g.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+        @if (!Model.Any())
+        { <tr><td colspan="4"><div class="empty-state"><i class="bi bi-diagram-3"></i>No hay grupos registrados.</div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
+</div>

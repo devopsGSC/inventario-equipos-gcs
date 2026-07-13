@@ -15,6 +15,8 @@
     string estadoPeriferico= ViewBag.EstadoPeriferico ?? "";
     string marcaPeriferico = ViewBag.MarcaPeriferico  ?? "";
     string empleadoId      = ViewBag.EmpleadoId       ?? "";
+    string miembroExternoId= ViewBag.MiembroExternoId ?? "";
+    string grupoId         = ViewBag.GrupoId          ?? "";
     string fechaCompraDesde= ViewBag.FechaCompraDesde ?? "";
     string fechaCompraHasta= ViewBag.FechaCompraHasta ?? "";
 
@@ -81,6 +83,28 @@
           }
         </select>
       </div>
+      <div>
+        <label class="form-label">Miembro externo</label>
+        <select name="miembroExternoId" class="form-control">
+          <option value="">Todos</option>
+          @foreach (dynamic m in ViewBag.MiembrosExternos ?? new List<object>())
+          {
+            bool sel = miembroExternoId == m.Id.ToString();
+            <option value="@m.Id" selected="@(sel ? "selected" : null)">@m.Nombre</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Grupo</label>
+        <select name="grupoId" class="form-control">
+          <option value="">Todos</option>
+          @foreach (dynamic g in ViewBag.Grupos ?? new List<object>())
+          {
+            bool sel = grupoId == g.Id.ToString();
+            <option value="@g.Id" selected="@(sel ? "selected" : null)">@g.Nombre</option>
+          }
+        </select>
+      </div>
     </div>
 
     <div style="margin-top:12px">
@@ -101,7 +125,7 @@
 
 @if (!string.IsNullOrEmpty(buscar) || !string.IsNullOrEmpty(tipoPeriferico) ||
      !string.IsNullOrEmpty(estadoPeriferico) || !string.IsNullOrEmpty(marcaPeriferico) ||
-     !string.IsNullOrEmpty(empleadoId))
+     !string.IsNullOrEmpty(empleadoId) || !string.IsNullOrEmpty(miembroExternoId) || !string.IsNullOrEmpty(grupoId))
 {
   <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
     <span style="font-size:12px;color:var(--text-muted)">Filtros activos:</span>
@@ -123,7 +147,7 @@
       <thead>
         <tr>
           <th>Tipo</th><th>Marca / Modelo</th><th>Serie</th><th>Estado</th>
-          <th>Equipo adjunto</th><th>Empleado</th><th>Fecha compra</th><th>Registrado</th>
+          <th>Equipo adjunto</th><th>Responsable</th><th>Fecha compra</th><th>Registrado</th>
         </tr>
       </thead>
       <tbody>
@@ -132,7 +156,7 @@
           asignActivas.TryGetValue(p.Id, out var ep);
           string equipo, empleado;
           if (ep == null) { equipo = "—"; empleado = "—"; }
-          else             { equipo = ep.Equipo?.NombreEquipo ?? "—"; empleado = ep.Empleado?.Nombre ?? "—"; }
+          else             { equipo = ep.Equipo?.NombreEquipo ?? "—"; empleado = ep.NombreResponsable; }
           <tr>
             <td>@p.TipoPeriferico?.Nombre</td>
             <td>

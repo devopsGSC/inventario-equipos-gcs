@@ -277,26 +277,29 @@ public class PdfService
                 new XRect(ox + 3, oy + 3, ow - 6, CellH(39, 42) - 6));
         }
 
-        // ══ MOTIVO ══
-        Sec(43, "Motivo de recepcion del activo");
-        Box(44, 1,45, 2); Box(44, 3,45, 5); Box(44, 6,45, 9);
-        double bsz = 8;
-        foreach (var (bc1, bc2, label, key) in new[]{
-            (1, 2, "Renovacion",           "renovacion"),
-            (3, 5, "Fin Relacion Laboral",  "fin_laboral"),
-            (6, 9, "Documentacion Robo",    "robo") })
+        // ══ MOTIVO (solo Finiquito — no aplica a Asignación/Préstamo) ══
+        if (headerText == null)
         {
-            var (bx, bw) = Cx(bc1, bc2);
-            double by = CellTop(44);
-            double bh = CellH(44, 45);
-            var cFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-            g.DrawString(label, fBold, XBrushes.Black, new XRect(bx, by, bw * 0.72, bh), cFmt);
-            double cbx = bx + bw * 0.76;
-            double cby = by + bh / 2 - bsz / 2;
-            g.DrawRectangle(pen, cbx, cby, bsz, bsz);
-            if (d.Motivo == key)
-                g.DrawString("X", fBold9, XBrushes.Black,
-                    new XRect(cbx, cby, bsz, bsz), cFmt);
+            Sec(43, "Motivo de recepcion del activo");
+            Box(44, 1,45, 2); Box(44, 3,45, 5); Box(44, 6,45, 9);
+            double bsz = 8;
+            foreach (var (bc1, bc2, label, key) in new[]{
+                (1, 2, "Renovacion",           "renovacion"),
+                (3, 5, "Fin Relacion Laboral",  "fin_laboral"),
+                (6, 9, "Documentacion Robo",    "robo") })
+            {
+                var (bx, bw) = Cx(bc1, bc2);
+                double by = CellTop(44);
+                double bh = CellH(44, 45);
+                var cFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+                g.DrawString(label, fBold, XBrushes.Black, new XRect(bx, by, bw * 0.72, bh), cFmt);
+                double cbx = bx + bw * 0.76;
+                double cby = by + bh / 2 - bsz / 2;
+                g.DrawRectangle(pen, cbx, cby, bsz, bsz);
+                if (d.Motivo == key)
+                    g.DrawString("X", fBold9, XBrushes.Black,
+                        new XRect(cbx, cby, bsz, bsz), cFmt);
+            }
         }
 
         // ══ RECEPTOR ══
@@ -494,7 +497,7 @@ public class PdfService
 
     public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
     {
-        var eq = movimiento.Equipo!; var emp = movimiento.Empleado!;
+        var eq = movimiento.Equipo!;
         var perifs = (movimiento.Equipo?.EquiposPerifericos ?? [])
             .Where(ep => ep.FechaDesvinculacion == null)
             .Select(ep => new PerifericoFiniquito {
@@ -508,11 +511,11 @@ public class PdfService
             Titulo         = "Carta de Compromiso de Equipo",
             RutaFirmaIT    = rutaFirmaIT,
             Fecha          = movimiento.FechaInicio.ToString("dd/MMM/yyyy"),
-            Colaborador    = emp.Nombre,
-            Centro         = emp.Departamento?.Nombre ?? "",
-            Area           = emp.Cargo,
-            CodEmpleado    = emp.CodigoEmpleado,
-            Identificacion = emp.DUI,
+            Colaborador    = movimiento.NombreResponsable,
+            Centro         = movimiento.Empleado?.Departamento?.Nombre ?? movimiento.MiembroExterno?.Organizacion ?? movimiento.Grupo?.Descripcion ?? "",
+            Area           = movimiento.Empleado?.Cargo ?? movimiento.MiembroExterno?.Referencia ?? "",
+            CodEmpleado    = movimiento.Empleado?.CodigoEmpleado ?? "N/A",
+            Identificacion = movimiento.Empleado?.DUI ?? movimiento.MiembroExterno?.Identificacion ?? "",
             Tipo           = eq.TipoEquipo?.Nombre ?? "",
             Marca          = eq.Marca,
             Modelo         = eq.Modelo,
@@ -531,7 +534,7 @@ public class PdfService
 
     public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
     {
-        var eq = movimiento.Equipo!; var emp = movimiento.Empleado!;
+        var eq = movimiento.Equipo!;
         string obs = movimiento.FechaFinEstimada.HasValue
             ? $"Prestamo temporal. Devolucion estimada: {movimiento.FechaFinEstimada.Value:dd/MM/yyyy}. {movimiento.Observaciones}".Trim()
             : movimiento.Observaciones ?? "";
@@ -548,11 +551,11 @@ public class PdfService
             Titulo         = "Carta de Prestamo de Equipo",
             RutaFirmaIT    = rutaFirmaIT,
             Fecha          = movimiento.FechaInicio.ToString("dd/MMM/yyyy"),
-            Colaborador    = emp.Nombre,
-            Centro         = emp.Departamento?.Nombre ?? "",
-            Area           = emp.Cargo,
-            CodEmpleado    = emp.CodigoEmpleado,
-            Identificacion = emp.DUI,
+            Colaborador    = movimiento.NombreResponsable,
+            Centro         = movimiento.Empleado?.Departamento?.Nombre ?? movimiento.MiembroExterno?.Organizacion ?? movimiento.Grupo?.Descripcion ?? "",
+            Area           = movimiento.Empleado?.Cargo ?? movimiento.MiembroExterno?.Referencia ?? "",
+            CodEmpleado    = movimiento.Empleado?.CodigoEmpleado ?? "N/A",
+            Identificacion = movimiento.Empleado?.DUI ?? movimiento.MiembroExterno?.Identificacion ?? "",
             Tipo           = eq.TipoEquipo?.Nombre ?? "",
             Marca          = eq.Marca,
             Modelo         = eq.Modelo,
@@ -595,13 +598,17 @@ public class PdfService
             infoLineas.Add(("IMEI:", eq.IMEI));
         if (emp != null)
             infoLineas.Add(("Colaborador:", $"{emp.Nombre} ({emp.CodigoEmpleado}) — {emp.Departamento?.Nombre}"));
+        else if (movimiento.MiembroExterno != null)
+            infoLineas.Add(("Miembro externo:", $"{movimiento.MiembroExterno.Nombre} — {movimiento.MiembroExterno.Organizacion}"));
+        else if (movimiento.Grupo != null)
+            infoLineas.Add(("Grupo:", movimiento.Grupo.Nombre));
         if (movimiento.Sitio != null)
             infoLineas.Add(("Sitio:", movimiento.Sitio.Nombre));
         if (!string.IsNullOrEmpty(movimiento.Observaciones))
             infoLineas.Add(("Observaciones:", movimiento.Observaciones));
 
         return GenerarPdfHallazgosInterno(infoLineas, movimiento.Imagenes.OrderBy(i => i.Orden),
-            rutaFirmaIT, emp?.Nombre ?? "Colaborador");
+            rutaFirmaIT, movimiento.NombreResponsable != "—" ? movimiento.NombreResponsable : "Colaborador");
     }
 
     public byte[] GenerarPdfHallazgosPeriferico(EquipoPeriferico ep, string? rutaFirmaIT = null)
@@ -623,13 +630,17 @@ public class PdfService
         };
         if (emp != null)
             infoLineas.Add(("Colaborador:", $"{emp.Nombre} ({emp.CodigoEmpleado}) — {emp.Departamento?.Nombre}"));
+        else if (ep.MiembroExterno != null)
+            infoLineas.Add(("Miembro externo:", $"{ep.MiembroExterno.Nombre} — {ep.MiembroExterno.Organizacion}"));
+        else if (ep.Grupo != null)
+            infoLineas.Add(("Grupo:", ep.Grupo.Nombre));
         if (ep.Sitio != null)
             infoLineas.Add(("Sitio:", ep.Sitio.Nombre));
         if (!string.IsNullOrEmpty(ep.Observaciones))
             infoLineas.Add(("Observaciones:", ep.Observaciones));
 
         return GenerarPdfHallazgosInterno(infoLineas, ep.Imagenes.OrderBy(i => i.Orden),
-            rutaFirmaIT, emp?.Nombre ?? "Colaborador");
+            rutaFirmaIT, ep.NombreResponsable != "—" ? ep.NombreResponsable : "Colaborador");
     }
 
     private byte[] GenerarPdfHallazgosInterno(List<(string label, string valor)> infoLineas,
@@ -868,8 +879,10 @@ public class PdfService
 
     private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep, string? rutaFirmaIT = null)
     {
-        var emp = ep.Empleado!;
         var per = ep.Periferico!;
+        string nombreResp = ep.NombreResponsable;
+        string duiResp    = ep.Empleado?.DUI ?? ep.MiembroExterno?.Identificacion ?? "N/A";
+        string cargoResp  = ep.Empleado?.Cargo ?? ep.MiembroExterno?.Referencia ?? "";
 
         double W  = page.Width.Point;
         double H  = page.Height.Point;
@@ -951,7 +964,7 @@ public class PdfService
         y += 18;
 
         // ── Cuerpo ──
-        DrawPara($"Yo, {emp.Nombre}, portador(a) del DUI {emp.DUI}, quien desempeña el cargo de {emp.Cargo}, por este medio hago constar que recibo de Global Customs Solutions S.E.M. de C.V. el siguiente periférico corporativo en buenas condiciones de funcionamiento:", fNorm);
+        DrawPara($"Yo, {nombreResp}, portador(a) del DUI {duiResp}, quien desempeña el cargo de {cargoResp}, por este medio hago constar que recibo de Global Customs Solutions S.E.M. de C.V. el siguiente periférico corporativo en buenas condiciones de funcionamiento:", fNorm);
 
         string tipo = per.TipoPeriferico?.Nombre ?? "";
         DrawPara($"{tipo}: {per.Marca} {per.Modelo} — S/N: {per.NumeroSerie}", fBold, indentL: 12, spaceAfter: 10);

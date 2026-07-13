@@ -18,6 +18,8 @@
     string marcaEquipo      = ViewBag.MarcaEquipo      ?? "";
     string departamento     = ViewBag.Departamento     ?? "";
     string empleadoId       = ViewBag.EmpleadoId       ?? "";
+    string miembroExternoId = ViewBag.MiembroExternoId ?? "";
+    string grupoId          = ViewBag.GrupoId          ?? "";
     string sitioFiltro      = ViewBag.SitioFiltro      ?? "";
     string fechaCompraDesde = ViewBag.FechaCompraDesde ?? "";
     string fechaCompraHasta = ViewBag.FechaCompraHasta ?? "";
@@ -121,6 +123,28 @@
           { <option value="@s" selected="@(sitioFiltro == s ? "selected" : null)">@s</option> }
         </select>
       </div>
+      <div>
+        <label class="form-label">Miembro externo</label>
+        <select name="miembroExternoId" class="form-control">
+          <option value="">Todos</option>
+          @foreach (dynamic m in ViewBag.MiembrosExternos ?? new List<object>())
+          {
+            bool sel = miembroExternoId == m.Id.ToString();
+            <option value="@m.Id" selected="@(sel ? "selected" : null)">@m.Nombre</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Grupo</label>
+        <select name="grupoId" class="form-control">
+          <option value="">Todos</option>
+          @foreach (dynamic g in ViewBag.Grupos ?? new List<object>())
+          {
+            bool sel = grupoId == g.Id.ToString();
+            <option value="@g.Id" selected="@(sel ? "selected" : null)">@g.Nombre</option>
+          }
+        </select>
+      </div>
     </div>
 
     <div style="margin-top:12px">
@@ -178,6 +202,7 @@
 
 @if (!string.IsNullOrEmpty(buscar) || !string.IsNullOrEmpty(tipoEquipo) || !string.IsNullOrEmpty(estadoEquipo) ||
      !string.IsNullOrEmpty(marcaEquipo) || !string.IsNullOrEmpty(departamento) || !string.IsNullOrEmpty(empleadoId) ||
+     !string.IsNullOrEmpty(miembroExternoId) || !string.IsNullOrEmpty(grupoId) ||
      !string.IsNullOrEmpty(sitioFiltro) ||
      garantiaVencida || garantiaPorVencer || sinAsignar)
 {
@@ -216,7 +241,7 @@
         <tr>
           <th>Equipo</th><th>Tipo</th><th>Serie</th><th>Estado</th>
           <th>RAM</th><th>Procesador</th><th>Almacenamiento</th><th>Plan</th>
-          <th>Empleado asignado</th><th>Dpto.</th><th>Sitio</th><th>Fecha asig.</th>
+          <th>Responsable</th><th>Dpto. / Org.</th><th>Sitio</th><th>Fecha asig.</th>
           <th>Compra</th><th>Garantía</th>
         </tr>
       </thead>
@@ -239,10 +264,10 @@
             <td class="text-muted" style="font-size:12.5px">@(e.PlanData?.Nombre ?? "—")</td>
             <td>
               @if (m != null)
-              { <span>@m.Empleado?.Nombre</span> }
+              { <span>@m.NombreResponsable</span> }
               else { <span class="text-muted">—</span> }
             </td>
-            <td>@(m?.Empleado?.Departamento?.Nombre ?? "—")</td>
+            <td>@(m?.Empleado?.Departamento?.Nombre ?? m?.MiembroExterno?.Organizacion ?? m?.Grupo?.Descripcion ?? "—")</td>
             <td class="text-muted" style="font-size:12.5px">
               @if (m?.Sitio != null)
               { <span><i class="bi bi-geo-alt"></i> @m.Sitio.Nombre</span> }

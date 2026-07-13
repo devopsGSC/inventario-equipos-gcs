@@ -3,7 +3,10 @@
 @{
     ViewData["Title"] = "Finiquito de Tecnología";
     var eq  = Model.Equipo!;
-    var emp = Model.Empleado!;
+    var nombreResp = Model.NombreResponsable;
+    var subResp = Model.Empleado != null ? $"{Model.Empleado.CodigoEmpleado} — {Model.Empleado.Cargo}"
+                : Model.MiembroExterno?.Organizacion ?? "";
+    var depResp = Model.Empleado?.Departamento?.Nombre ?? Model.MiembroExterno?.Organizacion ?? Model.Grupo?.Descripcion ?? "—";
     var movAnt      = ViewBag.MovAnterior as Movimiento;
     var perifsDevueltos = ViewBag.PerifsDevueltos as List<EquipoPeriferico> ?? new();
 
@@ -165,10 +168,10 @@
     <div class="card-header"><div class="card-title">Resumen</div></div>
     <div class="card-body">
       <div style="margin-bottom:14px">
-        <div class="form-label">Colaborador</div>
-        <div style="font-weight:600">@emp.Nombre</div>
-        <div class="text-muted">@emp.CodigoEmpleado — @emp.Cargo</div>
-        <div class="text-muted">@emp.Departamento?.Nombre</div>
+        <div class="form-label">Responsable</div>
+        <div style="font-weight:600">@nombreResp</div>
+        <div class="text-muted">@subResp</div>
+        <div class="text-muted">@depResp</div>
       </div>
       <div style="margin-bottom:14px">
         <div class="form-label">Equipo</div>

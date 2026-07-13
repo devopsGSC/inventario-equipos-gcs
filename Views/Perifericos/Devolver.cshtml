@@ -110,12 +110,12 @@
         <div class="text-muted">@Model.Marca @Model.Modelo</div>
         <div class="mono text-muted" style="font-size:11px">@Model.NumeroSerie</div>
       </div>
-      @if (asignacion?.Empleado != null)
+      @if (asignacion != null && (asignacion.Empleado != null || asignacion.MiembroExterno != null || asignacion.Grupo != null))
       {
         <div style="margin-bottom:14px">
           <div class="form-label">Devuelve</div>
-          <div style="font-weight:600">@asignacion.Empleado.Nombre</div>
-          <div class="text-muted">@asignacion.Empleado.CodigoEmpleado</div>
+          <div style="font-weight:600">@asignacion.NombreResponsable</div>
+          <div class="text-muted">@(asignacion.Empleado?.CodigoEmpleado ?? asignacion.MiembroExterno?.Organizacion)</div>
         </div>
         <div style="margin-bottom:14px">
           <div class="form-label">Tipo de movimiento</div>

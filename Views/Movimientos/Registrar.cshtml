@@ -7,9 +7,17 @@
   bool puedeEliminarSitio    = await PermisoSvc.TienePermiso(User, "sitios.eliminar");
 }
 
+@{
+  var volverControlador = Model.MiembroExternoId.HasValue ? "MiembrosExternos"
+                         : Model.GrupoId.HasValue ? "Grupos"
+                         : Model.EmpleadoId.HasValue ? "Empleados"
+                         : "Equipos";
+  var volverId = Model.MiembroExternoId ?? Model.GrupoId ?? Model.EmpleadoId ?? Model.EquipoId;
+}
+
 <div class="page-header">
   <div>
-    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@Model.EquipoId" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @eq.NombreEquipo</a>
+    <a asp-controller="@volverControlador" asp-action="Details" asp-route-id="@volverId" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @eq.NombreEquipo</a>
     <div class="page-title" style="margin-top:4px">Registrar movimiento</div>
   </div>
 </div>
@@ -48,15 +56,50 @@
 
         <div id="sec-empleado" style="display:none">
           <div class="form-group">
-            <label class="form-label">Empleado</label>
-            <select asp-for="EmpleadoId" class="form-control" id="sel-empleado">
-              <option value="">— Seleccionar empleado —</option>
-              @foreach (var emp in Model.Empleados)
-              {
-                <option value="@emp.Id">@emp.Nombre (@emp.CodigoEmpleado) — @emp.Departamento?.Nombre</option>
-              }
-            </select>
-            <span asp-validation-for="EmpleadoId" class="field-error"></span>
+            <label class="form-label">Responsable</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;margin-bottom:12px" id="responsable-tipo-grid">
+              <label class="tipo-option" style="border:1px solid #dde2ec;border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:500">
+                <input type="radio" name="TipoResponsable" value="Empleado" style="display:none" onchange="onTipoResponsable('Empleado')"/>
+                <i class="bi bi-person"></i> Empleado
+              </label>
+              <label class="tipo-option" style="border:1px solid #dde2ec;border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:500">
+                <input type="radio" name="TipoResponsable" value="MiembroExterno" style="display:none" onchange="onTipoResponsable('MiembroExterno')"/>
+                <i class="bi bi-person-badge"></i> Miembro externo
+              </label>
+              <label class="tipo-option" style="border:1px solid #dde2ec;border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:500">
+                <input type="radio" name="TipoResponsable" value="Grupo" style="display:none" onchange="onTipoResponsable('Grupo')"/>
+                <i class="bi bi-diagram-3"></i> Grupo
+              </label>
+            </div>
+
+            <div id="sel-wrap-Empleado">
+              <select asp-for="EmpleadoId" class="form-control" id="sel-empleado">
+                <option value="">— Seleccionar empleado —</option>
+                @foreach (var emp in Model.Empleados)
+                {
+                  <option value="@emp.Id">@emp.Nombre (@emp.CodigoEmpleado) — @emp.Departamento?.Nombre</option>
+                }
+              </select>
+              <span asp-validation-for="EmpleadoId" class="field-error"></span>
+            </div>
+            <div id="sel-wrap-MiembroExterno" style="display:none">
+              <select asp-for="MiembroExternoId" class="form-control" id="sel-miembroexterno">
+                <option value="">— Seleccionar miembro externo —</option>
+                @foreach (var m in Model.MiembrosExternos)
+                {
+                  <option value="@m.Id">@m.Nombre@(string.IsNullOrEmpty(m.Organizacion) ? "" : $" — {m.Organizacion}")</option>
+                }
+              </select>
+            </div>
+            <div id="sel-wrap-Grupo" style="display:none">
+              <select asp-for="GrupoId" class="form-control" id="sel-grupo">
+                <option value="">— Seleccionar grupo —</option>
+                @foreach (var g in Model.Grupos)
+                {
+                  <option value="@g.Id">@g.Nombre</option>
+                }
+              </select>
+            </div>
           </div>
         </div>
 
@@ -214,7 +257,7 @@
 
         <div class="gap-2">
           <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
-          <a asp-controller="Equipos" asp-action="Details" asp-route-id="@Model.EquipoId" class="btn btn-secondary">Cancelar</a>
+          <a asp-controller="@volverControlador" asp-action="Details" asp-route-id="@volverId" class="btn btn-secondary">Cancelar</a>
         </div>
       </form>
     </div>
@@ -249,8 +292,12 @@ function onTipo(val) {
   sel.style.borderColor = 'var(--accent)';
   sel.style.background = 'var(--blue-bg)';
 
-  document.getElementById('sec-empleado').style.display =
-    (val === 'Asignacion' || val === 'Prestamo') ? 'block' : 'none';
+  const secEmpleado = document.getElementById('sec-empleado');
+  secEmpleado.style.display = (val === 'Asignacion' || val === 'Prestamo') ? 'block' : 'none';
+  if (secEmpleado.style.display === 'block' && !document.querySelector('input[name="TipoResponsable"]:checked')) {
+    const radioEmpleado = document.querySelector('input[name="TipoResponsable"][value="Empleado"]');
+    if (radioEmpleado) { radioEmpleado.checked = true; onTipoResponsable('Empleado'); }
+  }
   document.getElementById('sec-fechafin').style.display =
     val === 'Prestamo' ? 'block' : 'none';
 
@@ -267,6 +314,20 @@ function onTipo(val) {
 
   const secSitio = document.getElementById('sec-sitio');
   if (secSitio) secSitio.style.display = esSalida || val === 'EntradaGarantia' ? 'block' : 'none';
+}
+
+function onTipoResponsable(tipo) {
+  document.querySelectorAll('#responsable-tipo-grid .tipo-option').forEach(el => {
+    el.style.borderColor = '#dde2ec';
+    el.style.background = '';
+  });
+  const sel = document.querySelector(`input[name="TipoResponsable"][value="${tipo}"]`).closest('.tipo-option');
+  sel.style.borderColor = 'var(--accent)';
+  sel.style.background = 'var(--blue-bg)';
+
+  document.getElementById('sel-wrap-Empleado').style.display = tipo === 'Empleado' ? 'block' : 'none';
+  document.getElementById('sel-wrap-MiembroExterno').style.display = tipo === 'MiembroExterno' ? 'block' : 'none';
+  document.getElementById('sel-wrap-Grupo').style.display = tipo === 'Grupo' ? 'block' : 'none';
 }
 
 // ── Canvas de firma ──────────────────────────────────
@@ -288,6 +349,24 @@ function initCanvas() {
 }
 window.addEventListener('load', initCanvas);
 window.addEventListener('resize', initCanvas);
+
+@if (Model.EmpleadoId.HasValue || Model.MiembroExternoId.HasValue || Model.GrupoId.HasValue)
+{
+  <text>
+  window.addEventListener('load', () => {
+    const radioAsignacion = document.querySelector('input[name="TipoMovimiento"][value="Asignacion"]');
+    if (radioAsignacion) {
+      radioAsignacion.checked = true;
+      onTipo('Asignacion');
+    }
+    const radioResponsable = document.querySelector('input[name="TipoResponsable"][value="@Model.TipoResponsable"]');
+    if (radioResponsable) {
+      radioResponsable.checked = true;
+      onTipoResponsable('@Model.TipoResponsable');
+    }
+  });
+  </text>
+}
 
 function getPos(e) {
   const rect = canvas.getBoundingClientRect();

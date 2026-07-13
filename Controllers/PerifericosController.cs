@@ -51,6 +51,8 @@ public class PerifericosController : BaseController
         var historial = await _db.EquiposPerifericos
             .Include(ep => ep.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .Include(ep => ep.Sitio)
             .Include(ep => ep.Imagenes.OrderBy(i => i.Orden))
             .Where(ep => ep.PerifericoId == id)
@@ -72,6 +74,8 @@ public class PerifericosController : BaseController
         var asignacionActiva = await _db.EquiposPerifericos
             .Include(ep => ep.Equipo)
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .Include(ep => ep.Sitio)
             .Include(ep => ep.Imagenes.OrderBy(i => i.Orden))
             .FirstOrDefaultAsync(ep => ep.PerifericoId == id && ep.FechaDesvinculacion == null);
@@ -243,12 +247,15 @@ public class PerifericosController : BaseController
         ViewBag.Empleados = await _db.Empleados.Where(e => e.Activo)
             .Include(e => e.Departamento)
             .OrderBy(e => e.Nombre).ToListAsync();
+        ViewBag.MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo).OrderBy(m => m.Nombre).ToListAsync();
+        ViewBag.Grupos = await _db.Grupos.Where(g => g.Activo).OrderBy(g => g.Nombre).ToListAsync();
         ViewBag.Sitios = await _db.Sitios.Where(s => s.Activo).OrderBy(s => s.Nombre).ToListAsync();
         return View(p);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> AsignarDirecto(int id, int empleadoId,
+    public async Task<IActionResult> AsignarDirecto(int id, string tipoResponsable,
+        int? empleadoId, int? miembroExternoId, int? grupoId,
         string tipoMovimiento, DateTime? fechaDevolucionEstimada,
         string? observaciones, string? firmaEmpleado, int? sitioId)
     {
@@ -263,10 +270,13 @@ public class PerifericosController : BaseController
             TempData["Error"] = "El periférico ya no está disponible.";
             return RedirectToAction(nameof(Details), new { id });
         }
-        var empleado = await _db.Empleados.FindAsync(empleadoId);
-        if (empleado == null)
+
+        int? nuevoEmpleadoId = tipoResponsable == "MiembroExterno" || tipoResponsable == "Grupo" ? null : empleadoId;
+        int? nuevoMiembroExternoId = tipoResponsable == "MiembroExterno" ? miembroExternoId : null;
+        int? nuevoGrupoId = tipoResponsable == "Grupo" ? grupoId : null;
+        if (nuevoEmpleadoId == null && nuevoMiembroExternoId == null && nuevoGrupoId == null)
         {
-            TempData["Error"] = "Empleado no encontrado.";
+            TempData["Error"] = "Debe seleccionar un responsable.";
             return RedirectToAction(nameof(AsignarDirecto), new { id });
         }
 
@@ -274,7 +284,9 @@ public class PerifericosController : BaseController
         {
             EquipoId                = null,
             PerifericoId            = id,
-            EmpleadoId              = empleadoId,
+            EmpleadoId              = nuevoEmpleadoId,
+            MiembroExternoId        = nuevoMiembroExternoId,
+            GrupoId                 = nuevoGrupoId,
             TipoAsignacion          = "Directo",
             TipoMovimiento          = tipoMovimiento == "Prestamo" ? "Prestamo" : "Asignacion",
             FechaAsignacion         = DateTime.Now,
@@ -301,8 +313,12 @@ public class PerifericosController : BaseController
         var ep = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
-        if (ep == null || ep.Empleado == null || ep.Periferico == null) return NotFound();
+        if (ep == null || ep.Periferico == null ||
+            (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
+            return NotFound();
         return View(ep);
     }
 
@@ -317,6 +333,8 @@ public class PerifericosController : BaseController
 
         var asignacion = await _db.EquiposPerifericos
             .Include(ep => ep.Empleado)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .FirstOrDefaultAsync(ep => ep.PerifericoId == id &&
                                        ep.FechaDesvinculacion == null);
         if (asignacion == null)
@@ -409,6 +427,8 @@ public class PerifericosController : BaseController
         var asignacion = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .Include(ep => ep.Imagenes.OrderBy(i => i.Orden))
             .Include(ep => ep.Sitio)
             .FirstOrDefaultAsync(ep => ep.Id == epId);
@@ -431,15 +451,22 @@ public class PerifericosController : BaseController
         var ep = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
-        if (ep == null || ep.Empleado == null || ep.Periferico == null) return NotFound();
+        if (ep == null || ep.Periferico == null ||
+            (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
+            return NotFound();
 
         // Obtener firma del usuario logueado
         var usuarioActual = await _users.GetUserAsync(User);
         var rutaFirmaIT   = usuarioActual?.RutaFirmaIT;
 
         var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT);
-        var nombre = $"Carta_Periferico_{ep.Empleado.CodigoEmpleado}_{DateTime.Now:yyyyMMdd}.pdf";
+        var nombre = $"Carta_Periferico_{SanitizarNombreArchivo(ep.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
+
+    private static string SanitizarNombreArchivo(string nombre) =>
+        string.Join("_", nombre.Split(Path.GetInvalidFileNameChars().Append(' ').ToArray(), StringSplitOptions.RemoveEmptyEntries));
 }

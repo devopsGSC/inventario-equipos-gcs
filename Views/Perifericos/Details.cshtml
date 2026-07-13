@@ -130,19 +130,39 @@
       @if (asigActiva?.Equipo != null) { <span class="badge badge-bodega">Vía equipo</span> }
     </div>
     <div class="card-body">
-      @if (asigActiva != null && asigActiva.Empleado != null)
+      @if (asigActiva != null && (asigActiva.Empleado != null || asigActiva.MiembroExterno != null || asigActiva.Grupo != null))
       {
-        var emp = asigActiva.Empleado;
+        var emp     = asigActiva.Empleado;
+        var miembro = asigActiva.MiembroExterno;
+        var grupo   = asigActiva.Grupo;
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--purple-bg);color:var(--purple-text);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">
             <i class="bi bi-person-fill"></i>
           </div>
           <div>
-            <a asp-controller="Empleados" asp-action="Details" asp-route-id="@emp.Id"
-               style="font-weight:600;font-size:15px;color:var(--accent);text-decoration:none">
-              @emp.Nombre
-            </a>
-            <div class="text-muted">@emp.CodigoEmpleado — @emp.Cargo</div>
+            @if (emp != null)
+            {
+              <a asp-controller="Empleados" asp-action="Details" asp-route-id="@emp.Id"
+                 style="font-weight:600;font-size:15px;color:var(--accent);text-decoration:none">
+                @emp.Nombre
+              </a>
+              <div class="text-muted">@emp.CodigoEmpleado — @emp.Cargo</div>
+            }
+            else if (miembro != null)
+            {
+              <a asp-controller="MiembrosExternos" asp-action="Details" asp-route-id="@miembro.Id"
+                 style="font-weight:600;font-size:15px;color:var(--accent);text-decoration:none">
+                @miembro.Nombre
+              </a>
+              <div class="text-muted">@miembro.Organizacion</div>
+            }
+            else if (grupo != null)
+            {
+              <a asp-controller="Grupos" asp-action="Details" asp-route-id="@grupo.Id"
+                 style="font-weight:600;font-size:15px;color:var(--accent);text-decoration:none">
+                @grupo.Nombre
+              </a>
+            }
           </div>
         </div>
         @if (asigActiva.Equipo != null)
@@ -158,8 +178,8 @@
         }
         <div class="form-grid" style="gap:10px">
           <div>
-            <div class="form-label">Departamento</div>
-            <div style="font-size:13.5px">@emp.Departamento?.Nombre</div>
+            <div class="form-label">@(emp != null ? "Departamento" : miembro != null ? "Organización" : "Descripción")</div>
+            <div style="font-size:13.5px">@(emp?.Departamento?.Nombre ?? miembro?.Organizacion ?? grupo?.Descripcion ?? "—")</div>
           </div>
           <div>
             <div class="form-label">Desde</div>
@@ -267,10 +287,10 @@
                 }
               </td>
               <td>
-                @if (ep.Empleado != null)
+                @if (ep.Empleado != null || ep.MiembroExterno != null || ep.Grupo != null)
                 {
-                  <div style="font-weight:500;font-size:13px">@ep.Empleado.Nombre</div>
-                  <div class="text-muted">@ep.Empleado.CodigoEmpleado — @ep.Empleado.Departamento?.Nombre</div>
+                  <div style="font-weight:500;font-size:13px">@ep.NombreResponsable</div>
+                  <div class="text-muted">@(ep.Empleado?.CodigoEmpleado ?? ep.MiembroExterno?.Organizacion ?? ep.Grupo?.Descripcion)</div>
                 }
                 else
                 {
