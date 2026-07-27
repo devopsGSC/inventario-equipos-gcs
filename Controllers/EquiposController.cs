@@ -286,7 +286,7 @@ public class EquiposController : BaseController
             ModelState.AddModelError("NumeroSerie", "Ya existe un equipo con ese número de serie.");
         if (await _db.Equipos.AnyAsync(e => e.NombreEquipo == equipo.NombreEquipo))
             ModelState.AddModelError("NombreEquipo", "Ya existe un equipo con ese nombre.");
-        if ((await _db.TiposEquipo.FindAsync(equipo.TipoEquipoId))?.Nombre == "Teléfono")
+        if ((await _db.TiposEquipo.FindAsync(equipo.TipoEquipoId))?.Nombre == "Celular")
         {
             if (string.IsNullOrWhiteSpace(equipo.IMEI))
                 ModelState.AddModelError("IMEI", "El IMEI es requerido para teléfonos.");
@@ -339,7 +339,7 @@ public class EquiposController : BaseController
             ModelState.AddModelError("NumeroSerie", "Ya existe un equipo con ese número de serie.");
         if (await _db.Equipos.AnyAsync(e => e.NombreEquipo == equipo.NombreEquipo && e.Id != id))
             ModelState.AddModelError("NombreEquipo", "Ya existe un equipo con ese nombre.");
-        if ((await _db.TiposEquipo.FindAsync(equipo.TipoEquipoId))?.Nombre == "Teléfono")
+        if ((await _db.TiposEquipo.FindAsync(equipo.TipoEquipoId))?.Nombre == "Celular")
         {
             if (string.IsNullOrWhiteSpace(equipo.IMEI))
                 ModelState.AddModelError("IMEI", "El IMEI es requerido para teléfonos.");

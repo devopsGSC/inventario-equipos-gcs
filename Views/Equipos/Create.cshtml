@@ -64,7 +64,7 @@
             @{ var _selTipoId = (int)(ViewBag.SelectedTipoId ?? 0); }
             @foreach (var t in (ViewBag.Tipos as List<TipoEquipo> ?? []))
             {
-              var icon = t.Nombre switch { "Laptop" => "bi-laptop", "Teléfono" => "bi-phone", "Tablet" => "bi-tablet", _ => "" };
+              var icon = t.Nombre switch { "Laptop" => "bi-laptop", "Celular" => "bi-phone", "Tablet" => "bi-tablet", _ => "" };
               bool esCustom = string.IsNullOrEmpty(icon);
               var sel = t.Id == _selTipoId ? "selected" : "";
               <div class="tipo-opt @sel" data-id="@t.Id" data-nombre="@t.Nombre" onclick="seleccionarTipo(this)">
@@ -143,7 +143,7 @@
         </div>
       </div>
 
-      <!-- PLAN DE DATOS: solo Teléfono -->
+      <!-- PLAN DE DATOS: solo Celular -->
       <div id="sec-plan" style="display:none">
         <div style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
           Plan de datos
@@ -212,8 +212,8 @@
 
 <script>
 // ---- TIPO DE EQUIPO ----
-const TIPOS_FIJOS        = ['Laptop', 'Teléfono', 'Tablet'];
-const ICONOS_TIPOS       = { 'Laptop': 'bi-laptop', 'Teléfono': 'bi-phone', 'Tablet': 'bi-tablet' };
+const TIPOS_FIJOS        = ['Laptop', 'Celular', 'Tablet'];
+const ICONOS_TIPOS       = { 'Laptop': 'bi-laptop', 'Celular': 'bi-phone', 'Tablet': 'bi-tablet' };
 const PUEDE_ELIMINAR_TIPO = @Html.Raw(puedeEliminarTipo.ToString().ToLower());
 
 function seleccionarTipo(el) {
@@ -221,8 +221,8 @@ function seleccionarTipo(el) {
   el.classList.add('selected');
   document.getElementById('tipoId').value = el.dataset.id;
   document.getElementById('nuevoTipoWrap').classList.remove('show');
-  document.getElementById('sec-imei').style.display = el.dataset.nombre === 'Teléfono' ? 'block' : 'none';
-  document.getElementById('sec-plan').style.display = el.dataset.nombre === 'Teléfono' ? 'block' : 'none';
+  document.getElementById('sec-imei').style.display = el.dataset.nombre === 'Celular' ? 'block' : 'none';
+  document.getElementById('sec-plan').style.display = el.dataset.nombre === 'Celular' ? 'block' : 'none';
 }
 
 function mostrarNuevoTipo() {
@@ -307,8 +307,8 @@ async function agregarNuevoTipo() {
   document.querySelectorAll('#tipoGrid .tipo-opt').forEach(o => o.classList.remove('selected'));
   document.querySelector(`#tipoGrid [data-id="${data.id}"]`).classList.add('selected');
   document.querySelector('#tipoGrid [data-id="nuevo"]').classList.remove('selected');
-  document.getElementById('sec-imei').style.display = data.nombre === 'Teléfono' ? 'block' : 'none';
-  document.getElementById('sec-plan').style.display = data.nombre === 'Teléfono' ? 'block' : 'none';
+  document.getElementById('sec-imei').style.display = data.nombre === 'Celular' ? 'block' : 'none';
+  document.getElementById('sec-plan').style.display = data.nombre === 'Celular' ? 'block' : 'none';
 }
 
 async function eliminarTipo(id, el) {

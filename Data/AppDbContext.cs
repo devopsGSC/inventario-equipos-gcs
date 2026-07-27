@@ -206,7 +206,7 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
         );
         mb.Entity<TipoEquipo>().HasData(
             new TipoEquipo { Id = 1, Nombre = "Laptop" },
-            new TipoEquipo { Id = 2, Nombre = "Teléfono" },
+            new TipoEquipo { Id = 2, Nombre = "Celular" },
             new TipoEquipo { Id = 3, Nombre = "Tablet" },
             new TipoEquipo { Id = 4, Nombre = "Desktop" },
             new TipoEquipo { Id = 5, Nombre = "Monitor" },

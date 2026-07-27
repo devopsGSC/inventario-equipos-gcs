@@ -105,7 +105,7 @@ ref["A1"].fill = PatternFill("solid", fgColor=navy)
 ref.column_dimensions["A"].width = 20
 ref.column_dimensions["B"].width = 25
 
-tipos = ["Laptop", "Teléfono", "Tablet", "Otro"]
+tipos = ["Laptop", "Celular", "Tablet", "Otro"]
 for i, t in enumerate(tipos, 2):
     ref.cell(row=i, column=1, value=t).font = Font(name="Arial", size=10)
     ref.cell(row=i, column=1).border = border
