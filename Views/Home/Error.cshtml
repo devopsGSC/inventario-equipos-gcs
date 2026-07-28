@@ -1,0 +1,42 @@
+@{
+  Layout = null;
+  ViewData["Title"] = "Error";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ocurrió un error — InventarioTI</title>
+  <link rel="icon" type="image/x-icon" href="/gcs_logo.ico"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, Segoe UI, Arial, sans-serif;
+      background: #f4f6fa; color: #1a2540;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .card {
+      background: #fff; border-radius: 12px; padding: 40px;
+      max-width: 480px; width: 100%; text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    .icon { font-size: 40px; margin-bottom: 12px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    p { color: #4a5f7a; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
+    a {
+      display: inline-block; padding: 10px 20px; border-radius: 8px;
+      background: #3b82f6; color: #fff; text-decoration: none; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1>Ocurrió un error inesperado</h1>
+    <p>No pudimos completar la operación. Si el problema persiste, contactá al equipo de TI.</p>
+    <a href="/">Volver al inicio</a>
+  </div>
+</body>
+</html>

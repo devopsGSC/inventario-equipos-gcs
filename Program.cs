@@ -106,6 +106,11 @@ builder.Configuration["Email:SmtpHost"] =
 builder.Configuration["Email:SmtpPort"] =
     Environment.GetEnvironmentVariable("EMAIL_SMTP_PORT");
 
+// PdfSharpCore necesita poder resolver "Arial" a un archivo de fuente; el
+// resolver por defecto requiere fuentes instaladas en el SO, que no existen
+// en el servidor de producción. Se usa una fuente embebida en su lugar.
+PdfSharpCore.Fonts.GlobalFontSettings.FontResolver = new AppFontResolver();
+
 var app = builder.Build();
 
 // Ejecutar seed al arrancar
@@ -115,8 +120,14 @@ using (var scope = app.Services.CreateScope())
     await seed.InicializarAsync();
 }
 
-// Mostrar errores detallados siempre (quitar en producción)
-app.UseDeveloperExceptionPage();
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/Home/Error");
+}
 
 // Debe ir antes que cualquier middleware que dependa del esquema/host
 // (redirects, cookies, generación de URLs), para que ASP.NET Core sepa
