@@ -109,7 +109,10 @@ public class PdfService
             g.DrawRectangle(pen, x, y, w, h);
         }
 
-        // Draw text centered vertically in row range
+        // Draw text centered vertically in row range. Si el texto no cabe en
+        // el ancho de la celda se reduce el tamaño de fuente para que entre
+        // en una sola linea, y ademas se recorta con un clip como red de
+        // seguridad para que nunca se dibuje encima de la celda vecina.
         void Txt(int r1, int r2, int c1, int c2, string? text, XFont f,
                  XStringAlignment ha = XStringAlignment.Near)
         {
@@ -117,14 +120,27 @@ public class PdfService
             var (x, w) = Cx(c1, c2);
             double y = CellTop(r1);
             double h = CellH(r1, r2);
+            double px = ha == XStringAlignment.Near ? x + 2 : x;
+            double pw = ha == XStringAlignment.Near ? w - 4 : w;
+
+            var fUse = f;
+            double textW = g.MeasureString(text, fUse).Width;
+            if (textW > pw && pw > 0)
+            {
+                double nuevoTam = Math.Max(f.Size * (pw / textW), 5.5);
+                fUse = new XFont(f.Name, nuevoTam, f.Style);
+            }
+
             var fmt = new XStringFormat
             {
                 Alignment     = ha,
                 LineAlignment = XLineAlignment.Center
             };
-            double px = ha == XStringAlignment.Near ? x + 2 : x;
-            double pw = ha == XStringAlignment.Near ? w - 4 : w;
-            g.DrawString(text, f, XBrushes.Black, new XRect(px, y, pw, h), fmt);
+            var rect = new XRect(px, y, pw, h);
+            g.Save();
+            g.IntersectClip(rect);
+            g.DrawString(text, fUse, XBrushes.Black, rect, fmt);
+            g.Restore();
         }
 
         void LV(int row, int lc1, int lc2, int vc1, int vc2, string label, string? val)
