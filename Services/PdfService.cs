@@ -238,22 +238,14 @@ public class PdfService
         LV(17, 1,1, 2,5, "Modelo:",      d.Modelo);
         LV(17, 6,6, 7,9, "Service Tag:", d.ServiceTag);
         Box(18, 1,18, 1); Box(18, 2,18, 5); Box(18, 6,18, 6); Box(18, 7,18, 9);
-        if (esCelular)
-        {
-            LV(18, 1,1, 2,5, "IMEI:",          d.TelImei);
-            LV(18, 6,6, 7,9, "Plan de Datos:", d.TelPlan);
-        }
-        else
-        {
-            LV(18, 1,1, 2,5, "Memoria RAM:", d.Ram);
-            LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
-        }
+        LV(18, 1,1, 2,5, "Memoria RAM:", d.Ram);
+        LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
         Box(19, 1,19, 1); Box(19, 2,19, 5); Box(19, 6,19, 6); Box(19, 7,19, 9);
-        LV(19, 1,1, 2,5, esCelular ? "" : "Procesador:", esCelular ? "" : d.Procesador);
+        LV(19, 1,1, 2,5, esCelular ? "IMEI:" : "Procesador:", esCelular ? d.TelImei : d.Procesador);
         LV(19, 6,6, 7,9, "Fecha garantia:", d.FechaGarantia);
         Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
         LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
-        LV(20, 6,6, 7,9, "SKU:",       d.Sku);
+        LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? d.TelPlan : d.Sku);
         Box(21, 1,21, 9);
 
         // ══ PERIFÉRICOS ══
