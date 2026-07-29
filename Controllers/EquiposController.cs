@@ -85,7 +85,7 @@ public class EquiposController : BaseController
         }
 
         ViewBag.Tipos  = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+            .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
         ViewBag.Paginacion = new PaginacionViewModel
         {
@@ -157,7 +157,7 @@ public class EquiposController : BaseController
         if (!await Puede("equipos.crear")) return AccesoDenegado();
 
         ViewBag.Tipos = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+            .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre)
             .ToListAsync();
         ViewBag.Planes = await _db.PlanesData.OrderBy(p => p.Nombre).ToListAsync();
@@ -197,7 +197,7 @@ public class EquiposController : BaseController
     public async Task<IActionResult> ListarTipos()
     {
         var lista = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+            .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Id)
             .Select(t => new { t.Id, t.Nombre })
             .ToListAsync();
@@ -297,7 +297,7 @@ public class EquiposController : BaseController
         if (!ModelState.IsValid)
         {
             ViewBag.Tipos = await _db.TiposEquipo
-                .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+                .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
                 .OrderBy(t => t.Nombre)
                 .ToListAsync();
             ViewBag.Planes = await _db.PlanesData.OrderBy(p => p.Nombre).ToListAsync();
@@ -322,7 +322,7 @@ public class EquiposController : BaseController
             .FirstOrDefaultAsync(e => e.Id == id);
         if (equipo == null) return NotFound();
         ViewBag.Tipos = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+            .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre)
             .ToListAsync();
         ViewBag.Planes = await _db.PlanesData.OrderBy(p => p.Nombre).ToListAsync();
@@ -350,7 +350,7 @@ public class EquiposController : BaseController
         if (!ModelState.IsValid)
         {
             ViewBag.Tipos = await _db.TiposEquipo
-                .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
+                .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
                 .OrderBy(t => t.Nombre)
                 .ToListAsync();
             ViewBag.Planes = await _db.PlanesData.OrderBy(p => p.Nombre).ToListAsync();

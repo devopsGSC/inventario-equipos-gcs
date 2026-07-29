@@ -64,7 +64,7 @@
             @{ var _selTipoId = (int)(ViewBag.SelectedTipoId ?? 0); }
             @foreach (var t in (ViewBag.Tipos as List<TipoEquipo> ?? []))
             {
-              var icon = t.Nombre switch { "Laptop" => "bi-laptop", "Celular" => "bi-phone", "Tablet" => "bi-tablet", _ => "" };
+              var icon = t.Nombre switch { "Laptop" => "bi-laptop", "Celular" => "bi-phone", "Tablet" => "bi-tablet", "Desktop" => "bi-pc-display", _ => "" };
               bool esCustom = string.IsNullOrEmpty(icon);
               var sel = t.Id == _selTipoId ? "selected" : "";
               <div class="tipo-opt @sel" data-id="@t.Id" data-nombre="@t.Nombre" onclick="seleccionarTipo(this)">
@@ -212,8 +212,8 @@
 
 <script>
 // ---- TIPO DE EQUIPO ----
-const TIPOS_FIJOS        = ['Laptop', 'Celular', 'Tablet'];
-const ICONOS_TIPOS       = { 'Laptop': 'bi-laptop', 'Celular': 'bi-phone', 'Tablet': 'bi-tablet' };
+const TIPOS_FIJOS        = ['Laptop', 'Celular', 'Tablet', 'Desktop'];
+const ICONOS_TIPOS       = { 'Laptop': 'bi-laptop', 'Celular': 'bi-phone', 'Tablet': 'bi-tablet', 'Desktop': 'bi-pc-display' };
 const PUEDE_ELIMINAR_TIPO = @Html.Raw(puedeEliminarTipo.ToString().ToLower());
 
 function seleccionarTipo(el) {
