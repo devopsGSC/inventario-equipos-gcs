@@ -481,7 +481,7 @@ public class PerifericosController : BaseController
         var usuarioActual = await _users.GetUserAsync(User);
         var rutaFirmaIT   = usuarioActual?.RutaFirmaIT;
 
-        var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT);
+        var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioActual?.NombreCompleto);
         var nombre = $"Carta_Periferico_{SanitizarNombreArchivo(ep.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }

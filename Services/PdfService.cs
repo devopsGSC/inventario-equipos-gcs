@@ -910,19 +910,19 @@ public class PdfService
             fSm, XBrushes.Gray, new XRect(ML, H - 24, TW, 12), fmtC);
     }
 
-    public byte[] GenerarCartaCompromisoPerifericos(EquipoPeriferico ep, string? rutaFirmaIT = null)
+    public byte[] GenerarCartaCompromisoPerifericos(EquipoPeriferico ep, string? rutaFirmaIT = null, string? nombreEmisor = null)
     {
         var doc  = new PdfDocument();
         var page = doc.AddPage();
         page.Size = PdfSharpCore.PageSize.Letter;
         var g = XGraphics.FromPdfPage(page);
-        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT);
+        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT, nombreEmisor);
         using var ms = new MemoryStream();
         doc.Save(ms, false);
         return ms.ToArray();
     }
 
-    private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep, string? rutaFirmaIT = null)
+    private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep, string? rutaFirmaIT = null, string? nombreEmisor = null)
     {
         var per = ep.Periferico!;
         string nombreResp = ep.NombreResponsable;
@@ -1038,11 +1038,16 @@ public class PdfService
         double sigTop   = H - 90;
         double lineY    = H - 52;
 
+        var nameFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        if (!string.IsNullOrEmpty(nombreEmisor))
+            g.DrawString(nombreEmisor, fSm, XBrushes.Black, new XRect(fx1, lineY - 14, fw, 12), nameFmt);
+        g.DrawString(nombreResp, fSm, XBrushes.Black, new XRect(fx2, lineY - 14, fw, 12), nameFmt);
+
         g.DrawLine(XPens.Black, fx1, lineY, fx1 + fw, lineY);
         g.DrawLine(XPens.Black, fx2, lineY, fx2 + fw, lineY);
         var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        g.DrawString("Firma de Tecnología", fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), lFmt);
-        g.DrawString("Firma de Empleado",   fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
+        g.DrawString("Firma de Tecnología",  fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), lFmt);
+        g.DrawString("Firma de Colaborador", fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
 
         // Firma digital del empleado
         if (!string.IsNullOrEmpty(ep.FirmaEmpleado))
