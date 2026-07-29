@@ -321,12 +321,20 @@ public class PdfService
             }
         }
 
-        // ══ RECEPTOR ══
-        Sec(46, "Receptor por parte de TI");
+        // ══ RECEPTOR (Finiquito) / EMISOR (Asignacion, Prestamo) ══
+        Sec(46, headerText == null ? "Receptor por parte de TI" : "Emisor por parte de tecnologia");
         Box(47, 1,47, 9);
         Box(48, 1,48, 1); Box(48, 2,48, 4); Box(48, 5,48, 6); Box(48, 7,48, 9);
-        LV(48, 1,1, 2,4, "Nombre receptor:",  d.ReceptorNombre);
-        LV(48, 5,6, 7,9, "Centro recepcion:", d.ReceptorCentro);
+        if (headerText == null)
+        {
+            LV(48, 1,1, 2,4, "Nombre receptor:",  d.ReceptorNombre);
+            LV(48, 5,6, 7,9, "Centro recepcion:", d.ReceptorCentro);
+        }
+        else
+        {
+            LV(48, 1,1, 2,4, "Entregado por:", d.ReceptorNombre);
+            LV(48, 5,6, 7,9, "Recibido por:",  d.ReceptorCentro);
+        }
         Box(49, 1,49, 9);
 
         // ══ FIRMAS ══
@@ -514,7 +522,7 @@ public class PdfService
     //  PUNTO DE ENTRADA PÚBLICO — cada tipo llama a su propio método
     // ─────────────────────────────────────────────────────────────────────
 
-    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
+    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null)
     {
         var eq = movimiento.Equipo!;
         var perifs = (movimiento.Equipo?.EquiposPerifericos ?? [])
@@ -547,7 +555,8 @@ public class PdfService
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = movimiento.Observaciones ?? "",
             Motivo         = "renovacion",
-            ReceptorCentro = "GCS",
+            ReceptorNombre = nombreEmisor ?? "",
+            ReceptorCentro = movimiento.NombreResponsable,
             TelImei        = eq.IMEI ?? "",
             TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
@@ -555,7 +564,7 @@ public class PdfService
         });
     }
 
-    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null)
+    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null)
     {
         var eq = movimiento.Equipo!;
         string obs = movimiento.FechaFinEstimada.HasValue
@@ -591,7 +600,8 @@ public class PdfService
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = obs,
             Motivo         = "renovacion",
-            ReceptorCentro = "GCS",
+            ReceptorNombre = nombreEmisor ?? "",
+            ReceptorCentro = movimiento.NombreResponsable,
             TelImei        = eq.IMEI ?? "",
             TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",

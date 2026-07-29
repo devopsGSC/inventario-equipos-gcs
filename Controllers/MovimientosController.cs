@@ -517,8 +517,8 @@ public class MovimientosController : BaseController
         var rutaFirmaIT   = usuarioActual?.RutaFirmaIT;
 
         byte[] bytes = movimiento.TipoMovimiento == "Prestamo"
-            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT)
-            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT);
+            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioActual?.NombreCompleto)
+            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioActual?.NombreCompleto);
 
         movimiento.CartaGenerada = true;
         await _db.SaveChangesAsync();
