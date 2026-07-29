@@ -60,10 +60,18 @@ public class PdfService
         var pen     = XPens.Black;
         var gray    = XColor.FromArgb(209, 209, 209);
 
+        // Para celulares se omite la seccion "Especificaciones del Telefono
+        // Movil" (filas 31-35, ver mas abajo) por ser redundante con la
+        // seccion Equipo; esas filas se cuentan con altura 0 para que el
+        // resto del contenido se estire y ocupe ese espacio sin dejar un
+        // hueco en blanco.
+        bool esCelular = string.Equals(d.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
+        double RawH(int r) => esCelular && r is >= 31 and <= 35 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
+
         // Precalcular top de cada fila desde arriba (Y=0 es ARRIBA en PdfSharpCore)
         // Escalar alturas para ocupar toda la página
         double H        = page.Height.Point;
-        double totalRaw = Enumerable.Range(1, 53).Sum(r => (RowHxl.TryGetValue(r, out var hh) ? hh : 13.9) * 0.75);
+        double totalRaw = Enumerable.Range(1, 53).Sum(r => RawH(r) * 0.75);
         double available = H - TOP - 10; // 10pt margen inferior
         double scale    = available / totalRaw;
 
@@ -72,11 +80,11 @@ public class PdfService
         for (int r = 1; r <= 60; r++)
         {
             rowTop[r] = accum;
-            double h = (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9) * 0.75 * scale;
+            double h = RawH(r) * 0.75 * scale;
             accum += h;
         }
 
-        double Rh(int r) => (RowHxl.TryGetValue(r, out var h) ? h : 13.9) * 0.75 * scale;
+        double Rh(int r) => RawH(r) * 0.75 * scale;
 
         // X position of column
         (double x, double w) Cx(int c1, int c2)
@@ -214,10 +222,18 @@ public class PdfService
         LV(17, 1,1, 2,5, "Modelo:",      d.Modelo);
         LV(17, 6,6, 7,9, "Service Tag:", d.ServiceTag);
         Box(18, 1,18, 1); Box(18, 2,18, 5); Box(18, 6,18, 6); Box(18, 7,18, 9);
-        LV(18, 1,1, 2,5, "Memoria RAM:", d.Ram);
-        LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
+        if (esCelular)
+        {
+            LV(18, 1,1, 2,5, "IMEI:",          d.TelImei);
+            LV(18, 6,6, 7,9, "Plan de Datos:", d.TelPlan);
+        }
+        else
+        {
+            LV(18, 1,1, 2,5, "Memoria RAM:", d.Ram);
+            LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
+        }
         Box(19, 1,19, 1); Box(19, 2,19, 5); Box(19, 6,19, 6); Box(19, 7,19, 9);
-        LV(19, 1,1, 2,5, "Procesador:",     d.Procesador);
+        LV(19, 1,1, 2,5, esCelular ? "" : "Procesador:", esCelular ? "" : d.Procesador);
         LV(19, 6,6, 7,9, "Fecha garantia:", d.FechaGarantia);
         Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
         LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
@@ -254,16 +270,19 @@ public class PdfService
         }
         Box(29, 1,29, 9); Box(30, 1,30, 9);
 
-        // ══ TELÉFONO MÓVIL ══
-        Sec(31, "Especificaciones del Telefono Movil");
-        Box(32, 1,32, 9);
-        Box(33, 1,33, 1); Box(33, 2,33, 5); Box(33, 6,33, 6); Box(33, 7,33, 9);
-        LV(33, 1,1, 2,5, "Numero:", d.TelNumero);
-        LV(33, 6,6, 7,9, "Marca:",  d.TelMarca);
-        Box(34, 1,34, 1); Box(34, 2,34, 5); Box(34, 6,34, 6); Box(34, 7,34, 9);
-        LV(34, 1,1, 2,5, "Modelo:", d.TelModelo);
-        LV(34, 6,6, 7,9, "IMEI:",   d.TelImei);
-        Box(35, 1,35, 9);
+        // ══ TELÉFONO MÓVIL ══ (no aplica a celulares: ver seccion Equipo arriba)
+        if (!esCelular)
+        {
+            Sec(31, "Especificaciones del Telefono Movil");
+            Box(32, 1,32, 9);
+            Box(33, 1,33, 1); Box(33, 2,33, 5); Box(33, 6,33, 6); Box(33, 7,33, 9);
+            LV(33, 1,1, 2,5, "Numero:", d.TelNumero);
+            LV(33, 6,6, 7,9, "Marca:",  d.TelMarca);
+            Box(34, 1,34, 1); Box(34, 2,34, 5); Box(34, 6,34, 6); Box(34, 7,34, 9);
+            LV(34, 1,1, 2,5, "Modelo:", d.TelModelo);
+            LV(34, 6,6, 7,9, "IMEI:",   d.TelImei);
+            Box(35, 1,35, 9);
+        }
 
         // ══ OBSERVACIONES ══
         Sec(38, "Observaciones");
@@ -520,6 +539,9 @@ public class PdfService
             Marca          = eq.Marca,
             Modelo         = eq.Modelo,
             ServiceTag     = eq.NumeroSerie,
+            Ram            = eq.RAM ?? "",
+            Disco          = eq.Almacenamiento ?? "",
+            Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
             Sku            = eq.NumeroSerie,
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
@@ -527,6 +549,7 @@ public class PdfService
             Motivo         = "renovacion",
             ReceptorCentro = "GCS",
             TelImei        = eq.IMEI ?? "",
+            TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
         });
@@ -560,6 +583,9 @@ public class PdfService
             Marca          = eq.Marca,
             Modelo         = eq.Modelo,
             ServiceTag     = eq.NumeroSerie,
+            Ram            = eq.RAM ?? "",
+            Disco          = eq.Almacenamiento ?? "",
+            Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
             Sku            = eq.NumeroSerie,
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
@@ -567,6 +593,7 @@ public class PdfService
             Motivo         = "renovacion",
             ReceptorCentro = "GCS",
             TelImei        = eq.IMEI ?? "",
+            TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
         });
@@ -1274,6 +1301,7 @@ public class FiniquitoData
     public string TelMarca       { get; set; } = "";
     public string TelModelo      { get; set; } = "";
     public string TelImei        { get; set; } = "";
+    public string TelPlan        { get; set; } = "";
     public string Motivo         { get; set; } = "fin_laboral";
     public string ReceptorNombre { get; set; } = "";
     public string ReceptorCentro { get; set; } = "GCS Santa Elena";

@@ -502,6 +502,7 @@ public class MovimientosController : BaseController
 
         var movimiento = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
+            .Include(m => m.Equipo).ThenInclude(e => e!.PlanData)
             .Include(m => m.Equipo).ThenInclude(e => e!.EquiposPerifericos.Where(ep => ep.FechaDesvinculacion == null))
                 .ThenInclude(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
