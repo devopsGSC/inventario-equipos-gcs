@@ -1172,19 +1172,58 @@ public class PdfService
         g.DrawString($"San Salvador, {d.Fecha}", fSm, XBrushes.Black, new XRect(ML, y, TW, 12), fmtR);
         y += 18;
 
-        // ── Descripción del equipo en lista vertical ─────────────────
+        // ── Descripción del equipo en tabla (Tipo | Marca y Modelo | N.Serie) ──
+        var pen = XPens.Black;
+
         void DrawEquipoLista()
         {
-            var items = new List<string>();
-            string eqLine = $"Equipo: {d.Tipo} {d.Marca} {d.Modelo}".Trim();
-            if (!string.IsNullOrEmpty(d.ServiceTag)) eqLine += $" (S/N: {d.ServiceTag})";
-            items.Add(eqLine);
+            var filas = new List<(string Tipo, string MarcaModelo, string Serie)>();
+
+            filas.Add((d.Tipo, $"{d.Marca} {d.Modelo}".Trim(), d.ServiceTag));
+
             if (!string.IsNullOrEmpty(d.Accesorio))
-                items.Add($"Accesorios: {d.Accesorio}");
+                filas.Add(("Accesorios", d.Accesorio, ""));
+
             foreach (var p in d.Perifericos)
-                items.Add($"{p.Tipo}: {p.Marca} {p.Modelo} — S/N: {p.NumeroSerie}");
-            for (int i = 0; i < items.Count; i++)
-                DrawPara(items[i], fBold, indentL: 12, spaceAfter: i < items.Count - 1 ? 3 : 10);
+                filas.Add((p.Tipo, $"{p.Marca} {p.Modelo}".Trim(), p.NumeroSerie));
+
+            double[] colW = { TW * 0.22, TW * 0.53, TW * 0.25 };
+            double[] colX = { ML, ML + colW[0], ML + colW[0] + colW[1] };
+            double pad = 4;
+
+            int LineCount(string text, XFont f, double w) =>
+                Math.Max(1, WordWrap(text ?? "", f, w - pad * 2).Count);
+
+            double RowHeight(string c1, string c2, string c3, XFont f) =>
+                new[] { LineCount(c1, f, colW[0]), LineCount(c2, f, colW[1]), LineCount(c3, f, colW[2]) }
+                    .Max() * leading + pad * 2;
+
+            void CellText(string text, double x, double w, double rowH, XFont f)
+            {
+                if (string.IsNullOrEmpty(text)) return;
+                double cellH = LineCount(text, f, w) * leading;
+                double offsetY = Math.Max(0, (rowH - cellH) / 2);
+                var tf = new XTextFormatter(g) { Alignment = XParagraphAlignment.Center };
+                tf.DrawString(text, f, XBrushes.Black, new XRect(x + pad, y + offsetY, w - pad * 2, cellH + 2));
+            }
+
+            void DrawRow(string c1, string c2, string c3, XFont f)
+            {
+                double rowH = RowHeight(c1, c2, c3, f);
+                g.DrawRectangle(pen, ML, y, TW, rowH);
+                g.DrawLine(pen, colX[1], y, colX[1], y + rowH);
+                g.DrawLine(pen, colX[2], y, colX[2], y + rowH);
+                CellText(c1, colX[0], colW[0], rowH, f);
+                CellText(c2, colX[1], colW[1], rowH, f);
+                CellText(c3, colX[2], colW[2], rowH, f);
+                y += rowH;
+            }
+
+            DrawRow("Tipo", "Marca y Modelo", "Número de Serie", fBold);
+            foreach (var (t, mm, s) in filas)
+                DrawRow(t, mm, s, fNorm);
+
+            y += 10;
         }
 
         // ── Cuerpo del texto ──────────────────────────────────────────
