@@ -1012,7 +1012,45 @@ public class PdfService
         DrawPara($"Yo, {nombreResp}, portador(a) del DUI {duiResp}, quien desempeña el cargo de {cargoResp}, por este medio hago constar que recibo de Global Customs Solutions S.E.M. de C.V. el siguiente periférico corporativo en buenas condiciones de funcionamiento:", fNorm);
 
         string tipo = per.TipoPeriferico?.Nombre ?? "";
-        DrawPara($"{tipo}: {per.Marca} {per.Modelo} — S/N: {per.NumeroSerie}", fBold, indentL: 12, spaceAfter: 10);
+        {
+            var pen = XPens.Black;
+            double[] colW = { TW * 0.22, TW * 0.53, TW * 0.25 };
+            double[] colX = { ML, ML + colW[0], ML + colW[0] + colW[1] };
+            double pad = 4;
+
+            int LineCount(string text, XFont f, double w) =>
+                Math.Max(1, WordWrap(text ?? "", f, w - pad * 2).Count);
+
+            double RowHeight(string c1, string c2, string c3, XFont f) =>
+                new[] { LineCount(c1, f, colW[0]), LineCount(c2, f, colW[1]), LineCount(c3, f, colW[2]) }
+                    .Max() * leading + pad * 2;
+
+            void CellText(string text, double x, double w, double rowH, XFont f)
+            {
+                if (string.IsNullOrEmpty(text)) return;
+                double cellH = LineCount(text, f, w) * leading;
+                double offsetY = Math.Max(0, (rowH - cellH) / 2);
+                var tf = new XTextFormatter(g) { Alignment = XParagraphAlignment.Center };
+                tf.DrawString(text, f, XBrushes.Black, new XRect(x + pad, y + offsetY, w - pad * 2, cellH + 2));
+            }
+
+            void DrawRow(string c1, string c2, string c3, XFont f)
+            {
+                double rowH = RowHeight(c1, c2, c3, f);
+                g.DrawRectangle(pen, ML, y, TW, rowH);
+                g.DrawLine(pen, colX[1], y, colX[1], y + rowH);
+                g.DrawLine(pen, colX[2], y, colX[2], y + rowH);
+                CellText(c1, colX[0], colW[0], rowH, f);
+                CellText(c2, colX[1], colW[1], rowH, f);
+                CellText(c3, colX[2], colW[2], rowH, f);
+                y += rowH;
+            }
+
+            DrawRow("Tipo", "Marca y Modelo", "Número de Serie", fBold);
+            DrawRow(tipo, $"{per.Marca} {per.Modelo}".Trim(), per.NumeroSerie, fNorm);
+
+            y += 10;
+        }
 
         DrawPara("Asimismo, declaro que recibo dicho bien con sus respectivos accesorios y me comprometo a utilizarlo exclusivamente para fines laborales, así como a devolverlo en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", fNorm);
         DrawPara("Cualquier daño, desperfecto, pérdida, extravío o robo que sufriere el periférico después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil.", fNorm);
@@ -1035,19 +1073,21 @@ public class PdfService
         double fw       = TW * 0.26;
         double fx1      = ML + TW * 0.04;
         double fx2      = ML + TW * 0.53;
-        double sigTop   = H - 90;
-        double lineY    = H - 52;
+        double sigTop   = H - 100;
+        double lineY    = H - 62;
 
-        var nameFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        if (!string.IsNullOrEmpty(nombreEmisor))
-            g.DrawString(nombreEmisor, fSm, XBrushes.Black, new XRect(fx1, lineY - 14, fw, 12), nameFmt);
-        g.DrawString(nombreResp, fSm, XBrushes.Black, new XRect(fx2, lineY - 14, fw, 12), nameFmt);
-
+        // El nombre va DEBAJO de la linea (junto a la etiqueta), nunca arriba:
+        // el area arriba de la linea (sigTop..lineY) es donde se dibuja la
+        // imagen de la firma, y superponer texto ahi quedaba encima de ella.
         g.DrawLine(XPens.Black, fx1, lineY, fx1 + fw, lineY);
         g.DrawLine(XPens.Black, fx2, lineY, fx2 + fw, lineY);
+        var nameFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        if (!string.IsNullOrEmpty(nombreEmisor))
+            g.DrawString(nombreEmisor, fSm, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), nameFmt);
+        g.DrawString(nombreResp, fSm, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), nameFmt);
         var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        g.DrawString("Firma de Tecnología",  fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), lFmt);
-        g.DrawString("Firma de Colaborador", fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
+        g.DrawString("Firma de Tecnología",  fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 15, fw, 12), lFmt);
+        g.DrawString("Firma de Colaborador", fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 15, fw, 12), lFmt);
 
         // Firma digital del empleado
         if (!string.IsNullOrEmpty(ep.FirmaEmpleado))

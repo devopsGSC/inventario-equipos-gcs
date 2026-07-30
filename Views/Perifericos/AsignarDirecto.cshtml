@@ -270,6 +270,15 @@ let drawing  = false, hasFirma = false;
 function initCanvas() {
   const rect = canvas.getBoundingClientRect();
   const dpr  = window.devicePixelRatio || 1;
+  // Cambiar canvas.width/height borra el contenido dibujado; si ya habia una
+  // firma capturada (ej. el navegador redimensiono por el teclado en pantalla)
+  // hay que avisar en vez de dejar que se envie una firma en blanco.
+  if (hasFirma) {
+    hasFirma = false;
+    document.getElementById('firmaInput').value = '';
+    document.getElementById('firmaStatus').textContent = 'Sin firma';
+    document.getElementById('firmaStatus').style.color = '';
+  }
   canvas.width  = rect.width  * dpr;
   canvas.height = rect.height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
