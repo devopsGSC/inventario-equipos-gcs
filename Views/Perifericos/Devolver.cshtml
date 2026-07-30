@@ -281,6 +281,9 @@ async function subirFotosPeriferico(epId) {
 // ── Envío del formulario vía AJAX ─────────────────────
 document.getElementById('frmDevolver').addEventListener('submit', async function(e) {
   e.preventDefault();
+  if (!hasFirma && !confirm('No se detecta una firma del colaborador (si estabas en un celular o tablet, es posible que el teclado en pantalla haya borrado el trazo). ¿Continuar de todas formas sin firma?')) {
+    return;
+  }
   prepararFirma();
   const fd = new FormData(this);
   let res;
