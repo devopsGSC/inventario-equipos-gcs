@@ -270,20 +270,38 @@ let drawing  = false, hasFirma = false;
 function initCanvas() {
   const rect = canvas.getBoundingClientRect();
   const dpr  = window.devicePixelRatio || 1;
-  // Cambiar canvas.width/height borra el contenido dibujado; si ya habia una
-  // firma capturada (ej. el navegador redimensiono por el teclado en pantalla)
-  // hay que avisar en vez de dejar que se envie una firma en blanco.
-  if (hasFirma) {
+  const nuevoAncho = Math.round(rect.width  * dpr);
+  const nuevoAlto  = Math.round(rect.height * dpr);
+
+  // Si el tamano no cambio de verdad (ej. el teclado en pantalla solo
+  // encogio el viewport visual, sin afectar el layout), no hay nada que
+  // hacer: evita borrar una firma ya dibujada sin necesidad.
+  if (canvas.width === nuevoAncho && canvas.height === nuevoAlto) return;
+
+  // Cambiar canvas.width/height borra el contenido dibujado. Si ya habia
+  // una firma, se guarda una copia para redibujarla despues del resize en
+  // vez de perderla.
+  const imgPrevia = (hasFirma && canvas.width > 0 && canvas.height > 0)
+    ? canvas.toDataURL('image/png') : null;
+
+  canvas.width  = nuevoAncho;
+  canvas.height = nuevoAlto;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  if (imgPrevia) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    img.src = imgPrevia;
+  } else if (hasFirma) {
+    // No se pudo preservar (ej. el canvas estaba oculto): avisar en vez
+    // de dejar una firma en blanco sin que se note.
     hasFirma = false;
     document.getElementById('firmaInput').value = '';
     document.getElementById('firmaStatus').textContent = 'Sin firma';
     document.getElementById('firmaStatus').style.color = '';
   }
-  canvas.width  = rect.width  * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 }
 window.addEventListener('load', initCanvas);
 window.addEventListener('resize', initCanvas);
