@@ -925,7 +925,7 @@ public class PdfService
         var page = doc.AddPage();
         page.Size = PdfSharpCore.PageSize.Letter;
         var g = XGraphics.FromPdfPage(page);
-        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT, nombreEmisor);  // Página 1
+        DibujarCartaPeriferico(g, page, ep);  // Página 1
 
         var per = ep.Periferico!;
         bool esPrestamo = ep.TipoMovimiento == "Prestamo";
@@ -960,7 +960,7 @@ public class PdfService
         return ms.ToArray();
     }
 
-    private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep, string? rutaFirmaIT = null, string? nombreEmisor = null)
+    private void DibujarCartaPeriferico(XGraphics g, PdfPage page, EquipoPeriferico ep)
     {
         var per = ep.Periferico!;
         string nombreResp = ep.NombreResponsable;
@@ -974,7 +974,6 @@ public class PdfService
 
         var fTitle   = new XFont("Arial", 12,   XFontStyle.Bold);
         var fBold    = new XFont("Arial", 10.5, XFontStyle.Bold);
-        var fBoldSig = new XFont("Arial", 8,    XFontStyle.Bold);
         var fNorm    = new XFont("Arial", 10.5, XFontStyle.Regular);
         var fSm      = new XFont("Arial", 9.5,  XFontStyle.Regular);
         var gray     = XColor.FromArgb(209, 209, 209);
@@ -1101,76 +1100,13 @@ public class PdfService
         DrawPara("Finalmente, me comprometo a cuidar y hacer buen uso del bien asignado, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", fNorm);
 
         // ── Pie de página ──
+        // Las firmas quedaron solo en la cara 2 (DibujarPaginaDetalle), que
+        // ya las incluye; repetirlas aqui era redundante.
         g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
         var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
         g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
             new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
             new XRect(ML, H - 22, TW, 12), fmtPie);
-
-        // ── Firmas ──
-        double fw       = TW * 0.26;
-        double fx1      = ML + TW * 0.04;
-        double fx2      = ML + TW * 0.53;
-        double sigTop   = H - 100;
-        double lineY    = H - 62;
-
-        // El nombre va DEBAJO de la linea (junto a la etiqueta), nunca arriba:
-        // el area arriba de la linea (sigTop..lineY) es donde se dibuja la
-        // imagen de la firma, y superponer texto ahi quedaba encima de ella.
-        g.DrawLine(XPens.Black, fx1, lineY, fx1 + fw, lineY);
-        g.DrawLine(XPens.Black, fx2, lineY, fx2 + fw, lineY);
-        var nameFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        if (!string.IsNullOrEmpty(nombreEmisor))
-            g.DrawString(nombreEmisor, fSm, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), nameFmt);
-        g.DrawString(nombreResp, fSm, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), nameFmt);
-        var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        g.DrawString("Firma de Tecnología",  fBoldSig, XBrushes.Black, new XRect(fx1, lineY + 15, fw, 12), lFmt);
-        g.DrawString("Firma de Colaborador", fBoldSig, XBrushes.Black, new XRect(fx2, lineY + 15, fw, 12), lFmt);
-
-        // Firma digital del empleado
-        if (!string.IsNullOrEmpty(ep.FirmaEmpleado))
-        {
-            try
-            {
-                string b64 = ep.FirmaEmpleado;
-                int comma = b64.IndexOf(',');
-                if (comma >= 0) b64 = b64[(comma + 1)..];
-                byte[] imgBytes = Convert.FromBase64String(b64);
-                var firmaImg = XImage.FromStream(() => new MemoryStream(imgBytes));
-                double espacioDisp = lineY - sigTop - 6;
-                double ratio = Math.Min(fw / firmaImg.PixelWidth, espacioDisp / firmaImg.PixelHeight);
-                double drawW = firmaImg.PixelWidth  * ratio;
-                double drawH = firmaImg.PixelHeight * ratio;
-                double drawX = fx2 + (fw - drawW) / 2;
-                double drawY = sigTop + (espacioDisp - drawH) / 2 + 3;
-                g.DrawImage(firmaImg, drawX, drawY, drawW, drawH);
-            }
-            catch { /* continuar sin firma si hay error */ }
-        }
-
-        // Firma IT (responsable de tecnología)
-        if (!string.IsNullOrEmpty(rutaFirmaIT))
-        {
-            try
-            {
-                string rutaFisica = Path.Combine(
-                    Directory.GetCurrentDirectory(), "wwwroot",
-                    rutaFirmaIT.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (File.Exists(rutaFisica))
-                {
-                    var firmaITImg = XImage.FromStream(() =>
-                        new MemoryStream(File.ReadAllBytes(rutaFisica)));
-                    double espacioDisp = lineY - sigTop - 6;
-                    double ratio = Math.Min(fw / firmaITImg.PixelWidth, espacioDisp / firmaITImg.PixelHeight);
-                    double dw = firmaITImg.PixelWidth  * ratio;
-                    double dh = firmaITImg.PixelHeight * ratio;
-                    double dx = fx1 + (fw - dw) / 2;
-                    double dy = sigTop + (espacioDisp - dh) / 2 + 3;
-                    g.DrawImage(firmaITImg, dx, dy, dw, dh);
-                }
-            }
-            catch { /* continuar sin firma IT si falla */ }
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
