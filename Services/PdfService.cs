@@ -44,7 +44,7 @@ public class PdfService
         return ms.ToArray();
     }
 
-    private void DibujarPaginaDetalle(XGraphics g, PdfPage page, FiniquitoData d, string? headerText = null)
+    private void DibujarPaginaDetalle(XGraphics g, PdfPage page, FiniquitoData d, string? headerText = null, bool esPeriferico = false)
     {
         double W      = page.Width.Point;
         double usable = W - ML - MR;
@@ -62,11 +62,17 @@ public class PdfService
 
         // Para celulares se omite la seccion "Especificaciones del Telefono
         // Movil" (filas 31-35, ver mas abajo) por ser redundante con la
-        // seccion Equipo; esas filas se cuentan con altura 0 para que el
-        // resto del contenido se estire y ocupe ese espacio sin dejar un
-        // hueco en blanco.
+        // seccion Equipo. Para periféricos (asignacion directa, sin equipo)
+        // se omiten tanto "Especificaciones de Perifericos" (filas 22-30,
+        // ahi se listan OTROS perifericos ligados a un equipo) como
+        // "Especificaciones del Telefono Movil" (nunca aplica). En ambos
+        // casos esas filas se cuentan con altura 0 para que el resto del
+        // contenido se estire y ocupe ese espacio sin dejar un hueco en blanco.
         bool esCelular = string.Equals(d.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
-        double RawH(int r) => esCelular && r is >= 31 and <= 35 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
+        double RawH(int r) =>
+            (esCelular && r is >= 31 and <= 35) ||
+            (esPeriferico && r is >= 22 and <= 37)
+                ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
 
         // Precalcular top de cada fila desde arriba (Y=0 es ARRIBA en PdfSharpCore)
         // Escalar alturas para ocupar toda la página
@@ -229,7 +235,7 @@ public class PdfService
         Box(13, 1,13, 9);
 
         // ══ EQUIPO ══
-        Sec(14, "Especificaciones del Equipo");
+        Sec(14, esPeriferico ? "Especificaciones del Periférico" : "Especificaciones del Equipo");
         Box(15, 1,15, 9);
         Box(16, 1,16, 1); Box(16, 2,16, 5); Box(16, 6,16, 6); Box(16, 7,16, 9);
         LV(16, 1,1, 2,5, "Tipo:",        d.Tipo);
@@ -248,38 +254,41 @@ public class PdfService
         LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? d.TelPlan : d.Sku);
         Box(21, 1,21, 9);
 
-        // ══ PERIFÉRICOS ══
-        Sec(22, "Especificaciones de Perifericos");
-        Box(23, 1,23, 9);
-
-        if (d.Perifericos.Any())
+        // ══ PERIFÉRICOS ══ (no aplica cuando el documento ES de un periferico)
+        if (!esPeriferico)
         {
-            int filaP = 24;
-            foreach (var p in d.Perifericos)
-            {
-                if (filaP > 28) break; // max 5 periféricos en las filas disponibles
-                Box(filaP, 1,filaP, 1); Box(filaP, 2,filaP, 5); Box(filaP, 6,filaP, 6); Box(filaP, 7,filaP, 9);
-                LV(filaP, 1,1, 2,5, $"{p.Tipo}:", $"{p.Marca} {p.Modelo}".Trim());
-                LV(filaP, 6,6, 7,9, "Serie:", p.NumeroSerie);
-                filaP++;
-            }
-            // Rellenar filas vacías restantes
-            while (filaP <= 28)
-            {
-                Box(filaP, 1,filaP, 9);
-                filaP++;
-            }
-        }
-        else
-        {
-            // Sin periféricos — rellenar sección vacía
-            for (int r = 24; r <= 28; r++) Box(r, 1,r, 9);
-            Txt(24, 24, 1, 9, "Sin perifericos adjuntos", fNorm);
-        }
-        Box(29, 1,29, 9); Box(30, 1,30, 9);
+            Sec(22, "Especificaciones de Perifericos");
+            Box(23, 1,23, 9);
 
-        // ══ TELÉFONO MÓVIL ══ (no aplica a celulares: ver seccion Equipo arriba)
-        if (!esCelular)
+            if (d.Perifericos.Any())
+            {
+                int filaP = 24;
+                foreach (var p in d.Perifericos)
+                {
+                    if (filaP > 28) break; // max 5 periféricos en las filas disponibles
+                    Box(filaP, 1,filaP, 1); Box(filaP, 2,filaP, 5); Box(filaP, 6,filaP, 6); Box(filaP, 7,filaP, 9);
+                    LV(filaP, 1,1, 2,5, $"{p.Tipo}:", $"{p.Marca} {p.Modelo}".Trim());
+                    LV(filaP, 6,6, 7,9, "Serie:", p.NumeroSerie);
+                    filaP++;
+                }
+                // Rellenar filas vacías restantes
+                while (filaP <= 28)
+                {
+                    Box(filaP, 1,filaP, 9);
+                    filaP++;
+                }
+            }
+            else
+            {
+                // Sin periféricos — rellenar sección vacía
+                for (int r = 24; r <= 28; r++) Box(r, 1,r, 9);
+                Txt(24, 24, 1, 9, "Sin perifericos adjuntos", fNorm);
+            }
+            Box(29, 1,29, 9); Box(30, 1,30, 9);
+        }
+
+        // ══ TELÉFONO MÓVIL ══ (no aplica a celulares ni a perifericos: ver seccion Equipo arriba)
+        if (!esCelular && !esPeriferico)
         {
             Sec(31, "Especificaciones del Telefono Movil");
             Box(32, 1,32, 9);
@@ -916,7 +925,36 @@ public class PdfService
         var page = doc.AddPage();
         page.Size = PdfSharpCore.PageSize.Letter;
         var g = XGraphics.FromPdfPage(page);
-        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT, nombreEmisor);
+        DibujarCartaPeriferico(g, page, ep, rutaFirmaIT, nombreEmisor);  // Página 1
+
+        var per = ep.Periferico!;
+        bool esPrestamo = ep.TipoMovimiento == "Prestamo";
+        var d = new FiniquitoData
+        {
+            Titulo         = esPrestamo ? "Carta de Préstamo de Periférico" : "Carta de Compromiso de Periférico",
+            RutaFirmaIT    = rutaFirmaIT,
+            Fecha          = ep.FechaAsignacion.ToString("dd/MMM/yyyy"),
+            Colaborador    = ep.NombreResponsable,
+            Centro         = ep.Empleado?.Departamento?.Nombre ?? ep.MiembroExterno?.Organizacion ?? ep.Grupo?.Descripcion ?? "",
+            Area           = ep.Empleado?.Cargo ?? ep.MiembroExterno?.Referencia ?? "",
+            CodEmpleado    = ep.Empleado?.CodigoEmpleado ?? "N/A",
+            Identificacion = ep.Empleado?.DUI ?? ep.MiembroExterno?.Identificacion ?? "",
+            Tipo           = per.TipoPeriferico?.Nombre ?? "",
+            Marca          = per.Marca,
+            Modelo         = per.Modelo,
+            ServiceTag     = per.NumeroSerie,
+            Sku            = per.NumeroSerie,
+            Observaciones  = ep.Observaciones ?? "",
+            Motivo         = "renovacion",
+            ReceptorNombre = nombreEmisor ?? "",
+            ReceptorCentro = ep.NombreResponsable,
+            FirmaEmpleadoBase64 = ep.FirmaEmpleado ?? "",
+        };
+        string headerText = esPrestamo
+            ? "Prestamo temporal de periferico tecnologico al colaborador."
+            : "Asignacion de periferico tecnologico al colaborador.";
+        GenerarDocumentoDetalle(doc, d, headerText, esPeriferico: true);  // Página 2
+
         using var ms = new MemoryStream();
         doc.Save(ms, false);
         return ms.ToArray();
@@ -1367,12 +1405,12 @@ public class PdfService
         => GenerarDocumento(d);
 
     // Página de detalle (cara 2 de asignación/préstamo)
-    private void GenerarDocumentoDetalle(PdfDocument doc, FiniquitoData d, string? headerText = null)
+    private void GenerarDocumentoDetalle(PdfDocument doc, FiniquitoData d, string? headerText = null, bool esPeriferico = false)
     {
         var page = doc.AddPage();
         page.Size = PdfSharpCore.PageSize.Letter;
         var g = XGraphics.FromPdfPage(page);
-        DibujarPaginaDetalle(g, page, d, headerText);
+        DibujarPaginaDetalle(g, page, d, headerText, esPeriferico);
     }
 
 }
