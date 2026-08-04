@@ -38,13 +38,13 @@ public class PdfService
         var page = doc.AddPage();
         page.Size = PdfSharpCore.PageSize.Letter;
         var g = XGraphics.FromPdfPage(page);
-        DibujarPaginaDetalle(g, page, d);
+        DibujarPaginaDetalle(g, page, d, esFiniquito: true);
         using var ms = new MemoryStream();
         doc.Save(ms, false);
         return ms.ToArray();
     }
 
-    private void DibujarPaginaDetalle(XGraphics g, PdfPage page, FiniquitoData d, string? headerText = null, bool esPeriferico = false)
+    private void DibujarPaginaDetalle(XGraphics g, PdfPage page, FiniquitoData d, string? headerText = null, bool esPeriferico = false, bool esFiniquito = false)
     {
         double W      = page.Width.Point;
         double usable = W - ML - MR;
@@ -60,17 +60,22 @@ public class PdfService
         var pen     = XPens.Black;
         var gray    = XColor.FromArgb(209, 209, 209);
 
-        // Para celulares se omite la seccion "Especificaciones del Telefono
-        // Movil" (filas 31-35, ver mas abajo) por ser redundante con la
-        // seccion Equipo. Para periféricos (asignacion directa, sin equipo)
-        // se omiten tanto "Especificaciones de Perifericos" (filas 22-30,
-        // ahi se listan OTROS perifericos ligados a un equipo) como
-        // "Especificaciones del Telefono Movil" (nunca aplica). En ambos
-        // casos esas filas se cuentan con altura 0 para que el resto del
-        // contenido se estire y ocupe ese espacio sin dejar un hueco en blanco.
+        // "Especificaciones del Telefono Movil" (filas 31-35) solo tiene
+        // sentido en el finiquito, donde puede haber que devolver un
+        // teléfono de empresa además del equipo. En la carta de
+        // asignación/préstamo el movimiento es siempre de UN equipo (nunca
+        // laptop + teléfono a la vez), así que ahi no aplica nunca, ni
+        // aunque el equipo sea un celular (ya se muestra en la seccion
+        // Equipo). Para periféricos (asignacion directa, sin equipo) se
+        // omiten tanto "Especificaciones de Perifericos" (filas 22-30, ahi
+        // se listan OTROS perifericos ligados a un equipo) como esta.
+        // En todos los casos esas filas se cuentan con altura 0 para que el
+        // resto del contenido se estire y ocupe ese espacio sin dejar un
+        // hueco en blanco.
         bool esCelular = string.Equals(d.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
+        bool ocultarTelefono = esCelular || esPeriferico || !esFiniquito;
         double RawH(int r) =>
-            (esCelular && r is >= 31 and <= 35) ||
+            (ocultarTelefono && r is >= 31 and <= 35) ||
             (esPeriferico && r is >= 22 and <= 37)
                 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
 
@@ -287,8 +292,8 @@ public class PdfService
             Box(29, 1,29, 9); Box(30, 1,30, 9);
         }
 
-        // ══ TELÉFONO MÓVIL ══ (no aplica a celulares ni a perifericos: ver seccion Equipo arriba)
-        if (!esCelular && !esPeriferico)
+        // ══ TELÉFONO MÓVIL ══ (solo en el finiquito; nunca en la carta de asignación/préstamo)
+        if (!ocultarTelefono)
         {
             Sec(31, "Especificaciones del Telefono Movil");
             Box(32, 1,32, 9);

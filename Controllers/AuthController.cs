@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using InventarioTI.Filters;
 using InventarioTI.Models;
 using InventarioTI.Services;
 using InventarioTI.ViewModels;
 
 namespace InventarioTI.Controllers;
 
+[NoTrackNavigation]
 public class AuthController : Controller
 {
     private readonly SignInManager<UsuarioApp> _signIn;
@@ -48,6 +50,7 @@ public class AuthController : Controller
     public async Task<IActionResult> Logout()
     {
         await _signIn.SignOutAsync();
+        HttpContext.Session.Clear();
         return RedirectToAction("Login");
     }
 

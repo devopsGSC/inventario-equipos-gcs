@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using InventarioTI.Data;
+using InventarioTI.Filters;
 using InventarioTI.Models;
 using InventarioTI.Services;
 
@@ -16,6 +17,7 @@ builder.Services.AddControllersWithViews(options =>
             .RequireAuthenticatedUser()
             .Build();
         options.Filters.Add(new AuthorizeFilter(policy));
+        options.Filters.Add<NavigationTrackingFilter>();
     })
     .AddDataAnnotationsLocalization()
     .AddMvcOptions(options =>
@@ -84,6 +86,15 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddScoped<SeedService>();
 
+builder.Services.AddSession(options =>
+{
+    // Guarda la pila de navegación (pantallas visitadas) para que "Volver"
+    // regrese siempre a la pantalla anterior con sus filtros/paginación.
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -137,6 +148,7 @@ app.UseForwardedHeaders();
 app.UseRequestLocalization();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapDefaultControllerRoute();

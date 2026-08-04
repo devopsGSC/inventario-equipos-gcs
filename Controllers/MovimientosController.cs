@@ -496,6 +496,50 @@ public class MovimientosController : BaseController
         return View(movimiento);
     }
 
+    // Genera (o reutiliza si sigue vigente) un link de un solo uso para que
+    // el colaborador firme el movimiento a distancia cuando no está
+    // físicamente presente para firmar en el acto.
+    public async Task<IActionResult> GenerarLinkFirma(int id)
+    {
+        if (!await PuedeAlguno(ClavesMovimiento)) return AccesoDenegado();
+
+        var movimiento = await _db.Movimientos
+            .Include(m => m.Equipo)
+            .Include(m => m.Empleado)
+            .Include(m => m.MiembroExterno)
+            .Include(m => m.Grupo)
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (movimiento == null) return NotFound();
+
+        if (!string.IsNullOrEmpty(movimiento.FirmaEmpleado))
+        {
+            TempData["Error"] = "Este movimiento ya tiene una firma registrada.";
+            return RedirectToAction(nameof(Carta), new { id });
+        }
+
+        var solicitud = await _db.SolicitudesFirma
+            .Where(s => s.MovimientoId == id && s.FechaFirmado == null && s.FechaExpiracion >= DateTime.Now)
+            .OrderByDescending(s => s.FechaCreacion)
+            .FirstOrDefaultAsync();
+
+        if (solicitud == null)
+        {
+            solicitud = new SolicitudFirma
+            {
+                MovimientoId    = id,
+                Token           = TokenGenerator.GenerarTokenUrlSafe(),
+                FechaCreacion   = DateTime.Now,
+                FechaExpiracion = DateTime.Now.AddDays(3)
+            };
+            _db.SolicitudesFirma.Add(solicitud);
+            await _db.SaveChangesAsync();
+        }
+
+        ViewBag.Link = Url.Action("Firmar", "FirmaRemota", new { token = solicitud.Token }, Request.Scheme);
+        ViewBag.Movimiento = movimiento;
+        return View(solicitud);
+    }
+
     public async Task<IActionResult> DescargarCarta(int id)
     {
         if (!await Puede("movimientos.carta")) return AccesoDenegado();

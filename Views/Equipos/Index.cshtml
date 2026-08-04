@@ -93,7 +93,7 @@
               e.Estado != "Baja";
           <tr>
             <td>
-              <div style="font-weight:500">@e.NombreEquipo</div>
+              <a asp-action="Details" asp-route-id="@e.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@e.NombreEquipo</a>
               <div class="text-muted">@e.Marca — @e.Modelo</div>
             </td>
             <td>@e.TipoEquipo?.Nombre</td>
@@ -127,7 +127,6 @@
                     <i class="bi bi-box-arrow-right"></i> Asignar
                   </a>
                 }
-                <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
                 @if (await PermisoSvc.TienePermiso(User, "equipos.editar"))
                 {
                   <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>

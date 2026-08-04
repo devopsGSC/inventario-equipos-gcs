@@ -157,6 +157,27 @@ public class Movimiento
     public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }
 
+// Link público de un solo uso para que el colaborador firme un movimiento
+// a distancia cuando no está físicamente presente para firmar en el acto.
+public class SolicitudFirma
+{
+    public int Id { get; set; }
+    // Exactamente uno de los dos está asignado: el movimiento de equipo
+    // o la asignación directa de periférico que se está firmando.
+    public int? MovimientoId { get; set; }
+    public Movimiento? Movimiento { get; set; }
+    public int? EquipoPerifericoId { get; set; }
+    public EquipoPeriferico? EquipoPeriferico { get; set; }
+    [Required, MaxLength(64)]
+    public string Token { get; set; } = "";
+    public DateTime FechaCreacion { get; set; } = DateTime.Now;
+    public DateTime FechaExpiracion { get; set; }
+    public DateTime? FechaFirmado { get; set; }
+
+    [NotMapped]
+    public bool Vigente => !FechaFirmado.HasValue && FechaExpiracion >= DateTime.Now;
+}
+
 public class ImagenMovimiento
 {
     public int Id { get; set; }

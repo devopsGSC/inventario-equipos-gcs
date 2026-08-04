@@ -1,0 +1,213 @@
+@model SolicitudFirma
+@{
+    Layout = null;
+    bool esPeriferico = Model.EquipoPeriferico != null;
+    var mov = Model.Movimiento;
+    var ep = Model.EquipoPeriferico;
+    string tipoMovimiento = esPeriferico ? ep!.TipoMovimiento : mov!.TipoMovimiento;
+    bool esPrestamo = tipoMovimiento == "Prestamo";
+    string nombreResponsable = esPeriferico ? ep!.NombreResponsable : mov!.NombreResponsable;
+    string tituloItem = esPeriferico ? $"{ep!.Periferico?.TipoPeriferico?.Nombre} — {ep.Periferico?.Marca} {ep.Periferico?.Modelo}" : mov!.Equipo?.NombreEquipo ?? "";
+    string serieItem = esPeriferico ? (ep!.Periferico?.NumeroSerie ?? "") : (mov!.Equipo?.NumeroSerie ?? "");
+    DateTime fechaInicio = esPeriferico ? ep!.FechaAsignacion : mov!.FechaInicio;
+    DateTime? fechaFinEstimada = esPeriferico ? ep!.FechaDevolucionEstimada : mov!.FechaFinEstimada;
+    string tipoLabel = esPeriferico
+        ? (esPrestamo ? "Préstamo de periférico" : "Asignación de periférico")
+        : (esPrestamo ? "Préstamo de equipo" : "Asignación de equipo");
+    ViewData["Title"] = "Firmar — InventarioTI";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+    <title>@ViewData["Title"]</title>
+    <link rel="icon" type="image/x-icon" href="/gcs_logo.ico"/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
+    <style>
+        :root {
+            --accent: #3b82f6; --dark-text: #1a2540; --dark-text2: #4a5f7a;
+            --surface: #ffffff; --surface2: #f8fafc;
+            --green-text: #065f46; --red-bg: #fef2f2; --red-text: #991b1b;
+            --amber-bg: #fffbeb; --amber-text: #92400e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--surface2); min-height: 100vh; color: var(--dark-text); }
+        .wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header img { height: 40px; }
+        .header .app { font-size: 15px; font-weight: 500; margin-top: 8px; }
+        .card { background: var(--surface); border-radius: 12px; border: 1px solid #e5eaf2; margin-bottom: 16px; }
+        .card-body { padding: 20px; }
+        .resumen { background: #0f1724; color: #e8edf5; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+        .resumen .tipo { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8fa3be; margin-bottom: 4px; }
+        .resumen .equipo { font-size: 17px; font-weight: 600; }
+        .resumen .serie { font-size: 12.5px; color: #8fa3be; font-family: 'DM Mono', monospace; margin-top: 2px; }
+        .form-label { font-size: 12.5px; font-weight: 500; color: var(--dark-text2); margin-bottom: 6px; }
+        .fila { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13.5px; border-bottom: 1px solid #f1f4f9; }
+        .fila:last-child { border-bottom: none; }
+        .fila .k { color: var(--dark-text2); }
+        .fila .v { font-weight: 500; text-align: right; }
+        .canvas-wrap { border: 1px solid #dde2ec; border-radius: 8px; overflow: hidden; background: #fff; margin-bottom: 8px; }
+        canvas { display: block; width: 100%; height: 220px; cursor: crosshair; touch-action: none; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; text-decoration: none; }
+        .btn-primary { background: var(--accent); color: #fff; width: 100%; justify-content: center; }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-secondary { background: #f1f4f9; color: var(--dark-text); border: 1px solid #e5eaf2; font-size: 12.5px; padding: 7px 12px; }
+        .alert { padding: 11px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
+        .alert-danger { background: var(--red-bg); color: var(--red-text); }
+        .alert-info { background: #eff6ff; color: #1e40af; }
+        .status { font-size: 12px; color: var(--dark-text2); }
+        .status.ok { color: var(--green-text); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header">
+        <img src="/images/gcs_logo.png"/>
+        <div class="app">InventarioTI — Firma de colaborador</div>
+    </div>
+
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> @ViewBag.Error</div>
+    }
+
+    <div class="resumen">
+        <div class="tipo">@tipoLabel</div>
+        <div class="equipo">@tituloItem</div>
+        <div class="serie">@serieItem</div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="fila"><span class="k">Responsable</span><span class="v">@nombreResponsable</span></div>
+            <div class="fila"><span class="k">Fecha</span><span class="v">@fechaInicio.ToString("dd/MM/yyyy")</span></div>
+            @if (esPrestamo && fechaFinEstimada.HasValue)
+            {
+                <div class="fila"><span class="k">Devolución estimada</span><span class="v">@fechaFinEstimada.Value.ToString("dd/MM/yyyy")</span></div>
+            }
+        </div>
+    </div>
+
+    @{
+        var perifs = esPeriferico ? new() : mov!.Equipo?.EquiposPerifericos?.Where(x => x.FechaDesvinculacion == null).ToList() ?? new();
+        var licencias = ViewBag.Licencias as List<LicenciaAsignacion> ?? new();
+    }
+    @if (perifs.Count > 0 || licencias.Count > 0)
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="form-label" style="margin-bottom:10px">También estás recibiendo</div>
+                @foreach (var epItem in perifs)
+                {
+                    <div class="fila">
+                        <span class="k"><i class="bi bi-mouse2"></i> @epItem.Periferico?.TipoPeriferico?.Nombre</span>
+                        <span class="v">@epItem.Periferico?.Marca @epItem.Periferico?.Modelo</span>
+                    </div>
+                }
+                @foreach (var la in licencias)
+                {
+                    <div class="fila">
+                        <span class="k"><i class="bi bi-key"></i> Licencia</span>
+                        <span class="v">@la.TipoLicencia?.Nombre</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle-fill"></i>
+        Al firmar confirmás la recepción de todo lo detallado arriba en las condiciones indicadas por tu empresa.
+    </div>
+
+    <form method="post" id="formFirma">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="firmaEmpleado" id="firmaInput"/>
+        <div class="form-label">Firmá dentro del recuadro</div>
+        <div class="canvas-wrap">
+            <canvas id="firmaCanvas"></canvas>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <button type="button" class="btn btn-secondary" onclick="limpiarFirma()"><i class="bi bi-eraser"></i> Limpiar</button>
+            <span class="status" id="firmaStatus">Sin firma</span>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btnFirmar">
+            <i class="bi bi-check-lg"></i> Firmar y confirmar
+        </button>
+    </form>
+</div>
+
+<script>
+const canvas = document.getElementById('firmaCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false, hasFirma = false;
+
+function initCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const nuevoAncho = Math.round(rect.width * dpr);
+    const nuevoAlto = Math.round(rect.height * dpr);
+    if (canvas.width === nuevoAncho && canvas.height === nuevoAlto) return;
+
+    const imgPrevia = (hasFirma && canvas.width > 0 && canvas.height > 0) ? canvas.toDataURL('image/png') : null;
+    canvas.width = nuevoAncho;
+    canvas.height = nuevoAlto;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (imgPrevia) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        img.src = imgPrevia;
+    } else if (hasFirma) {
+        hasFirma = false;
+        actualizarStatus();
+    }
+}
+window.addEventListener('load', initCanvas);
+window.addEventListener('resize', initCanvas);
+
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
+canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasFirma = true; actualizarStatus(); });
+canvas.addEventListener('mouseup', () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasFirma = true; actualizarStatus(); }, { passive: false });
+canvas.addEventListener('touchend', () => drawing = false);
+
+function actualizarStatus() {
+    const st = document.getElementById('firmaStatus');
+    st.textContent = hasFirma ? '✓ Firma capturada' : 'Sin firma';
+    st.className = hasFirma ? 'status ok' : 'status';
+}
+
+function limpiarFirma() {
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    hasFirma = false; actualizarStatus();
+    document.getElementById('firmaInput').value = '';
+}
+
+document.getElementById('formFirma').addEventListener('submit', e => {
+    if (!hasFirma) {
+        e.preventDefault();
+        alert('Firmá dentro del recuadro antes de continuar.');
+        return;
+    }
+    document.getElementById('firmaInput').value = canvas.toDataURL('image/png');
+});
+</script>
+</body>
+</html>

@@ -179,11 +179,72 @@
     .field-error { font-size: 11.5px; color: var(--red-text); margin-top: 4px; }
     .input-note { font-size: 11px; color: var(--dark-text2); margin-top: 4px; }
 
+    /* Segmentación visual para formularios largos con muchas secciones */
+    .form-section { padding: 20px 0; border-top: 1px solid #eef0f6; }
+    .form-section:first-child { padding-top: 0; border-top: none; }
+    .form-section-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 600; color: var(--dark-text); margin-bottom: 16px;
+    }
+    .form-section-header i { font-size: 15px; color: var(--accent); }
+    .form-subsection + .form-subsection { margin-top: 18px; }
+    .form-subsection-label {
+      font-size: 12px; font-weight: 600; color: var(--dark-text2);
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px;
+    }
+
     /* ALERTS */
-    .alert { padding: 11px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-    .alert-success { background: var(--green-bg); color: var(--green-text); border: 1px solid #a7f3d0; }
-    .alert-danger  { background: var(--red-bg);   color: var(--red-text);   border: 1px solid #fecaca; }
-    .alert-warning { background: var(--amber-bg);  color: var(--amber-text); border: 1px solid #fde68a; }
+    .alert {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px; border-radius: 10px; font-size: 13px; line-height: 1.55;
+      margin-bottom: 18px; color: var(--dark-text);
+      background: var(--surface); border: 1px solid #e5eaf2;
+      box-shadow: 0 1px 2px rgba(15,23,36,.04);
+    }
+    .alert > i:first-child {
+      flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center; font-size: 12.5px;
+    }
+    .alert-success { border-left: 3px solid var(--green); }
+    .alert-success > i:first-child { background: var(--green-bg); color: var(--green-text); }
+    .alert-danger { border-left: 3px solid var(--red); }
+    .alert-danger > i:first-child { background: var(--red-bg); color: var(--red-text); }
+    .alert-warning { border-left: 3px solid var(--amber); }
+    .alert-warning > i:first-child { background: var(--amber-bg); color: var(--amber-text); }
+
+    /* TOASTS — mensajes de confirmación/error de TempData, flotantes y con auto-cierre */
+    .toast-container {
+      position: fixed; top: 74px; right: 24px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 10px;
+      width: 100%; max-width: 380px;
+    }
+    .toast {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px; border-radius: 10px; font-size: 13px; line-height: 1.55;
+      color: var(--dark-text); background: var(--surface); border: 1px solid #e5eaf2;
+      box-shadow: 0 10px 30px rgba(15,23,36,.14);
+      animation: toastIn .25s ease;
+    }
+    .toast.hide { animation: toastOut .18s ease forwards; }
+    .toast > i:first-child {
+      flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center; font-size: 12.5px;
+    }
+    .toast > span { flex: 1; padding-top: 1px; }
+    .toast-close {
+      flex-shrink: 0; background: none; border: none; cursor: pointer; padding: 0;
+      font-size: 17px; line-height: 1; color: var(--dark-text2);
+    }
+    .toast-close:hover { color: var(--dark-text); }
+    .toast-success { border-left: 3px solid var(--green); }
+    .toast-success > i:first-child { background: var(--green-bg); color: var(--green-text); }
+    .toast-danger { border-left: 3px solid var(--red); }
+    .toast-danger > i:first-child { background: var(--red-bg); color: var(--red-text); }
+    @@keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+    @@keyframes toastOut { to { opacity:0; transform:translateX(20px); } }
+    @@media (max-width: 640px) {
+      .toast-container { left: 16px; right: 16px; top: 66px; max-width: none; }
+    }
 
     /* HISTORY TIMELINE */
     .timeline { list-style: none; padding: 0; position: relative; }
@@ -501,16 +562,27 @@
     </div>
   </div>
   <div class="content">
-    @if (TempData["OK"] != null)
-    {
-      <div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> @TempData["OK"]</div>
-    }
-    @if (TempData["Error"] != null)
-    {
-      <div class="alert alert-danger"><i class="bi bi-exclamation-circle-fill"></i> @TempData["Error"]</div>
-    }
     @RenderBody()
   </div>
+</div>
+
+<div class="toast-container" id="toastContainer">
+  @if (TempData["OK"] != null)
+  {
+    <div class="toast toast-success" data-autohide="4000">
+      <i class="bi bi-check-circle-fill"></i>
+      <span>@TempData["OK"]</span>
+      <button type="button" class="toast-close" onclick="cerrarToast(this)" aria-label="Cerrar">&times;</button>
+    </div>
+  }
+  @if (TempData["Error"] != null)
+  {
+    <div class="toast toast-danger" data-autohide="6000">
+      <i class="bi bi-exclamation-circle-fill"></i>
+      <span>@TempData["Error"]</span>
+      <button type="button" class="toast-close" onclick="cerrarToast(this)" aria-label="Cerrar">&times;</button>
+    </div>
+  }
 </div>
 
 <div id="customModalOverlay" class="custom-modal-overlay">
@@ -610,6 +682,18 @@
   }
   function customAlert(message, type = 'info') { return showCustomModal(message, type, false); }
   function customConfirm(message, type = 'warn') { return showCustomModal(message, type, true); }
+
+  // Toasts de confirmación/error (TempData["OK"]/["Error"]): se autocierran
+  // y se pueden descartar a mano sin esperar.
+  function cerrarToast(el) {
+    const toast = el.closest('.toast');
+    if (!toast) return;
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 200);
+  }
+  document.querySelectorAll('#toastContainer .toast[data-autohide]').forEach(toast => {
+    setTimeout(() => cerrarToast(toast.querySelector('.toast-close')), parseInt(toast.dataset.autohide, 10));
+  });
 
   // Para <form onsubmit="return confirmarSubmit(event, 'mensaje')">: reemplaza al confirm() nativo
   // por el modal personalizado, ya que customConfirm() es asíncrono y onsubmit necesita ser síncrono.

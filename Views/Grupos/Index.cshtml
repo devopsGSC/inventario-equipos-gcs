@@ -48,7 +48,6 @@
             </td>
             <td>
               <div class="gap-2">
-                <a asp-action="Details" asp-route-id="@g.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
                 @if (await PermisoSvc.TienePermiso(User, "grupos.editar"))
                 {
                   <a asp-action="Edit" asp-route-id="@g.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>

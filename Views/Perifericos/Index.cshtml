@@ -1,5 +1,8 @@
 @model List<Periferico>
-@{ ViewData["Title"] = "Periféricos"; }
+@{
+  ViewData["Title"] = "Periféricos";
+  var totalRegistros = (ViewBag.Paginacion as PaginacionViewModel)?.TotalRegistros ?? Model.Count;
+}
 
 <div class="page-header">
   <div class="page-title">Periféricos</div>
@@ -25,7 +28,7 @@
 </div>
 
 <div class="card" style="margin-bottom:16px;padding:14px 20px;display:flex;gap:10px;flex-wrap:wrap">
-  <a asp-action="Index" class="btn btn-secondary btn-sm @(ViewBag.Estado==null?"btn-active":"")">Todos (@Model.Count)</a>
+  <a asp-action="Index" class="btn btn-secondary btn-sm @(ViewBag.Estado==null?"btn-active":"")">Todos (@totalRegistros)</a>
   <a asp-action="Index" asp-route-estado="Disponible" class="btn btn-secondary btn-sm">Disponibles</a>
   <a asp-action="Index" asp-route-estado="Asignado"   class="btn btn-secondary btn-sm">Asignados</a>
   <a asp-action="Index" asp-route-estado="Baja"       class="btn btn-secondary btn-sm">Baja</a>
@@ -41,7 +44,7 @@
           var asignacion = p.EquiposPerifericos?.FirstOrDefault(ep => ep.FechaDesvinculacion == null);
           <tr>
             <td>@p.TipoPeriferico?.Nombre</td>
-            <td><div style="font-weight:500">@p.Marca</div><div class="text-muted">@p.Modelo</div></td>
+            <td><a asp-action="Details" asp-route-id="@p.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@p.Marca</a><div class="text-muted">@p.Modelo</div></td>
             <td class="mono">@p.NumeroSerie</td>
             <td>
               @{
@@ -61,7 +64,6 @@
             </td>
             <td>
               <div class="gap-2">
-                <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-eye"></i></a>
                 @if (await PermisoSvc.TienePermiso(User, "perifericos.editar"))
                 {
                   <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i></a>
@@ -75,4 +77,5 @@
       </tbody>
     </table>
   </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
 </div>

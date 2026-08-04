@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
     public DbSet<PlanData> PlanesData => Set<PlanData>();
     public DbSet<Equipo> Equipos => Set<Equipo>();
     public DbSet<Movimiento> Movimientos => Set<Movimiento>();
+    public DbSet<SolicitudFirma> SolicitudesFirma => Set<SolicitudFirma>();
     public DbSet<TipoPeriferico> TiposPerifericos => Set<TipoPeriferico>();
     public DbSet<Periferico> Perifericos => Set<Periferico>();
     public DbSet<EquipoPeriferico> EquiposPerifericos => Set<EquipoPeriferico>();
@@ -78,6 +79,21 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .HasForeignKey(e => e.PlanDataId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<SolicitudFirma>()
+            .HasIndex(s => s.Token).IsUnique();
+        mb.Entity<SolicitudFirma>()
+            .HasOne(s => s.Movimiento)
+            .WithMany()
+            .HasForeignKey(s => s.MovimientoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
+        mb.Entity<SolicitudFirma>()
+            .HasOne(s => s.EquipoPeriferico)
+            .WithMany()
+            .HasForeignKey(s => s.EquipoPerifericoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
+
         mb.Entity<ImagenMovimiento>()
             .HasOne(i => i.Movimiento)
             .WithMany(m => m.Imagenes)

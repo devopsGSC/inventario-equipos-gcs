@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using InventarioTI.Data;
+using InventarioTI.Filters;
 using InventarioTI.ViewModels;
 
 namespace InventarioTI.Controllers;
 
 public class HomeController : Controller
 {
-    [AllowAnonymous]
+    [AllowAnonymous, NoTrackNavigation]
     public IActionResult Error() => View();
 
     private readonly AppDbContext _db;

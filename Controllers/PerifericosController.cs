@@ -17,10 +17,11 @@ public class PerifericosController : BaseController
     public PerifericosController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
     { _db = db; _pdf = pdf; _users = users; }
 
-    public async Task<IActionResult> Index(string? estado, string? buscar)
+    public async Task<IActionResult> Index(string? estado, string? buscar, int pagina = 1)
     {
         if (!await Puede("perifericos.ver")) return AccesoDenegado();
 
+        const int tamPagina = 12;
         var query = _db.Perifericos.Include(p => p.TipoPeriferico).AsQueryable();
         if (!string.IsNullOrEmpty(estado))
             query = query.Where(p => p.Estado == estado);
@@ -29,9 +30,24 @@ public class PerifericosController : BaseController
                 p.NumeroSerie.Contains(buscar) ||
                 p.Marca.Contains(buscar) ||
                 p.Modelo.Contains(buscar));
+
+        var total = await query.CountAsync();
+        var perifericos = await query
+            .OrderByDescending(p => p.FechaRegistro)
+            .Skip((pagina - 1) * tamPagina)
+            .Take(tamPagina)
+            .ToListAsync();
+
         ViewBag.Estado = estado;
         ViewBag.Buscar = buscar;
-        return View(await query.OrderByDescending(p => p.FechaRegistro).ToListAsync());
+        ViewBag.Paginacion = new PaginacionViewModel
+        {
+            PaginaActual   = pagina,
+            TotalPaginas   = (int)Math.Ceiling(total / (double)tamPagina),
+            TotalRegistros = total,
+            TamañoPagina   = tamPagina
+        };
+        return View(perifericos);
     }
 
     public async Task<IActionResult> Details(int id, int pagina = 1)
@@ -320,6 +336,50 @@ public class PerifericosController : BaseController
             (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
             return NotFound();
         return View(ep);
+    }
+
+    // Genera (o reutiliza si sigue vigente) un link de un solo uso para que
+    // el colaborador firme la asignación directa a distancia cuando no está
+    // físicamente presente para firmar en el acto.
+    public async Task<IActionResult> GenerarLinkFirma(int asignacionId)
+    {
+        if (!await Puede("perifericos.asignar")) return AccesoDenegado();
+
+        var ep = await _db.EquiposPerifericos
+            .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
+            .Include(ep => ep.Empleado)
+            .Include(ep => ep.MiembroExterno)
+            .Include(ep => ep.Grupo)
+            .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
+        if (ep == null) return NotFound();
+
+        if (!string.IsNullOrEmpty(ep.FirmaEmpleado))
+        {
+            TempData["Error"] = "Esta asignación ya tiene una firma registrada.";
+            return RedirectToAction(nameof(CartaDirecta), new { asignacionId });
+        }
+
+        var solicitud = await _db.SolicitudesFirma
+            .Where(s => s.EquipoPerifericoId == asignacionId && s.FechaFirmado == null && s.FechaExpiracion >= DateTime.Now)
+            .OrderByDescending(s => s.FechaCreacion)
+            .FirstOrDefaultAsync();
+
+        if (solicitud == null)
+        {
+            solicitud = new SolicitudFirma
+            {
+                EquipoPerifericoId = asignacionId,
+                Token              = TokenGenerator.GenerarTokenUrlSafe(),
+                FechaCreacion      = DateTime.Now,
+                FechaExpiracion    = DateTime.Now.AddDays(3)
+            };
+            _db.SolicitudesFirma.Add(solicitud);
+            await _db.SaveChangesAsync();
+        }
+
+        ViewBag.Link = Url.Action("Firmar", "FirmaRemota", new { token = solicitud.Token }, Request.Scheme);
+        ViewBag.Asignacion = ep;
+        return View(solicitud);
     }
 
     public async Task<IActionResult> Devolver(int id)

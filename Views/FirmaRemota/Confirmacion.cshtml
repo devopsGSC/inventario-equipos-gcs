@@ -1,0 +1,46 @@
+@model SolicitudFirma
+@{
+    Layout = null;
+    bool esPeriferico = Model.EquipoPeriferico != null;
+    string nombreResponsable = esPeriferico ? Model.EquipoPeriferico!.NombreResponsable : Model.Movimiento!.NombreResponsable;
+    string tituloItem = esPeriferico
+        ? $"{Model.EquipoPeriferico!.Periferico?.Marca} {Model.EquipoPeriferico.Periferico?.Modelo}"
+        : Model.Movimiento!.Equipo?.NombreEquipo ?? "";
+    ViewData["Title"] = "Firma registrada — InventarioTI";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>@ViewData["Title"]</title>
+    <link rel="icon" type="image/x-icon" href="/gcs_logo.ico"/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
+    <style>
+        :root { --accent: #3b82f6; --dark-text: #1a2540; --dark-text2: #4a5f7a; --surface: #ffffff; --surface2: #f8fafc; --green: #10b981; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--surface2); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--dark-text); }
+        .card { background: var(--surface); border-radius: 12px; border: 1px solid #e5eaf2; text-align: center; }
+        .card-body { padding: 40px 32px; }
+        .icon { font-size: 48px; color: var(--green); margin-bottom: 16px; }
+        .title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+        .text-muted { color: var(--dark-text2); font-size: 13.5px; }
+    </style>
+</head>
+<body>
+<div style="width:100%;max-width:400px;padding:24px">
+    <div class="card">
+        <div class="card-body">
+            <i class="bi bi-check-circle-fill icon"></i>
+            <div class="title">¡Firma registrada!</div>
+            <div class="text-muted">
+                Gracias, @nombreResponsable. Tu firma para
+                <strong>@tituloItem</strong> quedó guardada correctamente.
+                Ya podés cerrar esta página.
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

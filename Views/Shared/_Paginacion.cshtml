@@ -14,10 +14,9 @@
         // Construir URL base conservando todos los query params excepto "pagina"
         var query = Context.Request.Query
             .Where(q => q.Key != "pagina")
-            .Select(q => $"{q.Key}={Uri.EscapeDataString(q.Value.ToString())}");
-        var baseUrl = Context.Request.Path + "?" + string.Join("&", query);
-        if (query.Any()) baseUrl += "&";
-        else baseUrl += "?";
+            .Select(q => $"{q.Key}={Uri.EscapeDataString(q.Value.ToString())}")
+            .ToList();
+        var baseUrl = Context.Request.Path + (query.Count > 0 ? "?" + string.Join("&", query) + "&" : "?");
       }
 
       @* Anterior *@

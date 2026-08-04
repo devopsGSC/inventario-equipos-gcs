@@ -7,17 +7,9 @@
   bool puedeEliminarSitio    = await PermisoSvc.TienePermiso(User, "sitios.eliminar");
 }
 
-@{
-  var volverControlador = Model.MiembroExternoId.HasValue ? "MiembrosExternos"
-                         : Model.GrupoId.HasValue ? "Grupos"
-                         : Model.EmpleadoId.HasValue ? "Empleados"
-                         : "Equipos";
-  var volverId = Model.MiembroExternoId ?? Model.GrupoId ?? Model.EmpleadoId ?? Model.EquipoId;
-}
-
 <div class="page-header">
   <div>
-    <a asp-controller="@volverControlador" asp-action="Details" asp-route-id="@volverId" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @eq.NombreEquipo</a>
+    <a asp-controller="Navegacion" asp-action="Volver" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @eq.NombreEquipo</a>
     <div class="page-title" style="margin-top:4px">Registrar movimiento</div>
   </div>
 </div>
@@ -29,8 +21,8 @@
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="EquipoId"/>
 
-        <div class="form-group">
-          <label class="form-label">Tipo de movimiento</label>
+        <div class="form-section">
+          <div class="form-section-header"><i class="bi bi-signpost-2"></i> Tipo de movimiento</div>
           @{
             var estadoActual = eq.Estado;
             var tiposDisponibles = estadoActual switch {
@@ -54,10 +46,10 @@
           <span asp-validation-for="TipoMovimiento" class="field-error"></span>
         </div>
 
-        <div id="sec-empleado" style="display:none">
+        <div id="sec-empleado" class="form-section" style="display:none">
+          <div class="form-section-header"><i class="bi bi-person-check"></i> Responsable</div>
           <div class="form-group">
-            <label class="form-label">Responsable</label>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;margin-bottom:12px" id="responsable-tipo-grid">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="responsable-tipo-grid">
               <label class="tipo-option" style="border:1px solid #dde2ec;border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:500">
                 <input type="radio" name="TipoResponsable" value="Empleado" style="display:none" onchange="onTipoResponsable('Empleado')"/>
                 <i class="bi bi-person"></i> Empleado
@@ -103,14 +95,17 @@
           </div>
         </div>
 
-        <div id="sec-fechafin" style="display:none">
-          <div class="form-group">
-            <label class="form-label">Fecha estimada de devolución <span class="text-muted" style="font-weight:400">(opcional)</span></label>
-            <input asp-for="FechaFinEstimada" class="form-control" type="date"/>
-          </div>
-        </div>
+        <div class="form-section">
+          <div class="form-section-header"><i class="bi bi-calendar-event"></i> Detalles del movimiento</div>
 
-        @if (puedeSeleccionarSitio)
+          <div id="sec-fechafin" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Fecha estimada de devolución <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+              <input asp-for="FechaFinEstimada" class="form-control" type="date"/>
+            </div>
+          </div>
+
+          @if (puedeSeleccionarSitio)
         {
           <div id="sec-sitio" style="display:none">
             <div class="form-group">
@@ -153,22 +148,21 @@
           </div>
         }
 
-        <div class="form-group">
-          <label class="form-label">Fecha del movimiento</label>
-          <input name="FechaInicio" class="form-control" type="datetime-local" 
-                 value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
-        </div>
+          <div class="form-group">
+            <label class="form-label">Fecha del movimiento</label>
+            <input name="FechaInicio" class="form-control" type="datetime-local"
+                   value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+          </div>
 
-        <div class="form-group">
-          <label class="form-label" asp-for="Observaciones">Observaciones (opcional)</label>
-          <textarea asp-for="Observaciones" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" asp-for="Observaciones">Observaciones (opcional)</label>
+            <textarea asp-for="Observaciones" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea>
+          </div>
         </div>
 
         <!-- Firma digital — solo visible para Asignación y Préstamo -->
-        <div id="sec-firma" style="display:none">
-          <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
-            Firma del colaborador
-          </div>
+        <div id="sec-firma" class="form-section" style="display:none">
+          <div class="form-section-header"><i class="bi bi-pen"></i> Firma del colaborador</div>
           <input type="hidden" name="firmaEmpleado" id="firmaInput"/>
           <div style="border:1px solid #dde2ec;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:6px">
             <canvas id="firmaCanvas" style="display:block;width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>
@@ -182,9 +176,10 @@
         </div>
 
         <!-- Registro fotográfico — solo visible para Asignación, Préstamo y Devolución -->
-        <div id="sec-fotos" style="display:none">
-          <div style="margin:16px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
-            Registro fotográfico <span style="font-weight:400;font-size:11px">(opcional — evidencia del estado)</span>
+        <div id="sec-fotos" class="form-section" style="display:none">
+          <div class="form-section-header">
+            <i class="bi bi-camera"></i> Registro fotográfico
+            <span class="text-muted" style="font-weight:400;font-size:12px">(opcional — evidencia del estado)</span>
           </div>
 
           <div id="dropzoneFotos"
@@ -228,19 +223,32 @@
           <div id="contadorFotos" class="text-muted" style="font-size:12px;margin-top:8px"></div>
         </div>
 
-        <!-- Periféricos — solo visible para Asignación y Préstamo -->
-        <div id="sec-perifericos" style="display:none">
-          <div style="margin:4px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
-            Periféricos a entregar
+        <!-- Periféricos y licencias — solo visible para Asignación y Préstamo -->
+        <div id="sec-entrega" class="form-section" style="display:none">
+          <div class="form-section-header"><i class="bi bi-box-seam"></i> Elementos adicionales a entregar</div>
+
+          <div class="form-subsection">
+            <div class="form-subsection-label">Periféricos</div>
+            <input type="hidden" name="perifericosIds" id="perifericosIds"/>
+            <div id="perifList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
+              <span class="text-muted" id="sinPerifericos" style="font-size:12.5px;align-self:center">Sin periféricos adjuntos</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalPerif()">
+              <i class="bi bi-plus"></i> Adjuntar periférico
+            </button>
+            <div class="input-note" style="margin-top:6px">Los periféricos adjuntos quedarán en estado "Asignado" junto con el equipo.</div>
           </div>
-          <input type="hidden" name="perifericosIds" id="perifericosIds"/>
-          <div id="perifList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
-            <span class="text-muted" id="sinPerifericos" style="font-size:12.5px;align-self:center">Sin periféricos adjuntos</span>
+
+          <div class="form-subsection">
+            <div class="form-subsection-label">Licencias</div>
+            <input type="hidden" name="licenciasIds" id="licenciasIds"/>
+            <div id="licList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
+              <span class="text-muted" id="sinLicencias" style="font-size:12.5px;align-self:center">Sin licencias adjuntas</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalLic()">
+              <i class="bi bi-plus"></i> Adjuntar licencia
+            </button>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalPerif()">
-            <i class="bi bi-plus"></i> Adjuntar periférico
-          </button>
-          <div class="input-note" style="margin-top:6px">Los periféricos adjuntos quedarán en estado "Asignado" junto con el equipo.</div>
         </div>
 
         <!-- Modal selector periféricos -->
@@ -253,20 +261,6 @@
             <input type="text" id="buscarPerif" class="form-control" placeholder="Buscar por tipo, marca o serie..." oninput="filtrarPerif()" style="margin-bottom:12px"/>
             <div id="perifOpciones" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
-        </div>
-
-        <!-- Licencias — solo visible para Asignación y Préstamo -->
-        <div id="sec-licencias" style="display:none">
-          <div style="margin:4px 0 8px;font-size:13px;font-weight:600;color:var(--dark-text2);text-transform:uppercase;letter-spacing:.05em">
-            Licencias a entregar
-          </div>
-          <input type="hidden" name="licenciasIds" id="licenciasIds"/>
-          <div id="licList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:38px;padding:8px;border:1px solid #dde2ec;border-radius:8px;background:var(--surface2)">
-            <span class="text-muted" id="sinLicencias" style="font-size:12.5px;align-self:center">Sin licencias adjuntas</span>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalLic()">
-            <i class="bi bi-plus"></i> Adjuntar licencia
-          </button>
         </div>
 
         <!-- Modal selector licencias -->
@@ -283,7 +277,7 @@
 
         <div class="gap-2">
           <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Confirmar movimiento</button>
-          <a asp-controller="@volverControlador" asp-action="Details" asp-route-id="@volverId" class="btn btn-secondary">Cancelar</a>
+          <a asp-controller="Navegacion" asp-action="Volver" class="btn btn-secondary">Cancelar</a>
         </div>
       </form>
     </div>
@@ -329,12 +323,10 @@ function onTipo(val) {
 
   // Mostrar firma para Asignacion, Prestamo y Devolucion
   const secFirma = document.getElementById('sec-firma');
-  const secPerif = document.getElementById('sec-perifericos');
-  const secLic = document.getElementById('sec-licencias');
+  const secEntrega = document.getElementById('sec-entrega');
   const esSalida = (val === 'Asignacion' || val === 'Prestamo');
   secFirma.style.display = (esSalida || val === 'Devolucion') ? 'block' : 'none';
-  secPerif.style.display = esSalida ? 'block' : 'none';
-  secLic.style.display = esSalida ? 'block' : 'none';
+  secEntrega.style.display = esSalida ? 'block' : 'none';
   if (secFirma.style.display === 'block') initCanvas();
 
   document.getElementById('sec-fotos').style.display =
