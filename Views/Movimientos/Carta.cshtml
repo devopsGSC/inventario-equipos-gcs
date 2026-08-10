@@ -66,10 +66,34 @@
 
     <div class="divider"></div>
 
+    @if (Model.EntregaCompletada)
+    {
+      <div class="alert alert-success" style="margin-bottom:16px">
+        <i class="bi bi-check-circle-fill"></i>
+        Entregado por @(Model.EntregadoPorUsuario?.NombreCompleto ?? "—")@(Model.FechaEntrega.HasValue ? $" el {Model.FechaEntrega.Value:dd/MM/yyyy HH:mm}" : "").
+      </div>
+      <div class="gap-2">
+        <a asp-action="DescargarCarta" asp-route-id="@Model.Id" class="btn btn-primary">
+          <i class="bi bi-download"></i> Descargar carta PDF
+        </a>
+      </div>
+    }
+    else
+    {
+      <div class="alert alert-warning" style="margin-bottom:16px">
+        <i class="bi bi-hourglass-split"></i>
+        Pendiente de entrega física. Marcalo como entregado cuando lo entregues para que quede registrado quién lo hizo.
+      </div>
+      <form method="post" asp-action="MarcarEntrega" asp-route-id="@Model.Id" style="margin-bottom:16px">
+        <label class="form-label">Nota de entrega (opcional)</label>
+        <textarea name="notaEntrega" class="form-control" rows="2" placeholder="Ej: Equipo entregado y firmado en sitio."></textarea>
+        <button type="submit" class="btn btn-primary" style="margin-top:10px">
+          <i class="bi bi-check-circle"></i> Marcar como entregado
+        </button>
+      </form>
+    }
+
     <div class="gap-2">
-      <a asp-action="DescargarCarta" asp-route-id="@Model.Id" class="btn btn-primary">
-        <i class="bi bi-download"></i> Descargar carta PDF
-      </a>
       @if (string.IsNullOrEmpty(Model.FirmaEmpleado))
       {
         <a asp-action="GenerarLinkFirma" asp-route-id="@Model.Id" class="btn btn-secondary">

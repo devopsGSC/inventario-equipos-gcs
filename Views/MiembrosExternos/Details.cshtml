@@ -15,6 +15,12 @@
     <div class="page-title" style="margin-top:4px">@Model.Nombre</div>
   </div>
   <div style="display:flex;gap:8px">
+    @if (await PermisoSvc.TienePermiso(User, "movimientos.carta") && (equipos.Any() || perifsActuales.Any()))
+    {
+      <a asp-action="DescargarCartaGeneral" asp-route-id="@Model.Id" class="btn btn-secondary" title="Carta con todos los equipos y periféricos actuales">
+        <i class="bi bi-file-earmark-pdf"></i> Carta general
+      </a>
+    }
     @if (await PermisoSvc.TienePermiso(User, "miembrosexternos.editar"))
     {
       <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary"><i class="bi bi-pencil"></i> Editar</a>
@@ -62,7 +68,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Equipo</th><th>Tipo</th><th>Movimiento</th></tr></thead>
+        <thead><tr><th>Equipo</th><th>Tipo</th><th>Movimiento</th><th></th></tr></thead>
         <tbody>
           @foreach (var m in equipos)
           {
@@ -73,11 +79,19 @@
               </td>
               <td>@m.Equipo?.TipoEquipo?.Nombre</td>
               <td>@m.TipoMovimiento<div class="text-muted">@m.FechaInicio.ToString("dd/MM/yyyy")</div></td>
+              <td>
+                @if (await PermisoSvc.TienePermiso(User, "movimientos.carta"))
+                {
+                  <a asp-controller="Movimientos" asp-action="Carta" asp-route-id="@m.Id" class="btn btn-secondary btn-sm" title="Carta con equipo y periféricos de este miembro externo">
+                    <i class="bi bi-file-earmark-pdf"></i> Carta
+                  </a>
+                }
+              </td>
             </tr>
           }
           @if (!equipos.Any())
           {
-            <tr><td colspan="3"><div class="empty-state" style="padding:20px"><i class="bi bi-laptop"></i>Sin equipos asignados.</div></td></tr>
+            <tr><td colspan="4"><div class="empty-state" style="padding:20px"><i class="bi bi-laptop"></i>Sin equipos asignados.</div></td></tr>
           }
         </tbody>
       </table>

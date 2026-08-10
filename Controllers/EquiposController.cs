@@ -115,6 +115,8 @@ public class EquiposController : BaseController
             .Include(m => m.Grupo)
             .Include(m => m.Sitio)
             .Include(m => m.Imagenes.OrderBy(i => i.Orden))
+            .Include(m => m.EntregadoPorUsuario)
+            .Include(m => m.CreadoPorUsuario)
             .Where(m => m.EquipoId == id)
             .OrderByDescending(m => m.FechaInicio)
             .Skip((pagina - 1) * tamPagina)

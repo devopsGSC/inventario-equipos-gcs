@@ -473,6 +473,7 @@ public class MovimientosController : BaseController
             .Include(m => m.Imagenes.OrderBy(i => i.Orden))
             .Include(m => m.Sitio)
             .Include(m => m.CreadoPorUsuario)
+            .Include(m => m.EntregadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (movimiento == null) return NotFound();
@@ -482,12 +483,13 @@ public class MovimientosController : BaseController
             return RedirectToAction("Details", "Equipos", new { id = movimiento.EquipoId });
         }
 
-        // La firma de IT debe ser de quien realmente registró el movimiento,
-        // no de quien descarga el PDF después. Para movimientos viejos sin
-        // ese dato (de antes de guardar CreadoPorUsuarioId), se usa el
-        // usuario actual como respaldo — es lo mismo que ya pasaba antes.
+        // La firma de IT debe ser de quien realmente entregó/hizo el
+        // movimiento, no de quien descarga el PDF después. Se prioriza a
+        // quien se marcó como "entregado por" en la carta (puede ser
+        // distinto de quien registró el movimiento), y para movimientos
+        // viejos sin ninguno de esos datos se usa el usuario actual.
         var usuarioActual = await _users.GetUserAsync(User);
-        var usuarioEmisor = movimiento.CreadoPorUsuario ?? usuarioActual;
+        var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
         var bytes = _pdf.GenerarPdfHallazgos(movimiento, usuarioEmisor?.RutaFirmaIT);
         var nombre = $"Hallazgos_{movimiento.Equipo?.NombreEquipo}_{movimiento.FechaInicio:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
@@ -502,9 +504,49 @@ public class MovimientosController : BaseController
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
             .Include(m => m.MiembroExterno)
             .Include(m => m.Grupo)
+            .Include(m => m.EntregadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movimiento == null) return NotFound();
         return View(movimiento);
+    }
+
+    // Marca la entrega física como completada (fija quién entrega y agrega
+    // su nota a las observaciones) y vuelve a la pantalla de la carta, que
+    // ya se recarga mostrando el estado "Entregado" y el botón de descarga.
+    // Separado de DescargarCarta porque esa acción devuelve el PDF como
+    // archivo adjunto: el navegador no navega ni refresca la página, así
+    // que si el estado cambiara ahí, la vista se quedaría desactualizada.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarcarEntrega(int id, string? notaEntrega)
+    {
+        if (!await Puede("movimientos.carta")) return AccesoDenegado();
+
+        var movimiento = await _db.Movimientos.FirstOrDefaultAsync(m => m.Id == id);
+        if (movimiento == null) return NotFound();
+
+        var usuarioActual = await _users.GetUserAsync(User);
+        if (!movimiento.EntregaCompletada && usuarioActual != null)
+        {
+            movimiento.EntregadoPorUsuarioId = usuarioActual.Id;
+            movimiento.EntregaCompletada     = true;
+            movimiento.FechaEntrega          = DateTime.Now;
+            var nota = string.IsNullOrWhiteSpace(notaEntrega) ? "Equipo entregado." : notaEntrega.Trim();
+            movimiento.Observaciones = AgregarNotaObservacion(movimiento.Observaciones,
+                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", nota);
+            await _db.SaveChangesAsync();
+        }
+
+        return RedirectToAction(nameof(Carta), new { id });
+    }
+
+    // Agrega una línea con fecha y usuario al final de las observaciones,
+    // sin perder las notas anteriores (p.ej. la de quien asignó el equipo,
+    // seguida más tarde por la de quien lo entrega físicamente).
+    private static string AgregarNotaObservacion(string? actual, string usuario, string nota)
+    {
+        var linea = $"[{DateTime.Now:dd/MM/yyyy HH:mm}] {usuario}: {nota}";
+        return string.IsNullOrWhiteSpace(actual) ? linea : $"{actual}\n{linea}";
     }
 
     // Genera (o reutiliza si sigue vigente) un link de un solo uso para que
@@ -564,21 +606,49 @@ public class MovimientosController : BaseController
             .Include(m => m.MiembroExterno)
             .Include(m => m.Grupo)
             .Include(m => m.CreadoPorUsuario)
+            .Include(m => m.EntregadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movimiento == null || (movimiento.Empleado == null && movimiento.MiembroExterno == null && movimiento.Grupo == null))
             return NotFound();
 
-        // La firma de IT en la carta debe ser de quien realmente hizo la
-        // asignación, no de quien la descarga (puede pasar mucho tiempo y
-        // ser otra persona). Se usa el usuario actual solo como respaldo
-        // para movimientos de antes de guardar CreadoPorUsuarioId.
         var usuarioActual = await _users.GetUserAsync(User);
-        var usuarioEmisor = movimiento.CreadoPorUsuario ?? usuarioActual;
+
+        // Quién entrega el equipo y firma por TI puede ser distinto de quien
+        // registró la asignación en el sistema (p.ej. un técnico asigna el
+        // equipo en el sistema y otro lo entrega físicamente días después).
+        // La PRIMERA descarga de la carta fija esa atribución con quien la
+        // está descargando en ese momento; descargas posteriores (reimpresiones,
+        // otra persona revisando) ya no la cambian.
+        if (!movimiento.EntregaCompletada && usuarioActual != null)
+        {
+            movimiento.EntregadoPorUsuarioId = usuarioActual.Id;
+            movimiento.EntregadoPorUsuario   = usuarioActual;
+            movimiento.EntregaCompletada     = true;
+            movimiento.FechaEntrega          = DateTime.Now;
+            movimiento.Observaciones = AgregarNotaObservacion(movimiento.Observaciones,
+                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", "Equipo entregado y carta generada.");
+        }
+
+        // Para movimientos de antes de guardar esta atribución, se cae en
+        // CreadoPorUsuarioId y, en última instancia, en el usuario actual.
+        var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
+        // Periféricos asignados "Directo" (sin pasar por un equipo) a la
+        // misma persona/miembro externo/grupo de este movimiento, para que
+        // la carta del equipo también los incluya y no haga falta una carta
+        // aparte cuando ambos tipos de asignación conviven.
+        var perifericosDirectos = await _db.EquiposPerifericos
+            .Where(ep => ep.TipoAsignacion == "Directo" && ep.FechaDesvinculacion == null &&
+                ((movimiento.EmpleadoId != null && ep.EmpleadoId == movimiento.EmpleadoId) ||
+                 (movimiento.MiembroExternoId != null && ep.MiembroExternoId == movimiento.MiembroExternoId) ||
+                 (movimiento.GrupoId != null && ep.GrupoId == movimiento.GrupoId)))
+            .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
+            .ToListAsync();
+
         byte[] bytes = movimiento.TipoMovimiento == "Prestamo"
-            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto)
-            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto);
+            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericosDirectos)
+            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericosDirectos);
 
         movimiento.CartaGenerada = true;
         await _db.SaveChangesAsync();

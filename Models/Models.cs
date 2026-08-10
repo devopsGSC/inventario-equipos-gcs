@@ -148,19 +148,27 @@ public class Movimiento
     public DateTime? FechaFinEstimada { get; set; }
     [Display(Name = "Fecha de devolución")]
     public DateTime? FechaDevolucion { get; set; }
-    [MaxLength(500, ErrorMessage = "Máximo 500 caracteres.")]
+    [MaxLength(2000, ErrorMessage = "Máximo 2000 caracteres.")]
     public string? Observaciones { get; set; }
     public bool CartaGenerada { get; set; } = false;
     public string? FirmaEmpleado { get; set; }
     [Display(Name = "Sitio / Ubicación")]
     public int? SitioId { get; set; }
     public string? CreadoPorUsuarioId { get; set; }
+    // Quién entrega el equipo y firma por TI en la carta: se fija en la
+    // PRIMERA descarga de la carta con fines de entrega física (puede ser
+    // distinto de quien registró la asignación en el sistema), y no cambia
+    // en descargas posteriores aunque las haga otro usuario.
+    public string? EntregadoPorUsuarioId { get; set; }
+    public bool EntregaCompletada { get; set; } = false;
+    public DateTime? FechaEntrega { get; set; }
     public Equipo? Equipo { get; set; }
     public Empleado? Empleado { get; set; }
     public MiembroExterno? MiembroExterno { get; set; }
     public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
     public UsuarioApp? CreadoPorUsuario { get; set; }
+    public UsuarioApp? EntregadoPorUsuario { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
 
     [NotMapped]
@@ -317,6 +325,9 @@ public class EquipoPeriferico
     [Display(Name = "Sitio / Ubicación")]
     public int? SitioId { get; set; }
     public string? CreadoPorUsuarioId { get; set; }
+    public string? EntregadoPorUsuarioId { get; set; }
+    public bool EntregaCompletada { get; set; } = false;
+    public DateTime? FechaEntrega { get; set; }
     public Equipo? Equipo { get; set; }
     public Periferico? Periferico { get; set; }
     public Empleado? Empleado { get; set; }
@@ -324,6 +335,7 @@ public class EquipoPeriferico
     public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
     public UsuarioApp? CreadoPorUsuario { get; set; }
+    public UsuarioApp? EntregadoPorUsuario { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
 
     [NotMapped]

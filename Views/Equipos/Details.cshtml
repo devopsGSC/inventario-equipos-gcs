@@ -380,13 +380,21 @@ async function adjuntarPerif(perifId) {
             <div class="timeline-body">
               <div class="timeline-title">@m.TipoMovimiento
                 @if (m.CartaGenerada) { <span class="badge badge-green" style="font-size:10px;margin-left:6px"><i class="bi bi-file-earmark-check"></i> Carta generada</span> }
+                @if ((m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo") && (m.Empleado != null || m.MiembroExterno != null || m.Grupo != null))
+                {
+                  @if (m.EntregaCompletada)
+                  { <span class="badge badge-green" style="font-size:10px;margin-left:6px"><i class="bi bi-check-circle"></i> Entregado@(m.EntregadoPorUsuario != null ? $" por {m.EntregadoPorUsuario.NombreCompleto}" : "")</span> }
+                  else
+                  { <span class="badge badge-garantia" style="font-size:10px;margin-left:6px"><i class="bi bi-hourglass-split"></i> Pendiente de entrega</span> }
+                }
               </div>
               <div class="timeline-meta">
                 @m.FechaInicio.ToString("dd/MM/yyyy HH:mm")
                 @if (m.Empleado != null || m.MiembroExterno != null || m.Grupo != null) { <span> — @m.NombreResponsable@(m.Empleado != null ? $" ({m.Empleado.CodigoEmpleado})" : "")</span> }
                 @if (m.Sitio != null) { <span> — <i class="bi bi-geo-alt"></i> @m.Sitio.Nombre</span> }
+                @if (m.CreadoPorUsuario != null) { <span> — Asignado por @m.CreadoPorUsuario.NombreCompleto</span> }
                 @if (m.FechaDevolucion.HasValue) { <span> — Devuelto: @m.FechaDevolucion.Value.ToString("dd/MM/yyyy")</span> }
-                @if (!string.IsNullOrEmpty(m.Observaciones)) { <div>@m.Observaciones</div> }
+                @if (!string.IsNullOrEmpty(m.Observaciones)) { <div style="white-space:pre-line">@m.Observaciones</div> }
               </div>
               @if (m.Imagenes != null && m.Imagenes.Any())
               {

@@ -217,9 +217,15 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
         mb.Entity<Movimiento>()
             .HasOne(m => m.CreadoPorUsuario).WithMany()
             .HasForeignKey(m => m.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Movimiento>()
+            .HasOne(m => m.EntregadoPorUsuario).WithMany()
+            .HasForeignKey(m => m.EntregadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
         mb.Entity<EquipoPeriferico>()
             .HasOne(ep => ep.CreadoPorUsuario).WithMany()
             .HasForeignKey(ep => ep.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<EquipoPeriferico>()
+            .HasOne(ep => ep.EntregadoPorUsuario).WithMany()
+            .HasForeignKey(ep => ep.EntregadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
         mb.Entity<LicenciaAsignacion>()
             .HasOne(la => la.CreadoPorUsuario).WithMany()
             .HasForeignKey(la => la.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);

@@ -338,11 +338,47 @@ public class PerifericosController : BaseController
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
             .Include(ep => ep.MiembroExterno)
             .Include(ep => ep.Grupo)
+            .Include(ep => ep.EntregadoPorUsuario)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
         if (ep == null || ep.Periferico == null ||
             (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
             return NotFound();
         return View(ep);
+    }
+
+    // Agrega una línea con fecha y usuario al final de las observaciones,
+    // sin perder las notas anteriores.
+    private static string AgregarNotaObservacion(string? actual, string usuario, string nota)
+    {
+        var linea = $"[{DateTime.Now:dd/MM/yyyy HH:mm}] {usuario}: {nota}";
+        return string.IsNullOrWhiteSpace(actual) ? linea : $"{actual}\n{linea}";
+    }
+
+    // Marca la entrega física como completada y vuelve a la pantalla de la
+    // carta (ver comentario equivalente en MovimientosController.MarcarEntrega
+    // sobre por qué esto no puede vivir dentro de DescargarCartaDirecta).
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarcarEntregaDirecta(int asignacionId, string? notaEntrega)
+    {
+        if (!await Puede("perifericos.asignar")) return AccesoDenegado();
+
+        var ep = await _db.EquiposPerifericos.FirstOrDefaultAsync(ep => ep.Id == asignacionId);
+        if (ep == null) return NotFound();
+
+        var usuarioActual = await _users.GetUserAsync(User);
+        if (!ep.EntregaCompletada && usuarioActual != null)
+        {
+            ep.EntregadoPorUsuarioId = usuarioActual.Id;
+            ep.EntregaCompletada     = true;
+            ep.FechaEntrega          = DateTime.Now;
+            var nota = string.IsNullOrWhiteSpace(notaEntrega) ? "Periférico entregado." : notaEntrega.Trim();
+            ep.Observaciones = AgregarNotaObservacion(ep.Observaciones,
+                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", nota);
+            await _db.SaveChangesAsync();
+        }
+
+        return RedirectToAction(nameof(CartaDirecta), new { asignacionId });
     }
 
     // Genera (o reutiliza si sigue vigente) un link de un solo uso para que
@@ -528,10 +564,11 @@ public class PerifericosController : BaseController
             return RedirectToAction(nameof(Details), new { id = asignacion.PerifericoId });
         }
 
-        // La firma de IT debe ser de quien realmente registró la
-        // asignación, no de quien descarga el PDF después.
+        // La firma de IT debe ser de quien realmente entregó/registró la
+        // asignación, no de quien descarga el PDF después. Se prioriza a
+        // quien se marcó como "entregado por" en la carta.
         var usuarioActual = await _users.GetUserAsync(User);
-        var usuarioEmisor = asignacion.CreadoPorUsuario ?? usuarioActual;
+        var usuarioEmisor = asignacion.EntregadoPorUsuario ?? asignacion.CreadoPorUsuario ?? usuarioActual;
         var bytes = _pdf.GenerarPdfHallazgosPeriferico(asignacion, usuarioEmisor?.RutaFirmaIT);
         var nombre = $"Hallazgos_{asignacion.Periferico?.Marca}_{asignacion.Periferico?.Modelo}_{asignacion.FechaAsignacion:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
@@ -545,15 +582,32 @@ public class PerifericosController : BaseController
             .Include(ep => ep.MiembroExterno)
             .Include(ep => ep.Grupo)
             .Include(ep => ep.CreadoPorUsuario)
+            .Include(ep => ep.EntregadoPorUsuario)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
         if (ep == null || ep.Periferico == null ||
             (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
             return NotFound();
 
-        // La firma de IT en la carta debe ser de quien realmente hizo la
-        // asignación, no de quien la descarga después.
         var usuarioActual = await _users.GetUserAsync(User);
-        var usuarioEmisor = ep.CreadoPorUsuario ?? usuarioActual;
+
+        // Quién entrega el periférico y firma por TI puede ser distinto de
+        // quien registró la asignación. La PRIMERA descarga de la carta fija
+        // esa atribución con quien la está descargando; descargas
+        // posteriores ya no la cambian.
+        if (!ep.EntregaCompletada && usuarioActual != null)
+        {
+            ep.EntregadoPorUsuarioId = usuarioActual.Id;
+            ep.EntregadoPorUsuario   = usuarioActual;
+            ep.EntregaCompletada     = true;
+            ep.FechaEntrega          = DateTime.Now;
+            ep.Observaciones = AgregarNotaObservacion(ep.Observaciones,
+                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", "Periférico entregado y carta generada.");
+            await _db.SaveChangesAsync();
+        }
+
+        // La firma de IT en la carta debe ser de quien realmente hizo la
+        // entrega, no de quien la descarga después.
+        var usuarioEmisor = ep.EntregadoPorUsuario ?? ep.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
         var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioEmisor?.NombreCompleto);
