@@ -85,7 +85,6 @@ public class EquiposController : BaseController
         }
 
         ViewBag.Tipos  = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
         ViewBag.Paginacion = new PaginacionViewModel
         {

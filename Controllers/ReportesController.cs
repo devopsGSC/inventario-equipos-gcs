@@ -174,7 +174,6 @@ public class ReportesController : BaseController
             TotalRegistros = total, TamañoPagina = tam
         };
         ViewBag.TiposEquipo   = await _db.TiposEquipo
-            .Where(t => t.Nombre != "Desktop" && t.Nombre != "Monitor" && t.Nombre != "Impresora")
             .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
         ViewBag.Marcas        = await _db.Equipos.Select(e => e.Marca).Distinct().OrderBy(m => m).ToListAsync();
         ViewBag.Departamentos = await _db.Departamentos.OrderBy(d => d.Nombre).Select(d => d.Nombre).ToListAsync();
@@ -300,7 +299,7 @@ public class ReportesController : BaseController
             TotalRegistros = total, TamañoPagina = tam
         };
         ViewBag.TiposPeriferico = await _db.TiposPerifericos
-            .Where(t => t.Nombre != "Otro").OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
+            .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
         ViewBag.Marcas    = await _db.Perifericos.Select(p => p.Marca).Distinct().OrderBy(m => m).ToListAsync();
         ViewBag.Empleados = await _db.Empleados.Where(e => e.Activo)
             .OrderBy(e => e.Nombre).Select(e => new { e.Id, e.Nombre, e.CodigoEmpleado }).ToListAsync();

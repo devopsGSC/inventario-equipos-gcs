@@ -17,7 +17,7 @@ public class PerifericosController : BaseController
     public PerifericosController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
     { _db = db; _pdf = pdf; _users = users; }
 
-    public async Task<IActionResult> Index(string? estado, string? buscar, int pagina = 1)
+    public async Task<IActionResult> Index(string? estado, string? tipo, string? buscar, int pagina = 1)
     {
         if (!await Puede("perifericos.ver")) return AccesoDenegado();
 
@@ -25,6 +25,8 @@ public class PerifericosController : BaseController
         var query = _db.Perifericos.Include(p => p.TipoPeriferico).AsQueryable();
         if (!string.IsNullOrEmpty(estado))
             query = query.Where(p => p.Estado == estado);
+        if (!string.IsNullOrEmpty(tipo))
+            query = query.Where(p => p.TipoPeriferico!.Nombre == tipo);
         if (!string.IsNullOrEmpty(buscar))
             query = query.Where(p =>
                 p.NumeroSerie.Contains(buscar) ||
@@ -39,7 +41,10 @@ public class PerifericosController : BaseController
             .ToListAsync();
 
         ViewBag.Estado = estado;
+        ViewBag.Tipo = tipo;
         ViewBag.Buscar = buscar;
+        ViewBag.Tipos = await _db.TiposPerifericos
+            .OrderBy(t => t.Nombre).Select(t => t.Nombre).ToListAsync();
         ViewBag.Paginacion = new PaginacionViewModel
         {
             PaginaActual   = pagina,
