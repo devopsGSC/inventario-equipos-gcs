@@ -12,10 +12,27 @@ public class DashboardViewModel
     public int EnBaja { get; set; }
     public int GarantiasProximas { get; set; }
     public int GarantiasVencidas { get; set; }
-    public List<Equipo> UltimosRegistros { get; set; } = [];
-    public List<Movimiento> UltimosMovimientos { get; set; } = [];
+    public List<ActividadItem> ActividadReciente { get; set; } = [];
     public Equipo? ResultadoBusqueda { get; set; }
     public string? SerieBuscada { get; set; }
+}
+
+// Un renglón del feed "Actividad reciente" del panel general: une
+// movimientos, registros y asignaciones de equipos/periféricos/licencias/
+// personas en una sola línea de tiempo, con quién hizo la acción (cuando
+// se conoce — solo se registra a partir de que existe este campo).
+public class ActividadItem
+{
+    public DateTime Fecha { get; set; }
+    public string Icono { get; set; } = "bi-circle";
+    public string BadgeClase { get; set; } = "badge-bodega";
+    public string Titulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public string? Responsable { get; set; }
+    public string? Usuario { get; set; }
+    public string? LinkController { get; set; }
+    public string? LinkAction { get; set; }
+    public int? LinkId { get; set; }
 }
 
 public class MovimientoCreateViewModel

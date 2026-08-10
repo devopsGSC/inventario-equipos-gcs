@@ -37,7 +37,7 @@ public class LicenciasController : BaseController
         return View(tipos);
     }
 
-    public async Task<IActionResult> Details(int id, int pagina = 1)
+    public async Task<IActionResult> Details(int id, int pagina = 1, int paginaActual = 1)
     {
         if (!await Puede("licencias.detalle")) return AccesoDenegado();
 
@@ -45,6 +45,8 @@ public class LicenciasController : BaseController
         var tipo = await _db.TiposLicencia.FirstOrDefaultAsync(t => t.Id == id);
         if (tipo == null) return NotFound();
 
+        var totalActuales = await _db.LicenciasAsignaciones
+            .CountAsync(la => la.TipoLicenciaId == id && la.FechaDesvinculacion == null);
         ViewBag.AsignacionesActuales = await _db.LicenciasAsignaciones
             .Include(la => la.Empleado).ThenInclude(e => e!.Departamento)
             .Include(la => la.MiembroExterno)
@@ -52,7 +54,16 @@ public class LicenciasController : BaseController
             .Include(la => la.Equipo)
             .Where(la => la.TipoLicenciaId == id && la.FechaDesvinculacion == null)
             .OrderByDescending(la => la.FechaAsignacion)
+            .Skip((paginaActual - 1) * tamPagina)
+            .Take(tamPagina)
             .ToListAsync();
+        ViewBag.PaginacionActuales = new PaginacionViewModel
+        {
+            PaginaActual   = paginaActual,
+            TotalPaginas   = (int)Math.Ceiling(totalActuales / (double)tamPagina),
+            TotalRegistros = totalActuales,
+            TamañoPagina   = tamPagina
+        };
 
         var totalHistorial = await _db.LicenciasAsignaciones.CountAsync(la => la.TipoLicenciaId == id);
         ViewBag.Historial = await _db.LicenciasAsignaciones
@@ -187,7 +198,8 @@ public class LicenciasController : BaseController
             TipoAsignacion   = "Directo",
             TipoMovimiento   = "Asignacion",
             FechaAsignacion  = DateTime.Now,
-            Observaciones    = observaciones
+            Observaciones    = observaciones,
+            CreadoPorUsuarioId = UsuarioActualId
         });
         await _db.SaveChangesAsync();
 
@@ -232,7 +244,8 @@ public class LicenciasController : BaseController
             TipoMovimiento      = "Devolucion",
             FechaAsignacion     = ahora,
             FechaDesvinculacion = ahora,
-            Observaciones       = observaciones
+            Observaciones       = observaciones,
+            CreadoPorUsuarioId  = UsuarioActualId
         });
         await _db.SaveChangesAsync();
 

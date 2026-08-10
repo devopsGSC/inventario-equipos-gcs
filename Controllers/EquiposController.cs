@@ -306,6 +306,7 @@ public class EquiposController : BaseController
         }
         equipo.Estado = "Bodega";
         equipo.FechaRegistro = DateTime.Now;
+        equipo.CreadoPorUsuarioId = UsuarioActualId;
         _db.Equipos.Add(equipo);
         await _db.SaveChangesAsync();
         TempData["OK"] = "Equipo registrado correctamente.";
@@ -406,7 +407,8 @@ public class EquiposController : BaseController
             TipoMovimiento          = movActivo?.TipoMovimiento ?? "Asignacion",
             FechaAsignacion         = DateTime.Now,
             FechaDevolucionEstimada = movActivo?.FechaFinEstimada,
-            SitioId                 = movActivo?.SitioId
+            SitioId                 = movActivo?.SitioId,
+            CreadoPorUsuarioId      = UsuarioActualId
         });
         await _db.SaveChangesAsync();
         return Ok();
@@ -430,7 +432,8 @@ public class EquiposController : BaseController
         _db.Movimientos.Add(new Movimiento
         {
             EquipoId = id, TipoMovimiento = "Baja", FechaInicio = DateTime.Now,
-            Observaciones = "Equipo dado de baja del inventario."
+            Observaciones = "Equipo dado de baja del inventario.",
+            CreadoPorUsuarioId = UsuarioActualId
         });
         await _db.SaveChangesAsync();
         TempData["OK"] = "Equipo dado de baja.";
@@ -453,7 +456,8 @@ public class EquiposController : BaseController
         _db.Movimientos.Add(new Movimiento
         {
             EquipoId = id, TipoMovimiento = "Reactivacion", FechaInicio = DateTime.Now,
-            Observaciones = "Equipo reactivado y disponible en bodega."
+            Observaciones = "Equipo reactivado y disponible en bodega.",
+            CreadoPorUsuarioId = UsuarioActualId
         });
         await _db.SaveChangesAsync();
         TempData["OK"] = "Equipo reactivado. Ahora está disponible en bodega.";

@@ -25,7 +25,10 @@ public class Empleado
     [Display(Name = "Departamento")]
     public int DepartamentoId { get; set; }
     public bool Activo { get; set; } = true;
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
     public Departamento? Departamento { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<Movimiento> Movimientos { get; set; } = [];
 }
 
@@ -49,6 +52,9 @@ public class MiembroExterno
     [MaxLength(100, ErrorMessage = "Máximo 100 caracteres.")]
     public string? Referencia { get; set; }
     public bool Activo { get; set; } = true;
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<Movimiento> Movimientos { get; set; } = [];
 }
 
@@ -60,6 +66,9 @@ public class Grupo
     [MaxLength(150, ErrorMessage = "Máximo 150 caracteres.")]
     public string? Descripcion { get; set; }
     public bool Activo { get; set; } = true;
+    public DateTime FechaRegistro { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<Movimiento> Movimientos { get; set; } = [];
 }
 
@@ -104,6 +113,8 @@ public class Equipo
     [MaxLength(20, ErrorMessage = "Máximo 20 caracteres.")]
     public string Estado { get; set; } = "Bodega";
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
 
     [MaxLength(50, ErrorMessage = "Máximo 50 caracteres."), Display(Name = "Memoria RAM")]
     public string? RAM { get; set; }
@@ -143,11 +154,13 @@ public class Movimiento
     public string? FirmaEmpleado { get; set; }
     [Display(Name = "Sitio / Ubicación")]
     public int? SitioId { get; set; }
+    public string? CreadoPorUsuarioId { get; set; }
     public Equipo? Equipo { get; set; }
     public Empleado? Empleado { get; set; }
     public MiembroExterno? MiembroExterno { get; set; }
     public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
 
     [NotMapped]
@@ -226,7 +239,9 @@ public class Periferico
     [Display(Name = "Fecha de compra")]
     public DateTime? FechaCompra { get; set; }
     public DateTime FechaRegistro { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
     public TipoPeriferico? TipoPeriferico { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<EquipoPeriferico> EquiposPerifericos { get; set; } = [];
 }
 
@@ -301,12 +316,14 @@ public class EquipoPeriferico
     public string? FirmaEmpleado { get; set; }
     [Display(Name = "Sitio / Ubicación")]
     public int? SitioId { get; set; }
+    public string? CreadoPorUsuarioId { get; set; }
     public Equipo? Equipo { get; set; }
     public Periferico? Periferico { get; set; }
     public Empleado? Empleado { get; set; }
     public MiembroExterno? MiembroExterno { get; set; }
     public Grupo? Grupo { get; set; }
     public Sitio? Sitio { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
     public ICollection<ImagenMovimiento> Imagenes { get; set; } = [];
 
     [NotMapped]
@@ -341,12 +358,14 @@ public class LicenciaAsignacion
     public DateTime? FechaDesvinculacion { get; set; }
     [MaxLength(500, ErrorMessage = "Máximo 500 caracteres.")]
     public string? Observaciones { get; set; }
+    public string? CreadoPorUsuarioId { get; set; }
 
     public TipoLicencia? TipoLicencia { get; set; }
     public Equipo? Equipo { get; set; }
     public Empleado? Empleado { get; set; }
     public MiembroExterno? MiembroExterno { get; set; }
     public Grupo? Grupo { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
 
     [NotMapped]
     public string TipoResponsable =>

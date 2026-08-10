@@ -119,6 +119,8 @@ public class MiembrosExternosController : BaseController
         if (!ModelState.IsValid)
             return View(miembro);
 
+        miembro.FechaRegistro = DateTime.Now;
+        miembro.CreadoPorUsuarioId = UsuarioActualId;
         _db.MiembrosExternos.Add(miembro);
         await _db.SaveChangesAsync();
         TempData["OK"] = "Miembro externo registrado correctamente.";

@@ -12,6 +12,9 @@ public class BaseController : Controller
     protected IEnumerable<string> RolesUsuario =>
         User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
 
+    // Id del usuario logueado, para dejar registro de quién hizo cada acción
+    protected string? UsuarioActualId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
     // Verifica si el usuario actual tiene el permiso indicado
     protected async Task<bool> Puede(string accionClave) =>
         await Permisos.UsuarioTienePermiso(RolesUsuario, accionClave);

@@ -117,79 +117,34 @@
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Últimos equipos registrados</div>
-      @if (await PermisoSvc.TienePermiso(User, "equipos.crear"))
-      {
-        <a asp-controller="Equipos" asp-action="Create" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Nuevo</a>
-      }
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Equipo</th><th>Tipo</th><th>Estado</th></tr></thead>
-        <tbody>
-          @foreach (var e in Model.UltimosRegistros)
-          {
-            <tr>
-              <td>
-                <a asp-controller="Equipos" asp-action="Details" asp-route-id="@e.Id" style="color:var(--accent);text-decoration:none;font-weight:500">@e.NombreEquipo</a>
-                <div class="mono text-muted">@e.NumeroSerie</div>
-              </td>
-              <td>@e.TipoEquipo?.Nombre</td>
-              <td><partial name="_EstadoBadge" model="@e.Estado" /></td>
-            </tr>
-          }
-          @if (!Model.UltimosRegistros.Any())
-          { <tr><td colspan="3"><div class="empty-state"><i class="bi bi-inbox"></i>Sin equipos registrados</div></td></tr> }
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">Últimos movimientos</div></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Equipo</th><th>Movimiento</th><th>Colaborador</th><th>Fecha</th></tr></thead>
-        <tbody>
-          @foreach (var m in Model.UltimosMovimientos)
-          {
-            var (badgeCls, badgeLbl) = m.TipoMovimiento switch {
-              "Asignacion"      => ("badge-asignado", "Asignación"),
-              "Prestamo"        => ("badge-prestamo",  "Préstamo"),
-              "Devolucion"      => ("badge-green",     "Devolución"),
-              "EntradaGarantia" => ("badge-garantia",  "En garantía"),
-              "SalidaGarantia"  => ("badge-green",     "Sale garantía"),
-              "Baja"            => ("badge-baja",      "Baja"),
-              "Reactivacion"    => ("badge-green",     "Reactivación"),
-              _                 => ("badge-bodega",    m.TipoMovimiento)
-            };
-            <tr>
-              <td>
-                <a asp-controller="Equipos" asp-action="Details" asp-route-id="@m.EquipoId"
-                   style="color:var(--accent);text-decoration:none;font-weight:500">
-                  @m.Equipo?.NombreEquipo
-                </a>
-                <div class="mono text-muted">@m.Equipo?.NumeroSerie</div>
-              </td>
-              <td><span class="badge @badgeCls">@badgeLbl</span></td>
-              <td>
-                @if (m.Empleado != null || m.MiembroExterno != null || m.Grupo != null)
-                {
-                  <div style="font-weight:500;font-size:13px">@m.NombreResponsable</div>
-                  <div class="text-muted">@(m.Empleado?.CodigoEmpleado ?? m.MiembroExterno?.Organizacion)</div>
-                }
-                else { <span class="text-muted">—</span> }
-              </td>
-              <td class="text-muted">@m.FechaInicio.ToString("dd/MM/yyyy")</td>
-            </tr>
-          }
-          @if (!Model.UltimosMovimientos.Any())
-          { <tr><td colspan="4"><div class="empty-state"><i class="bi bi-clock-history"></i>Sin movimientos</div></td></tr> }
-        </tbody>
-      </table>
-    </div>
+<div class="card">
+  <div class="card-header"><div class="card-title">Actividad reciente</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Acción</th><th>Detalle</th><th>Responsable</th><th>Usuario</th><th>Fecha</th></tr></thead>
+      <tbody>
+        @foreach (var a in Model.ActividadReciente)
+        {
+          <tr>
+            <td>
+              <span class="badge @a.BadgeClase"><i class="bi @a.Icono"></i> @a.Titulo</span>
+            </td>
+            <td>
+              @if (a.LinkController != null)
+              {
+                <a asp-controller="@a.LinkController" asp-action="@a.LinkAction" asp-route-id="@a.LinkId"
+                   style="color:var(--accent);text-decoration:none;font-weight:500">@a.Descripcion</a>
+              }
+              else { <span style="font-weight:500">@a.Descripcion</span> }
+            </td>
+            <td class="text-muted">@(a.Responsable ?? "—")</td>
+            <td class="text-muted">@(a.Usuario ?? "—")</td>
+            <td class="text-muted" style="white-space:nowrap">@a.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+          </tr>
+        }
+        @if (!Model.ActividadReciente.Any())
+        { <tr><td colspan="5"><div class="empty-state"><i class="bi bi-clock-history"></i>Sin actividad reciente</div></td></tr> }
+      </tbody>
+    </table>
   </div>
 </div>

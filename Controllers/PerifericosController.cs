@@ -124,6 +124,7 @@ public class PerifericosController : BaseController
         }
         p.Estado = "Disponible";
         p.FechaRegistro = DateTime.Now;
+        p.CreadoPorUsuarioId = UsuarioActualId;
         _db.Perifericos.Add(p);
         await _db.SaveChangesAsync();
         TempData["OK"] = "Periférico registrado correctamente.";
@@ -309,7 +310,8 @@ public class PerifericosController : BaseController
             FechaDevolucionEstimada = fechaDevolucionEstimada,
             Observaciones           = observaciones,
             FirmaEmpleado           = firmaEmpleado,
-            SitioId                 = await Puede("movimientos.sitio") ? sitioId : null
+            SitioId                 = await Puede("movimientos.sitio") ? sitioId : null,
+            CreadoPorUsuarioId      = UsuarioActualId
         };
         p.Estado = "Asignado";
         _db.EquiposPerifericos.Add(asignacion);
@@ -434,7 +436,8 @@ public class PerifericosController : BaseController
             FechaDesvinculacion  = ahora,
             Observaciones        = observaciones,
             FirmaEmpleado        = firmaEmpleado,
-            SitioId              = asignacion.SitioId
+            SitioId              = asignacion.SitioId,
+            CreadoPorUsuarioId   = UsuarioActualId
         };
         _db.EquiposPerifericos.Add(devolucion);
 

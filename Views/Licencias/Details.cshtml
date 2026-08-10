@@ -4,7 +4,8 @@
   ViewData["Title"] = Model.Nombre;
   var actuales  = ViewBag.AsignacionesActuales as List<LicenciaAsignacion> ?? new();
   var historial = ViewBag.Historial as List<LicenciaAsignacion> ?? new();
-  var disponibles = Model.CantidadTotal.HasValue ? Model.CantidadTotal.Value - actuales.Count : (int?)null;
+  var totalActuales = (ViewBag.PaginacionActuales as PaginacionViewModel)?.TotalRegistros ?? actuales.Count;
+  var disponibles = Model.CantidadTotal.HasValue ? Model.CantidadTotal.Value - totalActuales : (int?)null;
 }
 
 <div class="page-header">
@@ -48,7 +49,7 @@
   <div class="card">
     <div class="card-header">
       <div class="card-title">Asignaciones actuales</div>
-      <span class="badge badge-asignado">@actuales.Count</span>
+      <span class="badge badge-asignado">@totalActuales</span>
     </div>
     <div class="table-wrap">
       <table>
@@ -86,6 +87,8 @@
         </tbody>
       </table>
     </div>
+    <partial name="_Paginacion" model="ViewBag.PaginacionActuales as PaginacionViewModel"
+             view-data="@(new ViewDataDictionary(ViewData) { ["QueryKey"] = "paginaActual" })" />
   </div>
 </div>
 

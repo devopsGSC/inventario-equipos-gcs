@@ -200,7 +200,8 @@ public class CargaMasivaController : BaseController
                     FechaCompra   = TryParseDate(ep.FechaCompraStr),
                     FechaGarantia = TryParseDate(ep.FechaGarantStr),
                     Estado        = "Bodega",
-                    FechaRegistro = DateTime.Now
+                    FechaRegistro = DateTime.Now,
+                    CreadoPorUsuarioId = UsuarioActualId
                 });
 
                 resultados.Add(new ResultadoCarga

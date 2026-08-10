@@ -203,6 +203,36 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Quién hizo cada acción (para el feed de actividad reciente). SetNull
+        // en vez de Restrict/Cascade: si se borra el usuario de IT, la
+        // actividad queda igual, solo se pierde a quién atribuirla. Sin
+        // esto, SQL Server rechaza el esquema por rutas de cascada
+        // múltiples (8 tablas apuntando a AspNetUsers).
+        mb.Entity<Equipo>()
+            .HasOne(e => e.CreadoPorUsuario).WithMany()
+            .HasForeignKey(e => e.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Periferico>()
+            .HasOne(p => p.CreadoPorUsuario).WithMany()
+            .HasForeignKey(p => p.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Movimiento>()
+            .HasOne(m => m.CreadoPorUsuario).WithMany()
+            .HasForeignKey(m => m.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<EquipoPeriferico>()
+            .HasOne(ep => ep.CreadoPorUsuario).WithMany()
+            .HasForeignKey(ep => ep.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<LicenciaAsignacion>()
+            .HasOne(la => la.CreadoPorUsuario).WithMany()
+            .HasForeignKey(la => la.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Empleado>()
+            .HasOne(e => e.CreadoPorUsuario).WithMany()
+            .HasForeignKey(e => e.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<MiembroExterno>()
+            .HasOne(m => m.CreadoPorUsuario).WithMany()
+            .HasForeignKey(m => m.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Grupo>()
+            .HasOne(g => g.CreadoPorUsuario).WithMany()
+            .HasForeignKey(g => g.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+
         mb.Entity<TipoPeriferico>().HasData(
             new TipoPeriferico { Id = 1, Nombre = "Monitor" },
             new TipoPeriferico { Id = 2, Nombre = "Headset" },

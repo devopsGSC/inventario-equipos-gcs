@@ -121,6 +121,8 @@ public class GruposController : BaseController
         if (!ModelState.IsValid)
             return View(grupo);
 
+        grupo.FechaRegistro = DateTime.Now;
+        grupo.CreadoPorUsuarioId = UsuarioActualId;
         _db.Grupos.Add(grupo);
         await _db.SaveChangesAsync();
         TempData["OK"] = "Grupo registrado correctamente.";

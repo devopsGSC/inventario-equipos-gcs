@@ -138,6 +138,8 @@ public class EmpleadosController : BaseController
             ViewBag.Departamentos = new SelectList(await _db.Departamentos.ToListAsync(), "Id", "Nombre");
             return View(empleado);
         }
+        empleado.FechaRegistro = DateTime.Now;
+        empleado.CreadoPorUsuarioId = UsuarioActualId;
         _db.Empleados.Add(empleado);
         await _db.SaveChangesAsync();
         TempData["OK"] = "Empleado registrado correctamente.";

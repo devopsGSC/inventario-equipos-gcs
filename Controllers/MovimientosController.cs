@@ -240,7 +240,8 @@ public class MovimientosController : BaseController
                     FechaDesvinculacion  = ahoraPerifs,
                     Observaciones        = vm.Observaciones,
                     FirmaEmpleado        = vm.FirmaEmpleado,
-                    SitioId              = sitioPerifs
+                    SitioId              = sitioPerifs,
+                    CreadoPorUsuarioId   = UsuarioActualId
                 });
             }
 
@@ -263,7 +264,8 @@ public class MovimientosController : BaseController
                     TipoMovimiento      = "Devolucion",
                     FechaAsignacion     = ahoraPerifs,
                     FechaDesvinculacion = ahoraPerifs,
-                    Observaciones       = vm.Observaciones
+                    Observaciones       = vm.Observaciones,
+                    CreadoPorUsuarioId  = UsuarioActualId
                 });
             }
         }
@@ -306,7 +308,8 @@ public class MovimientosController : BaseController
             FechaFinEstimada = vm.FechaFinEstimada,
             Observaciones    = vm.Observaciones,
             FirmaEmpleado    = vm.FirmaEmpleado,  // guardada en BD, no en TempData
-            SitioId          = await Puede("movimientos.sitio") ? vm.SitioId : null
+            SitioId          = await Puede("movimientos.sitio") ? vm.SitioId : null,
+            CreadoPorUsuarioId = UsuarioActualId
         };
         _db.Movimientos.Add(movimiento);
         await _db.SaveChangesAsync();
@@ -334,7 +337,8 @@ public class MovimientosController : BaseController
                         FechaDevolucionEstimada = vm.FechaFinEstimada,
                         Observaciones = vm.Observaciones,
                         FirmaEmpleado = vm.FirmaEmpleado,
-                        SitioId = await Puede("movimientos.sitio") ? vm.SitioId : null
+                        SitioId = await Puede("movimientos.sitio") ? vm.SitioId : null,
+                        CreadoPorUsuarioId = UsuarioActualId
                     });
                 }
             }
@@ -362,7 +366,8 @@ public class MovimientosController : BaseController
                         TipoAsignacion = "Equipo",
                         TipoMovimiento = "Asignacion",
                         FechaAsignacion = DateTime.Now,
-                        Observaciones = vm.Observaciones
+                        Observaciones = vm.Observaciones,
+                        CreadoPorUsuarioId = UsuarioActualId
                     });
                 }
             }
