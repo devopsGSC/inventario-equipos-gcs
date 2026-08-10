@@ -472,6 +472,7 @@ public class MovimientosController : BaseController
             .Include(m => m.Grupo)
             .Include(m => m.Imagenes.OrderBy(i => i.Orden))
             .Include(m => m.Sitio)
+            .Include(m => m.CreadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (movimiento == null) return NotFound();
@@ -481,8 +482,13 @@ public class MovimientosController : BaseController
             return RedirectToAction("Details", "Equipos", new { id = movimiento.EquipoId });
         }
 
+        // La firma de IT debe ser de quien realmente registró el movimiento,
+        // no de quien descarga el PDF después. Para movimientos viejos sin
+        // ese dato (de antes de guardar CreadoPorUsuarioId), se usa el
+        // usuario actual como respaldo — es lo mismo que ya pasaba antes.
         var usuarioActual = await _users.GetUserAsync(User);
-        var bytes = _pdf.GenerarPdfHallazgos(movimiento, usuarioActual?.RutaFirmaIT);
+        var usuarioEmisor = movimiento.CreadoPorUsuario ?? usuarioActual;
+        var bytes = _pdf.GenerarPdfHallazgos(movimiento, usuarioEmisor?.RutaFirmaIT);
         var nombre = $"Hallazgos_{movimiento.Equipo?.NombreEquipo}_{movimiento.FechaInicio:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
@@ -557,17 +563,22 @@ public class MovimientosController : BaseController
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
             .Include(m => m.MiembroExterno)
             .Include(m => m.Grupo)
+            .Include(m => m.CreadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movimiento == null || (movimiento.Empleado == null && movimiento.MiembroExterno == null && movimiento.Grupo == null))
             return NotFound();
 
-        // Obtener firma del usuario logueado
+        // La firma de IT en la carta debe ser de quien realmente hizo la
+        // asignación, no de quien la descarga (puede pasar mucho tiempo y
+        // ser otra persona). Se usa el usuario actual solo como respaldo
+        // para movimientos de antes de guardar CreadoPorUsuarioId.
         var usuarioActual = await _users.GetUserAsync(User);
-        var rutaFirmaIT   = usuarioActual?.RutaFirmaIT;
+        var usuarioEmisor = movimiento.CreadoPorUsuario ?? usuarioActual;
+        var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
         byte[] bytes = movimiento.TipoMovimiento == "Prestamo"
-            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioActual?.NombreCompleto)
-            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioActual?.NombreCompleto);
+            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto)
+            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto);
 
         movimiento.CartaGenerada = true;
         await _db.SaveChangesAsync();

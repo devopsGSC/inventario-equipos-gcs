@@ -518,6 +518,7 @@ public class PerifericosController : BaseController
             .Include(ep => ep.Grupo)
             .Include(ep => ep.Imagenes.OrderBy(i => i.Orden))
             .Include(ep => ep.Sitio)
+            .Include(ep => ep.CreadoPorUsuario)
             .FirstOrDefaultAsync(ep => ep.Id == epId);
 
         if (asignacion == null) return NotFound();
@@ -527,8 +528,11 @@ public class PerifericosController : BaseController
             return RedirectToAction(nameof(Details), new { id = asignacion.PerifericoId });
         }
 
+        // La firma de IT debe ser de quien realmente registró la
+        // asignación, no de quien descarga el PDF después.
         var usuarioActual = await _users.GetUserAsync(User);
-        var bytes = _pdf.GenerarPdfHallazgosPeriferico(asignacion, usuarioActual?.RutaFirmaIT);
+        var usuarioEmisor = asignacion.CreadoPorUsuario ?? usuarioActual;
+        var bytes = _pdf.GenerarPdfHallazgosPeriferico(asignacion, usuarioEmisor?.RutaFirmaIT);
         var nombre = $"Hallazgos_{asignacion.Periferico?.Marca}_{asignacion.Periferico?.Modelo}_{asignacion.FechaAsignacion:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
@@ -540,16 +544,19 @@ public class PerifericosController : BaseController
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
             .Include(ep => ep.MiembroExterno)
             .Include(ep => ep.Grupo)
+            .Include(ep => ep.CreadoPorUsuario)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
         if (ep == null || ep.Periferico == null ||
             (ep.Empleado == null && ep.MiembroExterno == null && ep.Grupo == null))
             return NotFound();
 
-        // Obtener firma del usuario logueado
+        // La firma de IT en la carta debe ser de quien realmente hizo la
+        // asignación, no de quien la descarga después.
         var usuarioActual = await _users.GetUserAsync(User);
-        var rutaFirmaIT   = usuarioActual?.RutaFirmaIT;
+        var usuarioEmisor = ep.CreadoPorUsuario ?? usuarioActual;
+        var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
-        var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioActual?.NombreCompleto);
+        var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioEmisor?.NombreCompleto);
         var nombre = $"Carta_Periferico_{SanitizarNombreArchivo(ep.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
