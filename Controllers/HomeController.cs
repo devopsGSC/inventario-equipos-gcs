@@ -34,7 +34,7 @@ public class HomeController : Controller
                 e.FechaGarantia.Value < DateTime.Today &&
                 e.Estado != "Baja"),
         };
-        vm.ActividadReciente = await ObtenerActividadReciente();
+        vm.ActividadReciente = await ObtenerActividad(porFuente: 15, totalFeed: 15);
 
         if (!string.IsNullOrWhiteSpace(serie))
         {
@@ -56,16 +56,48 @@ public class HomeController : Controller
         return View(vm);
     }
 
-    // Feed unificado de "Actividad reciente": junta movimientos de equipos,
+    // Página completa de "Actividad reciente", paginada. A más profundidad
+    // de página, más hondo hay que buscar en cada una de las 8 fuentes
+    // (porFuente = pagina * tamPagina garantiza que la página pedida esté
+    // completa y bien ordenada) — más caro cuanto más se navega, pero
+    // trivial para la profundidad con la que realmente se navega a mano.
+    public async Task<IActionResult> Actividad(int pagina = 1)
+    {
+        const int tamPagina = 20;
+        var porFuente = pagina * tamPagina;
+
+        var todos = await ObtenerActividad(porFuente, totalFeed: porFuente);
+        var pageItems = todos.Skip((pagina - 1) * tamPagina).Take(tamPagina).ToList();
+        var total = await ContarActividadTotal();
+
+        ViewBag.Paginacion = new PaginacionViewModel
+        {
+            PaginaActual   = pagina,
+            TotalPaginas   = (int)Math.Ceiling(total / (double)tamPagina),
+            TotalRegistros = total,
+            TamañoPagina   = tamPagina
+        };
+        return View(pageItems);
+    }
+
+    private async Task<int> ContarActividadTotal() =>
+        await _db.Movimientos.CountAsync() +
+        await _db.Equipos.CountAsync() +
+        await _db.Perifericos.CountAsync() +
+        await _db.EquiposPerifericos.CountAsync(ep => ep.TipoAsignacion == "Directo") +
+        await _db.LicenciasAsignaciones.CountAsync(la => la.TipoAsignacion == "Directo") +
+        await _db.Empleados.CountAsync() +
+        await _db.MiembrosExternos.CountAsync() +
+        await _db.Grupos.CountAsync();
+
+    // Feed unificado de actividad: junta movimientos de equipos,
     // registros/asignaciones de periféricos y licencias, y altas de
     // personas (empleados, miembros externos, grupos) en una sola línea de
-    // tiempo, con quién hizo cada acción. Se trae un puñado reciente de
-    // cada fuente por separado (mucho más liviano que un UNION real contra
-    // tablas con formas distintas) y se combina/ordena en memoria.
-    private async Task<List<ActividadItem>> ObtenerActividadReciente()
+    // tiempo, con quién hizo cada acción. Se trae un puñado de cada fuente
+    // por separado (mucho más liviano que un UNION real contra tablas con
+    // formas distintas) y se combina/ordena en memoria.
+    private async Task<List<ActividadItem>> ObtenerActividad(int porFuente, int totalFeed)
     {
-        const int porFuente = 15;
-        const int totalFeed = 15;
         var items = new List<ActividadItem>();
 
         var movimientos = await _db.Movimientos

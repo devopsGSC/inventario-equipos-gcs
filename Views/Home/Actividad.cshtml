@@ -1,0 +1,41 @@
+@model List<ActividadItem>
+@{ ViewData["Title"] = "Historial de actividad"; }
+
+<div class="page-header">
+  <div>
+    <a asp-controller="Navegacion" asp-action="Volver" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> Panel general</a>
+    <div class="page-title" style="margin-top:4px">Historial de actividad</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Acción</th><th>Detalle</th><th>Responsable</th><th>Usuario</th><th>Fecha</th></tr></thead>
+      <tbody>
+        @foreach (var a in Model)
+        {
+          <tr>
+            <td>
+              <span class="badge @a.BadgeClase"><i class="bi @a.Icono"></i> @a.Titulo</span>
+            </td>
+            <td>
+              @if (a.LinkController != null)
+              {
+                <a asp-controller="@a.LinkController" asp-action="@a.LinkAction" asp-route-id="@a.LinkId"
+                   style="color:var(--accent);text-decoration:none;font-weight:500">@a.Descripcion</a>
+              }
+              else { <span style="font-weight:500">@a.Descripcion</span> }
+            </td>
+            <td class="text-muted">@(a.Responsable ?? "—")</td>
+            <td class="text-muted">@(a.Usuario ?? "—")</td>
+            <td class="text-muted" style="white-space:nowrap">@a.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+          </tr>
+        }
+        @if (!Model.Any())
+        { <tr><td colspan="5"><div class="empty-state"><i class="bi bi-clock-history"></i>Sin actividad registrada</div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+  <partial name="_Paginacion" model="ViewBag.Paginacion as InventarioTI.ViewModels.PaginacionViewModel"/>
+</div>
