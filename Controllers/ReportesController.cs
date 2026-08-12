@@ -219,55 +219,30 @@ public class ReportesController : BaseController
 
         if (!string.IsNullOrEmpty(empleadoId) && int.TryParse(empleadoId, out int empIdPf))
         {
-            var equiposDel = await _db.Movimientos
-                .Where(m => m.EmpleadoId == empIdPf && m.FechaDevolucion == null &&
-                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
-                .Select(m => m.EquipoId).ToListAsync();
-            var perPorEq = await _db.EquiposPerifericos
-                .Where(ep => equiposDel.Contains(ep.EquipoId ?? 0) && ep.FechaDesvinculacion == null)
-                .Select(ep => ep.PerifericoId).ToListAsync();
             var perDirect = await _db.EquiposPerifericos
                 .Where(ep => ep.EmpleadoId == empIdPf && ep.FechaDesvinculacion == null)
                 .Select(ep => ep.PerifericoId).ToListAsync();
-            var todosPf = perPorEq.Union(perDirect).ToList();
-            query = query.Where(p => todosPf.Contains(p.Id));
+            query = query.Where(p => perDirect.Contains(p.Id));
         }
         if (!string.IsNullOrEmpty(miembroExternoId) && int.TryParse(miembroExternoId, out int miembroIdPf))
         {
-            var equiposDel = await _db.Movimientos
-                .Where(m => m.MiembroExternoId == miembroIdPf && m.FechaDevolucion == null &&
-                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
-                .Select(m => m.EquipoId).ToListAsync();
-            var perPorEq = await _db.EquiposPerifericos
-                .Where(ep => equiposDel.Contains(ep.EquipoId ?? 0) && ep.FechaDesvinculacion == null)
-                .Select(ep => ep.PerifericoId).ToListAsync();
             var perDirect = await _db.EquiposPerifericos
                 .Where(ep => ep.MiembroExternoId == miembroIdPf && ep.FechaDesvinculacion == null)
                 .Select(ep => ep.PerifericoId).ToListAsync();
-            var todosPf = perPorEq.Union(perDirect).ToList();
-            query = query.Where(p => todosPf.Contains(p.Id));
+            query = query.Where(p => perDirect.Contains(p.Id));
         }
         if (!string.IsNullOrEmpty(grupoId) && int.TryParse(grupoId, out int grupoIdPf))
         {
-            var equiposDel = await _db.Movimientos
-                .Where(m => m.GrupoId == grupoIdPf && m.FechaDevolucion == null &&
-                            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
-                .Select(m => m.EquipoId).ToListAsync();
-            var perPorEq = await _db.EquiposPerifericos
-                .Where(ep => equiposDel.Contains(ep.EquipoId ?? 0) && ep.FechaDesvinculacion == null)
-                .Select(ep => ep.PerifericoId).ToListAsync();
             var perDirect = await _db.EquiposPerifericos
                 .Where(ep => ep.GrupoId == grupoIdPf && ep.FechaDesvinculacion == null)
                 .Select(ep => ep.PerifericoId).ToListAsync();
-            var todosPf = perPorEq.Union(perDirect).ToList();
-            query = query.Where(p => todosPf.Contains(p.Id));
+            query = query.Where(p => perDirect.Contains(p.Id));
         }
 
         var perifericos = await query.OrderBy(p => p.TipoPeriferico!.Nombre).ThenBy(p => p.Marca).ToListAsync();
         var perifIds    = perifericos.Select(p => p.Id).ToList();
 
         var asignActivas = (await _db.EquiposPerifericos
-            .Include(ep => ep.Equipo)
             .Include(ep => ep.Empleado).ThenInclude(emp => emp!.Departamento)
             .Include(ep => ep.MiembroExterno)
             .Include(ep => ep.Grupo)
@@ -458,23 +433,22 @@ public class ReportesController : BaseController
 
     private static string[] EncabezadosPerifericos => new[]
         { "Tipo", "Marca", "Modelo", "Serie", "Estado",
-          "Equipo adjunto", "Responsable", "Departamento / Organización", "Fecha compra", "Registrado" };
+          "Responsable", "Departamento / Organización", "Fecha compra", "Registrado" };
 
     private static List<string[]> FilasPerifericos(List<Periferico> perifericos,
         Dictionary<int, EquipoPeriferico> asignActivas) =>
         perifericos.Select(p => {
             asignActivas.TryGetValue(p.Id, out var ep);
-            string equipo, empleado, depto;
-            if (ep == null) { equipo = empleado = depto = "—"; }
+            string empleado, depto;
+            if (ep == null) { empleado = depto = "—"; }
             else
             {
-                equipo   = ep.Equipo?.NombreEquipo ?? "—";
                 empleado = ep.NombreResponsable;
                 depto    = ep.Empleado?.Departamento?.Nombre ?? ep.MiembroExterno?.Organizacion ?? ep.Grupo?.Descripcion ?? "—";
             }
             return new[] {
                 p.TipoPeriferico?.Nombre ?? "", p.Marca, p.Modelo, p.NumeroSerie,
-                p.Estado, equipo, empleado, depto,
+                p.Estado, empleado, depto,
                 p.FechaCompra?.ToString("dd/MM/yyyy") ?? "—",
                 p.FechaRegistro.ToString("dd/MM/yyyy")
             };

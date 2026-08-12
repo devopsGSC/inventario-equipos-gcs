@@ -7,7 +7,23 @@
     <div class="page-title" style="margin-top:4px">@eq.NombreEquipo</div>
   </div>
   <div class="gap-2">
-    @if (eq.Estado != "Baja" && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") ||
+    @if (eq.Estado == "Bodega")
+    {
+      @if (await PermisoSvc.TienePermiso(User, "movimientos.asignar") || await PermisoSvc.TienePermiso(User, "movimientos.prestamo") ||
+           await PermisoSvc.TienePermiso(User, "perifericos.asignar") || await PermisoSvc.TienePermiso(User, "licencias.asignar"))
+      {
+        <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="equipo" asp-route-id="@eq.Id" class="btn btn-primary" title="Asignar este equipo, periféricos y/o licencias a alguien">
+          <i class="bi bi-plus-lg"></i> Asignación completa
+        </a>
+      }
+      @if (await PermisoSvc.TienePermiso(User, "movimientos.garantia"))
+      {
+        <a asp-controller="Movimientos" asp-action="Registrar" asp-route-equipoId="@eq.Id" class="btn btn-secondary" title="Entrada a garantía o dar de baja">
+          <i class="bi bi-arrow-left-right"></i> Registrar movimiento
+        </a>
+      }
+    }
+    else if (eq.Estado != "Baja" && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") ||
                                   await PermisoSvc.TienePermiso(User, "movimientos.prestamo") ||
                                   await PermisoSvc.TienePermiso(User, "movimientos.garantia")))
     {
@@ -198,11 +214,6 @@
             </div>
           }
         </div>
-        <div style="margin-top:16px">
-          <a asp-controller="Movimientos" asp-action="Carta" asp-route-id="@mov.Id" class="btn btn-success btn-sm">
-            <i class="bi bi-file-earmark-pdf"></i> Carta de compromiso
-          </a>
-        </div>
       }
       else
       {
@@ -215,153 +226,6 @@
   </div>
 </div>
 
-<div class="card" style="margin-bottom:24px">
-  <div class="card-header">
-    <div class="card-title">Periféricos adjuntos</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      @{ var perifs = ViewBag.PerifeicosActivos as List<EquipoPeriferico> ?? new List<EquipoPeriferico>(); }
-      <span class="badge badge-asignado">@perifs.Count</span>
-      @if (await PermisoSvc.TienePermiso(User, "equipos.editar") && (eq.Estado == "Asignado" || eq.Estado == "Prestamo"))
-      {
-        <button type="button" class="btn btn-secondary btn-sm" onclick="abrirModalPerif()">
-          <i class="bi bi-plus"></i> Adjuntar periférico
-        </button>
-      }
-    </div>
-  </div>
-  @if (perifs.Any())
-  {
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Tipo</th><th>Marca / Modelo</th><th>No. Serie</th><th>Desde</th></tr></thead>
-        <tbody>
-          @foreach (var ep in perifs)
-          {
-            <tr>
-              <td>@ep.Periferico?.TipoPeriferico?.Nombre</td>
-              <td><a asp-controller="Perifericos" asp-action="Details" asp-route-id="@ep.PerifericoId" style="color:var(--accent);text-decoration:none;font-weight:500">@ep.Periferico?.Marca @ep.Periferico?.Modelo</a></td>
-              <td class="mono">@ep.Periferico?.NumeroSerie</td>
-              <td class="text-muted">@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
-  else
-  {
-    <div class="card-body"><div class="empty-state" style="padding:16px"><i class="bi bi-display"></i>Sin periféricos adjuntos.</div></div>
-  }
-</div>
-
-<div class="card" style="margin-bottom:24px">
-  <div class="card-header">
-    <div class="card-title">Licencias adjuntas</div>
-    @{ var licenciasEq = ViewBag.LicenciasActuales as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>(); }
-    <span class="badge badge-asignado">@licenciasEq.Count</span>
-  </div>
-  @if (licenciasEq.Any())
-  {
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Licencia</th><th>Desde</th></tr></thead>
-        <tbody>
-          @foreach (var la in licenciasEq)
-          {
-            <tr>
-              <td><a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId" style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a></td>
-              <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
-  else
-  {
-    <div class="card-body"><div class="empty-state" style="padding:16px"><i class="bi bi-card-checklist"></i>Sin licencias adjuntas.</div></div>
-  }
-</div>
-
-<!-- Modal adjuntar periférico -->
-<div id="perifModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:12px;padding:24px;width:500px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:600">Adjuntar periférico</div>
-      <button type="button" onclick="cerrarModalPerif()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--dark-text2)">×</button>
-    </div>
-    <input type="text" id="buscarPerif" class="form-control" placeholder="Buscar por tipo, marca o serie..."
-           oninput="filtrarPerif()" style="margin-bottom:12px"/>
-    <div id="perifOpciones" style="display:flex;flex-direction:column;gap:6px"></div>
-  </div>
-</div>
-
-<script>
-let todosPerifs = [];
-
-async function abrirModalPerif() {
-  document.getElementById('perifModal').style.display = 'flex';
-  if (!todosPerifs.length) {
-    try {
-      const res = await fetch('/Perifericos/Disponibles');
-      todosPerifs = await res.json();
-    } catch(e) {
-      document.getElementById('perifOpciones').innerHTML = '<div class="text-muted" style="padding:10px">Error cargando periféricos.</div>';
-      return;
-    }
-  }
-  renderOpciones(todosPerifs);
-}
-function cerrarModalPerif() {
-  document.getElementById('perifModal').style.display = 'none';
-  document.getElementById('buscarPerif').value = '';
-}
-function filtrarPerif() {
-  const q = document.getElementById('buscarPerif').value.toLowerCase();
-  renderOpciones(todosPerifs.filter(p =>
-    (p.marca||'').toLowerCase().includes(q) ||
-    (p.modelo||'').toLowerCase().includes(q) ||
-    (p.numeroSerie||'').toLowerCase().includes(q) ||
-    (p.tipo||'').toLowerCase().includes(q)));
-}
-function renderOpciones(lista) {
-  const cont = document.getElementById('perifOpciones');
-  cont.innerHTML = '';
-  if (!lista.length) {
-    cont.innerHTML = '<div class="text-muted" style="font-size:13px;padding:10px">No hay periféricos disponibles en stock.</div>';
-    return;
-  }
-  lista.forEach(p => {
-    const div = document.createElement('div');
-    div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #dde2ec;border-radius:8px;margin-bottom:4px';
-    div.innerHTML = `
-      <div>
-        <div style="font-weight:500;font-size:13.5px">${p.tipo} — ${p.marca} ${p.modelo}</div>
-        <div style="font-size:11.5px;color:var(--dark-text2);font-family:monospace">${p.numeroSerie}</div>
-      </div>
-      <button type="button" class="btn btn-primary btn-sm" onclick="adjuntarPerif(${p.id})">Adjuntar</button>`;
-    cont.appendChild(div);
-  });
-}
-async function adjuntarPerif(perifId) {
-  try {
-    const res = await fetch('/Equipos/AdjuntarPeriferico', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ equipoId: @eq.Id, perifericoId: perifId })
-    });
-    if (res.ok) {
-      cerrarModalPerif();
-      location.reload();
-    } else {
-      const msg = await res.text();
-      alert('No se pudo adjuntar: ' + msg);
-    }
-  } catch(e) {
-    alert('Error de conexión.');
-  }
-}
-</script>
   <div class="card-body">
     @if (!Model.Historial.Any())
     {

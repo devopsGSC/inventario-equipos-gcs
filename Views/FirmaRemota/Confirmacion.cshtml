@@ -2,9 +2,12 @@
 @{
     Layout = null;
     bool esPeriferico = Model.EquipoPeriferico != null;
-    string nombreResponsable = esPeriferico ? Model.EquipoPeriferico!.NombreResponsable : Model.Movimiento!.NombreResponsable;
-    string tituloItem = esPeriferico
-        ? $"{Model.EquipoPeriferico!.Periferico?.Marca} {Model.EquipoPeriferico.Periferico?.Modelo}"
+    bool esCartaGeneral = Model.CartaGeneral != null;
+    string nombreResponsable = esCartaGeneral ? Model.CartaGeneral!.NombreResponsable
+        : esPeriferico ? Model.EquipoPeriferico!.NombreResponsable
+        : Model.Movimiento!.NombreResponsable;
+    string tituloItem = esCartaGeneral ? "la carta general de tus activos"
+        : esPeriferico ? $"{Model.EquipoPeriferico!.Periferico?.Marca} {Model.EquipoPeriferico.Periferico?.Modelo}"
         : Model.Movimiento!.Equipo?.NombreEquipo ?? "";
     ViewData["Title"] = "Firma registrada — InventarioTI";
 }

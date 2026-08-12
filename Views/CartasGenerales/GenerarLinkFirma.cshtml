@@ -1,0 +1,49 @@
+@model SolicitudFirma
+@{
+  ViewData["Title"] = "Link de firma remota";
+  var carta = ViewBag.Carta as CartaGeneral;
+  string link = ViewBag.Link;
+}
+
+<div class="page-header">
+  <div>
+    <a asp-controller="Navegacion" asp-action="Volver" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @carta?.NombreResponsable</a>
+    <div class="page-title" style="margin-top:4px">Link de firma remota</div>
+  </div>
+</div>
+
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <div class="alert" style="background:var(--blue-bg);color:var(--blue-text);margin-bottom:20px;font-size:13px">
+      <i class="bi bi-info-circle-fill"></i>
+      Compartí este link con <strong>@carta?.NombreResponsable</strong> para que firme la carta general desde su celular o computadora.
+      Es de un solo uso y deja de funcionar el @Model.FechaExpiracion.ToString("dd/MM/yyyy 'a las' HH:mm").
+    </div>
+
+    <div class="form-label">Link para firmar</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input type="text" id="linkFirma" class="form-control mono" value="@link" readonly style="font-size:12.5px"/>
+      <button type="button" class="btn btn-primary" onclick="copiarLink()" id="btnCopiar">
+        <i class="bi bi-clipboard"></i> Copiar
+      </button>
+    </div>
+    <div class="text-muted" style="font-size:12px">
+      La carta quedará como "sin firma" en el sistema hasta que la persona complete la firma desde ese link.
+    </div>
+  </div>
+</div>
+
+<script>
+function copiarLink() {
+  const input = document.getElementById('linkFirma');
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById('btnCopiar');
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> Copiado';
+    setTimeout(() => btn.innerHTML = original, 1800);
+  }).catch(() => {
+    input.select();
+    document.execCommand('copy');
+  });
+}
+</script>

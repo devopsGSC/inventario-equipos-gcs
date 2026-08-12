@@ -183,12 +183,15 @@ public class Movimiento
 public class SolicitudFirma
 {
     public int Id { get; set; }
-    // Exactamente uno de los dos está asignado: el movimiento de equipo
-    // o la asignación directa de periférico que se está firmando.
+    // Exactamente uno de los tres está asignado: el movimiento de equipo,
+    // la asignación directa de periférico, o la carta general de activos
+    // que se está firmando.
     public int? MovimientoId { get; set; }
     public Movimiento? Movimiento { get; set; }
     public int? EquipoPerifericoId { get; set; }
     public EquipoPeriferico? EquipoPeriferico { get; set; }
+    public int? CartaGeneralId { get; set; }
+    public CartaGeneral? CartaGeneral { get; set; }
     [Required, MaxLength(64)]
     public string Token { get; set; } = "";
     public DateTime FechaCreacion { get; set; } = DateTime.Now;
@@ -197,6 +200,38 @@ public class SolicitudFirma
 
     [NotMapped]
     public bool Vigente => !FechaFirmado.HasValue && FechaExpiracion >= DateTime.Now;
+}
+
+// Carta general de activos: resume TODOS los equipos y perifericos
+// actuales de una persona/miembro externo/grupo en un solo documento
+// firmable, con el mismo flujo de preparacion/entrega y firma remota
+// que ya existe para un movimiento de equipo individual.
+public class CartaGeneral
+{
+    public int Id { get; set; }
+    public int? EmpleadoId { get; set; }
+    public int? MiembroExternoId { get; set; }
+    public int? GrupoId { get; set; }
+    public DateTime FechaCreacion { get; set; } = DateTime.Now;
+    [MaxLength(2000, ErrorMessage = "Máximo 2000 caracteres.")]
+    public string? Observaciones { get; set; }
+    public string? FirmaEmpleado { get; set; }
+    public bool CartaGenerada { get; set; } = false;
+    public string? CreadoPorUsuarioId { get; set; }
+    public string? EntregadoPorUsuarioId { get; set; }
+    public bool EntregaCompletada { get; set; } = false;
+    public DateTime? FechaEntrega { get; set; }
+    public Empleado? Empleado { get; set; }
+    public MiembroExterno? MiembroExterno { get; set; }
+    public Grupo? Grupo { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
+    public UsuarioApp? EntregadoPorUsuario { get; set; }
+
+    [NotMapped]
+    public string TipoResponsable =>
+        Empleado != null ? "Empleado" : MiembroExterno != null ? "MiembroExterno" : Grupo != null ? "Grupo" : "";
+    [NotMapped]
+    public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }
 
 public class ImagenMovimiento

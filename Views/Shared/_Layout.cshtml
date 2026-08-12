@@ -408,6 +408,15 @@
         </a>
       }
     </div>
+    @if (await PermisoSvc.TienePermiso(User, "movimientos.carta"))
+    {
+      <div class="nav-section">
+        <div class="nav-label">Cartas</div>
+        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Cartas"?"active":"")" asp-controller="Cartas" asp-action="Index" onclick="closeSidebar()">
+          Cartas
+        </a>
+      </div>
+    }
     @if (await PermisoSvc.TienePermiso(User, "licencias.ver"))
     {
       <div class="nav-section">

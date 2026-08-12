@@ -215,59 +215,6 @@ public class MovimientosController : BaseController
                 grupoAnteriorId = activo.GrupoId;
             }
 
-            // Desvincular periféricos — regresan al stock disponible
-            var perifsActivos = await _db.EquiposPerifericos
-                .Include(ep => ep.Periferico)
-                .Where(ep => ep.EquipoId == vm.EquipoId && ep.FechaDesvinculacion == null)
-                .ToListAsync();
-            var ahoraPerifs = DateTime.Now;
-            var sitioPerifs = await Puede("movimientos.sitio") ? vm.SitioId : null;
-            foreach (var ep in perifsActivos)
-            {
-                ep.FechaDesvinculacion = ahoraPerifs;
-                if (ep.Periferico != null) ep.Periferico.Estado = "Disponible";
-
-                _db.EquiposPerifericos.Add(new EquipoPeriferico
-                {
-                    EquipoId            = ep.EquipoId,
-                    PerifericoId         = ep.PerifericoId,
-                    EmpleadoId           = ep.EmpleadoId,
-                    MiembroExternoId     = ep.MiembroExternoId,
-                    GrupoId              = ep.GrupoId,
-                    TipoAsignacion       = ep.TipoAsignacion,
-                    TipoMovimiento       = "Devolucion",
-                    FechaAsignacion      = ahoraPerifs,
-                    FechaDesvinculacion  = ahoraPerifs,
-                    Observaciones        = vm.Observaciones,
-                    FirmaEmpleado        = vm.FirmaEmpleado,
-                    SitioId              = sitioPerifs,
-                    CreadoPorUsuarioId   = UsuarioActualId
-                });
-            }
-
-            // Desvincular licencias adjuntas al equipo
-            var licenciasActivas = await _db.LicenciasAsignaciones
-                .Where(la => la.EquipoId == vm.EquipoId && la.FechaDesvinculacion == null)
-                .ToListAsync();
-            foreach (var la in licenciasActivas)
-            {
-                la.FechaDesvinculacion = ahoraPerifs;
-
-                _db.LicenciasAsignaciones.Add(new LicenciaAsignacion
-                {
-                    TipoLicenciaId      = la.TipoLicenciaId,
-                    EquipoId            = la.EquipoId,
-                    EmpleadoId          = la.EmpleadoId,
-                    MiembroExternoId    = la.MiembroExternoId,
-                    GrupoId             = la.GrupoId,
-                    TipoAsignacion      = la.TipoAsignacion,
-                    TipoMovimiento      = "Devolucion",
-                    FechaAsignacion     = ahoraPerifs,
-                    FechaDesvinculacion = ahoraPerifs,
-                    Observaciones       = vm.Observaciones,
-                    CreadoPorUsuarioId  = UsuarioActualId
-                });
-            }
         }
 
         // Actualizar estado del equipo
@@ -313,66 +260,6 @@ public class MovimientosController : BaseController
         };
         _db.Movimientos.Add(movimiento);
         await _db.SaveChangesAsync();
-
-        // Adjuntar periféricos si se seleccionaron (solo Asignacion y Prestamo)
-        if (requiereResponsable && !string.IsNullOrEmpty(Request.Form["perifericosIds"]))
-        {
-            var ids = Request.Form["perifericosIds"].ToString()
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(int.Parse);
-            foreach (var pid in ids)
-            {
-                var periferico = await _db.Perifericos.FindAsync(pid);
-                if (periferico != null && periferico.Estado == "Disponible")
-                {
-                    periferico.Estado = "Asignado";
-                    _db.EquiposPerifericos.Add(new EquipoPeriferico
-                    {
-                        EquipoId = vm.EquipoId, PerifericoId = pid,
-                        EmpleadoId = nuevoEmpleadoId,
-                        MiembroExternoId = nuevoMiembroExternoId,
-                        GrupoId = nuevoGrupoId,
-                        TipoMovimiento = vm.TipoMovimiento!,
-                        FechaAsignacion = DateTime.Now,
-                        FechaDevolucionEstimada = vm.FechaFinEstimada,
-                        Observaciones = vm.Observaciones,
-                        FirmaEmpleado = vm.FirmaEmpleado,
-                        SitioId = await Puede("movimientos.sitio") ? vm.SitioId : null,
-                        CreadoPorUsuarioId = UsuarioActualId
-                    });
-                }
-            }
-            await _db.SaveChangesAsync();
-        }
-
-        // Adjuntar licencias si se seleccionaron (solo Asignacion y Prestamo)
-        if (requiereResponsable && !string.IsNullOrEmpty(Request.Form["licenciasIds"]))
-        {
-            var licenciaIds = Request.Form["licenciasIds"].ToString()
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(int.Parse);
-            foreach (var tid in licenciaIds)
-            {
-                var tipoLicencia = await _db.TiposLicencia.FindAsync(tid);
-                if (tipoLicencia != null && tipoLicencia.Activo)
-                {
-                    _db.LicenciasAsignaciones.Add(new LicenciaAsignacion
-                    {
-                        TipoLicenciaId = tid,
-                        EquipoId = vm.EquipoId,
-                        EmpleadoId = nuevoEmpleadoId,
-                        MiembroExternoId = nuevoMiembroExternoId,
-                        GrupoId = nuevoGrupoId,
-                        TipoAsignacion = "Equipo",
-                        TipoMovimiento = "Asignacion",
-                        FechaAsignacion = DateTime.Now,
-                        Observaciones = vm.Observaciones,
-                        CreadoPorUsuarioId = UsuarioActualId
-                    });
-                }
-            }
-            await _db.SaveChangesAsync();
-        }
 
         TempData["OK"] = "Movimiento registrado correctamente.";
 
@@ -600,8 +487,6 @@ public class MovimientosController : BaseController
         var movimiento = await _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
             .Include(m => m.Equipo).ThenInclude(e => e!.PlanData)
-            .Include(m => m.Equipo).ThenInclude(e => e!.EquiposPerifericos.Where(ep => ep.FechaDesvinculacion == null))
-                .ThenInclude(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
             .Include(m => m.MiembroExterno)
             .Include(m => m.Grupo)
@@ -634,12 +519,10 @@ public class MovimientosController : BaseController
         var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
-        // Periféricos asignados "Directo" (sin pasar por un equipo) a la
-        // misma persona/miembro externo/grupo de este movimiento, para que
-        // la carta del equipo también los incluya y no haga falta una carta
-        // aparte cuando ambos tipos de asignación conviven.
-        var perifericosDirectos = await _db.EquiposPerifericos
-            .Where(ep => ep.TipoAsignacion == "Directo" && ep.FechaDesvinculacion == null &&
+        // Periféricos asignados a la misma persona/miembro externo/grupo de
+        // este movimiento, para que la carta del equipo también los incluya.
+        var perifericos = await _db.EquiposPerifericos
+            .Where(ep => ep.FechaDesvinculacion == null &&
                 ((movimiento.EmpleadoId != null && ep.EmpleadoId == movimiento.EmpleadoId) ||
                  (movimiento.MiembroExternoId != null && ep.MiembroExternoId == movimiento.MiembroExternoId) ||
                  (movimiento.GrupoId != null && ep.GrupoId == movimiento.GrupoId)))
@@ -647,8 +530,8 @@ public class MovimientosController : BaseController
             .ToListAsync();
 
         byte[] bytes = movimiento.TipoMovimiento == "Prestamo"
-            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericosDirectos)
-            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericosDirectos);
+            ? _pdf.GenerarCartaPrestamo(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericos)
+            : _pdf.GenerarCartaCompromiso(movimiento, movimiento.FirmaEmpleado, rutaFirmaIT, usuarioEmisor?.NombreCompleto, perifericos);
 
         movimiento.CartaGenerada = true;
         await _db.SaveChangesAsync();
@@ -680,16 +563,19 @@ public class MovimientosController : BaseController
             .OrderByDescending(m => m.FechaInicio)
             .FirstOrDefaultAsync();
 
-        // Periféricos que tenía asignados (recién desvinculados)
-        var perifsDevueltos = await _db.EquiposPerifericos
+        // Periféricos que tiene actualmente asignados esta persona/grupo —
+        // al generar el finiquito se devuelven junto con el equipo, porque
+        // implica que la persona deja la empresa (ver DescargarFiniquito).
+        var perifsActuales = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
-            .Where(ep => ep.EquipoId == mov.EquipoId &&
-                         ep.FechaDesvinculacion.HasValue &&
-                         ep.FechaDesvinculacion.Value.Date == DateTime.Today)
+            .Where(ep => ep.FechaDesvinculacion == null &&
+                ((mov.EmpleadoId != null && ep.EmpleadoId == mov.EmpleadoId) ||
+                 (mov.MiembroExternoId != null && ep.MiembroExternoId == mov.MiembroExternoId) ||
+                 (mov.GrupoId != null && ep.GrupoId == mov.GrupoId)))
             .ToListAsync();
 
         ViewBag.MovAnterior      = movAnterior;
-        ViewBag.PerifsDevueltos  = perifsDevueltos;
+        ViewBag.PerifsDevueltos  = perifsActuales;
         return View(mov);
     }
 
@@ -714,13 +600,23 @@ public class MovimientosController : BaseController
 
         var eq = mov.Equipo!;
 
-        // Cargar periféricos devueltos hoy con este equipo
-        var perifsDevueltos = await _db.EquiposPerifericos
+        // El finiquito implica que la persona deja la empresa: sus
+        // periféricos actualmente asignados se devuelven junto con el
+        // equipo en este mismo momento.
+        var perifsActuales = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
-            .Where(ep => ep.EquipoId == eq.Id &&
-                         ep.FechaDesvinculacion.HasValue &&
-                         ep.FechaDesvinculacion.Value.Date == DateTime.Today)
+            .Where(ep => ep.FechaDesvinculacion == null &&
+                ((mov.EmpleadoId != null && ep.EmpleadoId == mov.EmpleadoId) ||
+                 (mov.MiembroExternoId != null && ep.MiembroExternoId == mov.MiembroExternoId) ||
+                 (mov.GrupoId != null && ep.GrupoId == mov.GrupoId)))
             .ToListAsync();
+
+        var ahoraFiniquito = DateTime.Now;
+        foreach (var ep in perifsActuales)
+        {
+            ep.FechaDesvinculacion = ahoraFiniquito;
+            if (ep.Periferico != null) ep.Periferico.Estado = "Disponible";
+        }
 
         // Obtener firma del usuario logueado
         var usuarioActual = await _users.GetUserAsync(User);
@@ -754,7 +650,7 @@ public class MovimientosController : BaseController
             ReceptorNombre = receptorNombre ?? "",
             ReceptorCentro = receptorCentro ?? "GCS Santa Elena",
             FirmaEmpleadoBase64 = !string.IsNullOrEmpty(firmaEmpleado) ? firmaEmpleado : mov.FirmaEmpleado ?? "",
-            Perifericos    = perifsDevueltos.Select(ep => new PerifericoFiniquito
+            Perifericos    = perifsActuales.Select(ep => new PerifericoFiniquito
             {
                 Tipo        = ep.Periferico?.TipoPeriferico?.Nombre ?? "",
                 Marca       = ep.Periferico?.Marca ?? "",

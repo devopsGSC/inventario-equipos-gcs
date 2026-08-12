@@ -74,8 +74,8 @@
         <div style="margin-top:16px;border-top:1px solid #f0f3f8;padding-top:14px;display:flex;gap:8px;flex-wrap:wrap">
           @if (await PermisoSvc.TienePermiso(User, "perifericos.asignar"))
           {
-            <a asp-action="AsignarDirecto" asp-route-id="@Model.Id" class="btn btn-primary btn-sm">
-              <i class="bi bi-person-check"></i> Asignar / Prestar
+            <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="periferico" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar este periférico (y equipo/licencias) a alguien">
+              <i class="bi bi-person-check"></i> Asignación completa
             </a>
           }
           @if (await PermisoSvc.TienePermiso(User, "perifericos.baja"))
@@ -127,7 +127,6 @@
   <div class="card">
     <div class="card-header">
       <div class="card-title">Asignado a</div>
-      @if (asigActiva?.Equipo != null) { <span class="badge badge-bodega">Vía equipo</span> }
     </div>
     <div class="card-body">
       @if (asigActiva != null && (asigActiva.Empleado != null || asigActiva.MiembroExterno != null || asigActiva.Grupo != null))
@@ -165,17 +164,6 @@
             }
           </div>
         </div>
-        @if (asigActiva.Equipo != null)
-        {
-          <div style="margin-bottom:16px;font-size:13px">
-            <i class="bi bi-laptop"></i> Entregado junto con
-            <a asp-controller="Equipos" asp-action="Details" asp-route-id="@asigActiva.EquipoId"
-               style="color:var(--accent);text-decoration:none;font-weight:500">
-              @asigActiva.Equipo.NombreEquipo
-            </a>
-            <span class="text-muted mono" style="font-size:11px">(@asigActiva.Equipo.NumeroSerie)</span>
-          </div>
-        }
         <div class="form-grid" style="gap:10px">
           <div>
             <div class="form-label">@(emp != null ? "Departamento" : miembro != null ? "Organización" : "Descripción")</div>
@@ -266,26 +254,17 @@
           var dotColor = ep.TipoMovimiento switch { "Asignacion"=>"var(--blue-text)","Prestamo"=>"var(--purple-text)","Devolucion"=>"var(--green-text)",_=>"var(--gray-text)" };
           var icon     = ep.TipoMovimiento switch { "Asignacion"=>"bi-person-check-fill","Prestamo"=>"bi-arrow-left-right","Devolucion"=>"bi-arrow-return-left",_=>"bi-circle" };
           var label    = ep.TipoMovimiento switch { "Asignacion"=>"Asignación","Prestamo"=>"Préstamo","Devolucion"=>"Devolución",_=>ep.TipoMovimiento };
-          var esDirecto = ep.EquipoId == null;
           <li class="timeline-item">
             <div class="timeline-dot" style="background:@dotBg;color:@dotColor"><i class="bi @icon"></i></div>
             <div class="timeline-body">
               <div class="timeline-title">
                 @label
-                @if (esDirecto) { <span class="badge badge-asignado" style="font-size:10px;margin-left:6px">Directo</span> }
-                else { <span class="badge badge-bodega" style="font-size:10px;margin-left:6px">Vía equipo</span> }
               </div>
               <div class="timeline-meta">
                 @ep.FechaAsignacion.ToString("dd/MM/yyyy HH:mm")
                 @if (ep.Empleado != null || ep.MiembroExterno != null || ep.Grupo != null)
                 {
                   <span> — @ep.NombreResponsable@(ep.Empleado != null ? $" ({ep.Empleado.CodigoEmpleado})" : "")</span>
-                }
-                @if (ep.Equipo != null)
-                {
-                  <span> — <i class="bi bi-laptop"></i>
-                    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@ep.EquipoId" style="color:var(--accent);text-decoration:none">@ep.Equipo.NombreEquipo</a>
-                  </span>
                 }
                 @if (ep.Sitio != null) { <span> — <i class="bi bi-geo-alt"></i> @ep.Sitio.Nombre</span> }
                 @if (!string.IsNullOrEmpty(ep.Observaciones)) { <div>@ep.Observaciones</div> }

@@ -17,7 +17,7 @@
   <div style="display:flex;gap:8px">
     @if (await PermisoSvc.TienePermiso(User, "movimientos.carta") && (equipos.Any() || perifsActuales.Any()))
     {
-      <a asp-action="DescargarCartaGeneral" asp-route-id="@Model.Id" class="btn btn-secondary" title="Carta con todos los equipos y periféricos actuales">
+      <a asp-controller="CartasGenerales" asp-action="Preparar" asp-route-tipo="grupo" asp-route-id="@Model.Id" class="btn btn-secondary" title="Carta con todos los equipos y periféricos actuales">
         <i class="bi bi-file-earmark-pdf"></i> Carta general
       </a>
     }
@@ -50,10 +50,10 @@
       <div class="card-title">Equipos actuales</div>
       <div style="display:flex;gap:8px;align-items:center">
         <span class="badge badge-asignado">@equipos.Count en uso</span>
-        @if (Model.Activo && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") || await PermisoSvc.TienePermiso(User, "movimientos.prestamo")))
+        @if (Model.Activo && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") || await PermisoSvc.TienePermiso(User, "movimientos.prestamo") || await PermisoSvc.TienePermiso(User, "perifericos.asignar") || await PermisoSvc.TienePermiso(User, "licencias.asignar")))
         {
-          <a asp-controller="Equipos" asp-action="Index" asp-route-estado="Bodega" asp-route-paraGrupo="@Model.Id" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg"></i> Asignar equipo
+          <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="grupo" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar equipo, periféricos y/o licencias juntos">
+            <i class="bi bi-plus-lg"></i> Asignación completa
           </a>
         }
       </div>
@@ -106,7 +106,6 @@
             <th>Tipo</th>
             <th>Marca / Modelo</th>
             <th>Número de serie</th>
-            <th>Vía equipo</th>
             <th>Desde</th>
             <th></th>
           </tr>
@@ -123,14 +122,6 @@
                 </a>
               </td>
               <td><span class="mono text-muted">@ep.Periferico?.NumeroSerie</span></td>
-              <td class="text-muted">
-                @if (ep.EquipoId != null)
-                {
-                  <a asp-controller="Equipos" asp-action="Details" asp-route-id="@ep.EquipoId"
-                     style="color:var(--accent);text-decoration:none;font-size:13px">@ep.Equipo?.NombreEquipo</a>
-                }
-                else { <span>—</span> }
-              </td>
               <td>@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
               <td>
                 <a asp-controller="Perifericos" asp-action="DescargarCartaDirecta"
@@ -161,8 +152,6 @@
           <thead>
             <tr>
               <th>Periférico</th>
-              <th>Tipo</th>
-              <th>Vía equipo</th>
               <th>Desde</th>
               <th>Hasta</th>
               <th>Duración</th>
@@ -172,7 +161,6 @@
             @foreach (var ep in historialPerifs)
             {
               var esActivo  = !ep.FechaDesvinculacion.HasValue;
-              var esDirecto = ep.EquipoId == null;
               var dias      = ep.FechaDesvinculacion.HasValue
                 ? (int)(ep.FechaDesvinculacion.Value - ep.FechaAsignacion).TotalDays
                 : (int)(DateTime.Today - ep.FechaAsignacion).TotalDays;
@@ -183,24 +171,6 @@
                     @ep.Periferico?.Marca @ep.Periferico?.Modelo
                   </a>
                   <div class="mono text-muted" style="font-size:11px">@ep.Periferico?.NumeroSerie</div>
-                </td>
-                <td>
-                  @if (esDirecto)
-                  {
-                    <span class="badge badge-asignado">Directo</span>
-                  }
-                  else
-                  {
-                    <span class="badge badge-bodega">Vía equipo</span>
-                  }
-                </td>
-                <td class="text-muted">
-                  @if (ep.Equipo != null)
-                  {
-                    <a asp-controller="Equipos" asp-action="Details" asp-route-id="@ep.EquipoId"
-                       style="color:var(--accent);text-decoration:none;font-size:13px">@ep.Equipo.NombreEquipo</a>
-                  }
-                  else { <span>—</span> }
                 </td>
                 <td class="text-muted">@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
                 <td>
@@ -248,7 +218,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Licencia</th><th>Vía equipo</th><th>Desde</th></tr></thead>
+        <thead><tr><th>Licencia</th><th>Desde</th></tr></thead>
         <tbody>
           @foreach (var la in licenciasActuales)
           {
@@ -256,14 +226,6 @@
               <td>
                 <a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId"
                    style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
-              </td>
-              <td class="text-muted">
-                @if (la.EquipoId != null)
-                {
-                  <a asp-controller="Equipos" asp-action="Details" asp-route-id="@la.EquipoId"
-                     style="color:var(--accent);text-decoration:none;font-size:13px">@la.Equipo?.NombreEquipo</a>
-                }
-                else { <span>—</span> }
               </td>
               <td>@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
             </tr>
@@ -285,19 +247,14 @@
     {
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Licencia</th><th>Vía equipo</th><th>Desde</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Licencia</th><th>Desde</th><th>Estado</th></tr></thead>
           <tbody>
             @foreach (var la in historialLicencias)
             {
-              var esDirecto = la.EquipoId == null;
               <tr>
                 <td>
                   <a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId"
                      style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
-                </td>
-                <td>
-                  @if (esDirecto) { <span class="badge badge-asignado">Directo</span> }
-                  else { <span class="badge badge-bodega">Vía equipo</span> }
                 </td>
                 <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
                 <td>

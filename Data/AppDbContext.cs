@@ -30,6 +30,7 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
     public DbSet<DetalleOperacionMasiva> DetalleOperacionMasiva => Set<DetalleOperacionMasiva>();
     public DbSet<TipoLicencia> TiposLicencia => Set<TipoLicencia>();
     public DbSet<LicenciaAsignacion> LicenciasAsignaciones => Set<LicenciaAsignacion>();
+    public DbSet<CartaGeneral> CartasGenerales => Set<CartaGeneral>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -93,6 +94,37 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
             .HasForeignKey(s => s.EquipoPerifericoId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
+        mb.Entity<SolicitudFirma>()
+            .HasOne(s => s.CartaGeneral)
+            .WithMany()
+            .HasForeignKey(s => s.CartaGeneralId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        mb.Entity<CartaGeneral>()
+            .HasOne(c => c.Empleado)
+            .WithMany()
+            .HasForeignKey(c => c.EmpleadoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CartaGeneral>()
+            .HasOne(c => c.MiembroExterno)
+            .WithMany()
+            .HasForeignKey(c => c.MiembroExternoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CartaGeneral>()
+            .HasOne(c => c.Grupo)
+            .WithMany()
+            .HasForeignKey(c => c.GrupoId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CartaGeneral>()
+            .HasOne(c => c.CreadoPorUsuario).WithMany()
+            .HasForeignKey(c => c.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<CartaGeneral>()
+            .HasOne(c => c.EntregadoPorUsuario).WithMany()
+            .HasForeignKey(c => c.EntregadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
 
         mb.Entity<ImagenMovimiento>()
             .HasOne(i => i.Movimiento)

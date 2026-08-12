@@ -152,61 +152,6 @@ public class LicenciasController : BaseController
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    public async Task<IActionResult> AsignarDirecto(int id)
-    {
-        if (!await Puede("licencias.asignar")) return AccesoDenegado();
-
-        var tipo = await _db.TiposLicencia.FindAsync(id);
-        if (tipo == null) return NotFound();
-        if (!tipo.Activo)
-        {
-            TempData["Error"] = "Este tipo de licencia está inactivo.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
-
-        ViewBag.Empleados = await _db.Empleados.Where(e => e.Activo)
-            .Include(e => e.Departamento).OrderBy(e => e.Nombre).ToListAsync();
-        ViewBag.MiembrosExternos = await _db.MiembrosExternos.Where(m => m.Activo).OrderBy(m => m.Nombre).ToListAsync();
-        ViewBag.Grupos = await _db.Grupos.Where(g => g.Activo).OrderBy(g => g.Nombre).ToListAsync();
-        return View(tipo);
-    }
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> AsignarDirecto(int id, string tipoResponsable,
-        int? empleadoId, int? miembroExternoId, int? grupoId, string? observaciones)
-    {
-        if (!await Puede("licencias.asignar")) return AccesoDenegado();
-
-        var tipo = await _db.TiposLicencia.FindAsync(id);
-        if (tipo == null) return NotFound();
-
-        int? nuevoEmpleadoId = tipoResponsable == "MiembroExterno" || tipoResponsable == "Grupo" ? null : empleadoId;
-        int? nuevoMiembroExternoId = tipoResponsable == "MiembroExterno" ? miembroExternoId : null;
-        int? nuevoGrupoId = tipoResponsable == "Grupo" ? grupoId : null;
-        if (nuevoEmpleadoId == null && nuevoMiembroExternoId == null && nuevoGrupoId == null)
-        {
-            TempData["Error"] = "Debe seleccionar un responsable.";
-            return RedirectToAction(nameof(AsignarDirecto), new { id });
-        }
-
-        _db.LicenciasAsignaciones.Add(new LicenciaAsignacion
-        {
-            TipoLicenciaId   = id,
-            EmpleadoId       = nuevoEmpleadoId,
-            MiembroExternoId = nuevoMiembroExternoId,
-            GrupoId          = nuevoGrupoId,
-            TipoAsignacion   = "Directo",
-            TipoMovimiento   = "Asignacion",
-            FechaAsignacion  = DateTime.Now,
-            Observaciones    = observaciones,
-            CreadoPorUsuarioId = UsuarioActualId
-        });
-        await _db.SaveChangesAsync();
-
-        TempData["OK"] = "Licencia asignada correctamente.";
-        return RedirectToAction(nameof(Details), new { id });
-    }
-
     public async Task<IActionResult> Devolver(int asignacionId)
     {
         if (!await Puede("licencias.asignar")) return AccesoDenegado();

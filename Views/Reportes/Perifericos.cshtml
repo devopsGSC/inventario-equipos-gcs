@@ -147,16 +147,14 @@
       <thead>
         <tr>
           <th>Tipo</th><th>Marca / Modelo</th><th>Serie</th><th>Estado</th>
-          <th>Equipo adjunto</th><th>Responsable</th><th>Fecha compra</th><th>Registrado</th>
+          <th>Responsable</th><th>Fecha compra</th><th>Registrado</th>
         </tr>
       </thead>
       <tbody>
         @foreach (var p in Model)
         {
           asignActivas.TryGetValue(p.Id, out var ep);
-          string equipo, empleado;
-          if (ep == null) { equipo = "—"; empleado = "—"; }
-          else             { equipo = ep.Equipo?.NombreEquipo ?? "—"; empleado = ep.NombreResponsable; }
+          string empleado = ep?.NombreResponsable ?? "—";
           <tr>
             <td>@p.TipoPeriferico?.Nombre</td>
             <td>
@@ -165,7 +163,6 @@
             </td>
             <td><span class="mono text-muted">@p.NumeroSerie</span></td>
             <td><partial name="_EstadoBadge" model="@p.Estado" /></td>
-            <td>@equipo</td>
             <td>@empleado</td>
             <td>@(p.FechaCompra?.ToString("dd/MM/yy") ?? "—")</td>
             <td>@p.FechaRegistro.ToString("dd/MM/yy")</td>
@@ -173,7 +170,7 @@
         }
         @if (!Model.Any())
         {
-          <tr><td colspan="8">
+          <tr><td colspan="7">
             <div class="empty-state"><i class="bi bi-mouse2"></i>No se encontraron periféricos con los filtros aplicados.</div>
           </td></tr>
         }

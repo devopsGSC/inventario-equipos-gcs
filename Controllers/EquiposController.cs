@@ -123,17 +123,6 @@ public class EquiposController : BaseController
             .Take(tamPagina)
             .ToListAsync();
 
-        var perifsActivos = await _db.EquiposPerifericos
-            .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
-            .Where(ep => ep.EquipoId == id && ep.FechaDesvinculacion == null)
-            .ToListAsync();
-        ViewBag.PerifeicosActivos = perifsActivos;
-
-        ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
-            .Include(la => la.TipoLicencia)
-            .Where(la => la.EquipoId == id && la.FechaDesvinculacion == null)
-            .ToListAsync();
-
         ViewBag.Paginacion = new PaginacionViewModel
         {
             PaginaActual   = pagina,
@@ -374,43 +363,6 @@ public class EquiposController : BaseController
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [HttpPost, IgnoreAntiforgeryToken]
-    public async Task<IActionResult> AdjuntarPeriferico([FromBody] AdjuntarPerifericoDto dto)
-    {
-        if (!await Puede("equipos.editar")) return Forbid();
-
-        var equipo = await _db.Equipos.FindAsync(dto.EquipoId);
-        if (equipo == null) return NotFound();
-        if (equipo.Estado != "Asignado" && equipo.Estado != "Prestamo")
-            return BadRequest("El equipo debe estar Asignado o en Préstamo.");
-
-        var periferico = await _db.Perifericos.FindAsync(dto.PerifericoId);
-        if (periferico == null || periferico.Estado != "Disponible")
-            return BadRequest("El periférico no está disponible.");
-
-        var movActivo = await _db.Movimientos.FirstOrDefaultAsync(m =>
-            m.EquipoId == dto.EquipoId && m.FechaDevolucion == null &&
-            (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"));
-
-        periferico.Estado = "Asignado";
-        _db.EquiposPerifericos.Add(new EquipoPeriferico
-        {
-            EquipoId                = dto.EquipoId,
-            PerifericoId            = dto.PerifericoId,
-            EmpleadoId              = movActivo?.EmpleadoId,
-            MiembroExternoId        = movActivo?.MiembroExternoId,
-            GrupoId                 = movActivo?.GrupoId,
-            TipoMovimiento          = movActivo?.TipoMovimiento ?? "Asignacion",
-            FechaAsignacion         = DateTime.Now,
-            FechaDevolucionEstimada = movActivo?.FechaFinEstimada,
-            SitioId                 = movActivo?.SitioId,
-            CreadoPorUsuarioId      = UsuarioActualId
-        });
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
-
-    public record AdjuntarPerifericoDto(int EquipoId, int PerifericoId);
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Dar_De_Baja(int id)

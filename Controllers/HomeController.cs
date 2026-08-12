@@ -84,8 +84,8 @@ public class HomeController : Controller
         await _db.Movimientos.CountAsync() +
         await _db.Equipos.CountAsync() +
         await _db.Perifericos.CountAsync() +
-        await _db.EquiposPerifericos.CountAsync(ep => ep.TipoAsignacion == "Directo") +
-        await _db.LicenciasAsignaciones.CountAsync(la => la.TipoAsignacion == "Directo") +
+        await _db.EquiposPerifericos.CountAsync() +
+        await _db.LicenciasAsignaciones.CountAsync() +
         await _db.Empleados.CountAsync() +
         await _db.MiembrosExternos.CountAsync() +
         await _db.Grupos.CountAsync();
@@ -159,13 +159,9 @@ public class HomeController : Controller
             LinkController = "Perifericos", LinkAction = "Details", LinkId = p.Id
         }));
 
-        // Solo asignaciones directas (sin equipo): las vía equipo ya quedan
-        // representadas por el movimiento del equipo, mostrarlas aparte
-        // duplicaría la misma acción dos veces en el feed.
         var perifericosDirectos = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico)
             .Include(ep => ep.CreadoPorUsuario)
-            .Where(ep => ep.TipoAsignacion == "Directo")
             .OrderByDescending(ep => ep.FechaAsignacion)
             .Take(porFuente)
             .ToListAsync();
@@ -184,7 +180,6 @@ public class HomeController : Controller
         var licenciasDirectas = await _db.LicenciasAsignaciones
             .Include(la => la.TipoLicencia)
             .Include(la => la.CreadoPorUsuario)
-            .Where(la => la.TipoAsignacion == "Directo")
             .OrderByDescending(la => la.FechaAsignacion)
             .Take(porFuente)
             .ToListAsync();

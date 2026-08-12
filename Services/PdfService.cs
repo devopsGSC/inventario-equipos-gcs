@@ -544,12 +544,10 @@ public class PdfService
     //  PUNTO DE ENTRADA PÚBLICO — cada tipo llama a su propio método
     // ─────────────────────────────────────────────────────────────────────
 
-    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null, List<EquipoPeriferico>? perifericosDirectos = null)
+    public byte[] GenerarCartaCompromiso(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null, List<EquipoPeriferico>? perifericos = null)
     {
         var eq = movimiento.Equipo!;
-        var perifs = (movimiento.Equipo?.EquiposPerifericos ?? [])
-            .Where(ep => ep.FechaDesvinculacion == null)
-            .Concat(perifericosDirectos ?? [])
+        var perifs = (perifericos ?? [])
             .Select(ep => new PerifericoFiniquito {
                 Tipo = ep.Periferico?.TipoPeriferico?.Nombre ?? "",
                 Marca = ep.Periferico?.Marca ?? "",
@@ -587,15 +585,13 @@ public class PdfService
         });
     }
 
-    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null, List<EquipoPeriferico>? perifericosDirectos = null)
+    public byte[] GenerarCartaPrestamo(Movimiento movimiento, string? firma = null, string? rutaFirmaIT = null, string? nombreEmisor = null, List<EquipoPeriferico>? perifericos = null)
     {
         var eq = movimiento.Equipo!;
         string obs = movimiento.FechaFinEstimada.HasValue
             ? $"Prestamo temporal. Devolucion estimada: {movimiento.FechaFinEstimada.Value:dd/MM/yyyy}. {movimiento.Observaciones}".Trim()
             : movimiento.Observaciones ?? "";
-        var perifs = (movimiento.Equipo?.EquiposPerifericos ?? [])
-            .Where(ep => ep.FechaDesvinculacion == null)
-            .Concat(perifericosDirectos ?? [])
+        var perifs = (perifericos ?? [])
             .Select(ep => new PerifericoFiniquito {
                 Tipo = ep.Periferico?.TipoPeriferico?.Nombre ?? "",
                 Marca = ep.Periferico?.Marca ?? "",
@@ -1357,187 +1353,420 @@ public class PdfService
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  CARTA GENERAL — todos los equipos y perifericos actuales de una
-    //  persona en un solo documento. A diferencia de la carta de
-    //  asignacion/prestamo (pensada para UN equipo con su propia firma),
-    //  esta lista una cantidad variable de items, asi que usa un layout
-    //  de flujo con paginacion en vez del grid de filas fijas.
+    //  CARTA GENERAL — punto de entrada publico: cara 1 (carta legal,
+    //  igual estructura que la de un equipo pero listando TODOS los
+    //  equipos/perifericos) + cara 2 (detalle, mismo grid de cajas que
+    //  DibujarPaginaDetalle).
     // ─────────────────────────────────────────────────────────────────────
-    public byte[] GenerarCartaGeneral(CartaGeneralData d)
+    public byte[] GenerarCartaGeneralCompleta(CartaGeneralData d)
     {
         var doc = new PdfDocument();
-        var fBold    = new XFont("Arial", 8,  XFontStyle.Bold);
-        var fBold9   = new XFont("Arial", 9,  XFontStyle.Bold);
-        var fBold10  = new XFont("Arial", 10, XFontStyle.Bold);
-        var fBold16  = new XFont("Arial", 15, XFontStyle.Bold);
-        var fNorm    = new XFont("Arial", 8,  XFontStyle.Regular);
-        var fHead    = new XFont("Arial", 7.5, XFontStyle.Bold);
-        var fData    = new XFont("Arial", 7.5, XFontStyle.Regular);
-        var pen      = XPens.Black;
-        var gray     = XColor.FromArgb(209, 209, 209);
-        var headerBg = XColor.FromArgb(30, 45, 69);
-        var stripeBg = XColor.FromArgb(249, 250, 251);
-        var linePen  = new XPen(XColor.FromArgb(220, 222, 228), 0.3);
-        const double rowH  = 16;
-        const double headH = 17;
+        GenerarCaraFrontalGeneral(doc, d);
+        DibujarCaraDetalleGeneral(doc, d);
+        using var ms = new MemoryStream();
+        doc.Save(ms, false);
+        return ms.ToArray();
+    }
+
+    // Cara 1: carta legal. Mismo estilo/estructura que GenerarCaraFrontal
+    // (logo, titulo, fecha, tabla de bienes, parrafos de compromiso, pie
+    // de pagina — sin firmas, que quedan solo en la cara 2), pero en
+    // plural porque puede listar varios equipos a la vez.
+    private void GenerarCaraFrontalGeneral(PdfDocument doc, CartaGeneralData d)
+    {
+        double ML = 54, MR = 54, MT = 36;
+        double H = 0, TW = 0;
+
+        var fTitle = new XFont("Arial", 12, XFontStyle.Bold);
+        var fBold  = new XFont("Arial", 10.5, XFontStyle.Bold);
+        var fNorm  = new XFont("Arial", 10.5, XFontStyle.Regular);
+        var fSm    = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var gray   = XColor.FromArgb(209, 209, 209);
 
         PdfPage page = null!;
         XGraphics g  = null!;
-        double y = 0, usable = 0;
+        double y = 0;
+        double leading = 15.5;
+        // Espacio reservado al fondo de cada pagina para el pie de pagina,
+        // que se redibuja en TODAS las paginas (no solo en la ultima) para
+        // que se vea igual sin importar cuantas se necesiten.
+        const double margenInferior = 34;
+
+        void DibujarPie()
+        {
+            g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
+            var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+            g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+                new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
+                new XRect(ML, H - 22, TW, 12), fmtPie);
+        }
+
+        void NewPage()
+        {
+            if (page != null) DibujarPie();
+            page = doc.AddPage();
+            page.Size = PdfSharpCore.PageSize.Letter;
+            g = XGraphics.FromPdfPage(page);
+            H  = page.Height.Point;
+            TW = page.Width.Point - ML - MR;
+            y  = MT;
+        }
+
+        List<string> WordWrap(string text, XFont font, double maxW)
+        {
+            var lines  = new List<string>();
+            var words  = text.Split(' ');
+            var current = "";
+            foreach (var word in words)
+            {
+                var test = current.Length == 0 ? word : current + " " + word;
+                var size = g.MeasureString(test, font);
+                if (size.Width <= maxW)
+                    current = test;
+                else
+                {
+                    if (current.Length > 0) lines.Add(current);
+                    current = word;
+                }
+            }
+            if (current.Length > 0) lines.Add(current);
+            return lines;
+        }
+
+        void DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
+        {
+            var lines = WordWrap(text, font, TW - indentL);
+            foreach (var line in lines)
+            {
+                if (y + leading > H - margenInferior) NewPage();
+                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                y += leading;
+            }
+            y += spaceAfter;
+        }
+
+        NewPage();
+
+        // ── Logo ──
+        string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+        if (File.Exists(logoPath))
+        {
+            try
+            {
+                var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                double lw = 75, lh = img.PixelHeight * (75.0 / img.PixelWidth);
+                g.DrawImage(img, ML, y, lw, lh);
+                y += lh + 8;
+            }
+            catch { y += 28; }
+        }
+        else { y += 28; }
+
+        // ── Título ──
+        var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString("CARTA DE COMPROMISO DE EQUIPOS TECNOLÓGICOS", fTitle, XBrushes.Black, new XRect(ML, y, TW, 16), fmtC);
+        y += 20;
+
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 10;
+
+        // ── Fecha ──
+        var fmtR = new XStringFormat { Alignment = XStringAlignment.Far, LineAlignment = XLineAlignment.Near };
+        g.DrawString($"San Salvador, {d.Fecha}", fSm, XBrushes.Black, new XRect(ML, y, TW, 12), fmtR);
+        y += 18;
+
+        // ── Tabla de bienes (todos los equipos + perifericos) ──
+        var pen = XPens.Black;
+        void DrawListaGeneral()
+        {
+            var filas = new List<(string Tipo, string MarcaModelo, string Serie)>();
+            foreach (var eq in d.Equipos)
+                filas.Add((eq.Tipo, $"{eq.Marca} {eq.Modelo}".Trim(), eq.NumeroSerie));
+            foreach (var pf in d.Perifericos)
+                filas.Add((pf.Tipo, $"{pf.Marca} {pf.Modelo}".Trim(), pf.NumeroSerie));
+
+            double[] colW = { TW * 0.22, TW * 0.53, TW * 0.25 };
+            double[] colX = { ML, ML + colW[0], ML + colW[0] + colW[1] };
+            double pad = 4;
+
+            int LineCount(string text, XFont f, double w) =>
+                Math.Max(1, WordWrap(text ?? "", f, w - pad * 2).Count);
+
+            double RowHeight(string c1, string c2, string c3, XFont f) =>
+                new[] { LineCount(c1, f, colW[0]), LineCount(c2, f, colW[1]), LineCount(c3, f, colW[2]) }
+                    .Max() * leading + pad * 2;
+
+            void CellText(string text, double x, double w, double rowH, XFont f)
+            {
+                if (string.IsNullOrEmpty(text)) return;
+                double cellH = LineCount(text, f, w) * leading;
+                double offsetY = Math.Max(0, (rowH - cellH) / 2);
+                var tf = new XTextFormatter(g) { Alignment = XParagraphAlignment.Center };
+                tf.DrawString(text, f, XBrushes.Black, new XRect(x + pad, y + offsetY, w - pad * 2, cellH + 2));
+            }
+
+            void DrawRow(string c1, string c2, string c3, XFont f)
+            {
+                double rowH = RowHeight(c1, c2, c3, f);
+                if (y + rowH > H - margenInferior) NewPage();
+                g.DrawRectangle(pen, ML, y, TW, rowH);
+                g.DrawLine(pen, colX[1], y, colX[1], y + rowH);
+                g.DrawLine(pen, colX[2], y, colX[2], y + rowH);
+                CellText(c1, colX[0], colW[0], rowH, f);
+                CellText(c2, colX[1], colW[1], rowH, f);
+                CellText(c3, colX[2], colW[2], rowH, f);
+                y += rowH;
+            }
+
+            DrawRow("Tipo", "Marca y Modelo", "Número de Serie", fBold);
+            if (filas.Count == 0)
+                DrawRow("—", "Sin equipos ni periféricos asignados", "—", fNorm);
+            else
+                foreach (var (t, mm, s) in filas)
+                    DrawRow(t, mm, s, fNorm);
+
+            y += 10;
+        }
+
+        // ── Cuerpo del texto (en plural: puede ser mas de un equipo) ──
+        DrawPara($"Yo, {d.Colaborador}, portador(a) del Documento Único de Identidad número {d.Identificacion}, quien desempeña el cargo de {d.Area}, por este medio hago constar que tengo actualmente asignados por parte de Global Customs Solutions S.E.M. de C.V. los siguientes equipos y periféricos corporativos, en buenas condiciones de funcionamiento:", fNorm);
+
+        DrawListaGeneral();
+
+        DrawPara("Declaro que recibo dichos bienes con sus respectivos accesorios y me comprometo a utilizarlos exclusivamente para fines laborales, así como a devolverlos en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", fNorm);
+
+        DrawPara("Cualquier daño, desperfecto, pérdida, extravío o robo que sufrieren estos equipos o periféricos después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil.", fNorm);
+
+        DrawPara("En caso de identificar fallas de fábrica o desperfectos al momento de la recepción, me comprometo a reportarlos inmediatamente al Departamento de Tecnología para la validación y aplicación de garantía correspondiente. De no reportarse oportunamente, se entenderá que los bienes fueron recibidos a satisfacción.", fNorm);
+
+        DrawPara("Reconozco que la no devolución de estos equipos o periféricos corporativos, o cualquier saldo pendiente derivado de su uso, podrá dar lugar a acciones administrativas o disciplinarias conforme a las políticas internas de la empresa.", fNorm);
+
+        DrawPara("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", fNorm, spaceAfter: 6);
+
+        DrawPara("- Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", fNorm, indentL: 8, spaceAfter: 5);
+        DrawPara("- No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", fNorm, indentL: 8, spaceAfter: 5);
+        DrawPara("- En el caso de teléfonos corporativos, cualquier cargo adicional al plan asignado, incluyendo suscripciones, promociones, compras, mensajes premium o consumos no autorizados, será responsabilidad exclusiva del usuario.", fNorm, indentL: 8, spaceAfter: 5);
+        DrawPara("- Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", fNorm, indentL: 8, spaceAfter: 10);
+
+        DrawPara("Finalmente, me comprometo a cuidar y hacer buen uso de los bienes asignados, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", fNorm);
+
+        DibujarPie();
+    }
+
+    // Cara 2: detalle. Usa las mismas cajas/barras de seccion/fuentes que
+    // DibujarPaginaDetalle para que se vea igual que la carta de
+    // asignacion/prestamo de siempre, solo que con una cantidad variable
+    // de filas y paginacion en vez del grid de filas fijas de una sola
+    // pagina. Dibuja sobre un documento ya existente (ver GenerarCaraFrontalGeneral).
+    private void DibujarCaraDetalleGeneral(PdfDocument doc, CartaGeneralData d)
+    {
+        var fBold   = new XFont("Arial", 8,  XFontStyle.Bold);
+        var fBold9  = new XFont("Arial", 9,  XFontStyle.Bold);
+        var fBold10 = new XFont("Arial", 10, XFontStyle.Bold);
+        var fBold16 = new XFont("Arial", 16, XFontStyle.Bold);
+        var fNorm   = new XFont("Arial", 8,  XFontStyle.Regular);
+        var pen     = XPens.Black;
+        var gray    = XColor.FromArgb(209, 209, 209);
+        const double rSec  = 16;
+        const double rRow  = 15;
+
+        PdfPage page = null!;
+        XGraphics g  = null!;
+        double usable = 0, y = 0;
+        double[] cp = [];
+
+        (double x, double w) Cx(int c1, int c2)
+        {
+            double x = ML + cp[..(c1 - 1)].Sum();
+            double w = cp[(c1 - 1)..c2].Sum();
+            return (x, w);
+        }
+
+        void Box(double top, double h, int c1, int c2, XColor? fill = null)
+        {
+            var (x, w) = Cx(c1, c2);
+            if (fill.HasValue) g.DrawRectangle(new XSolidBrush(fill.Value), x, top, w, h);
+            g.DrawRectangle(pen, x, top, w, h);
+        }
+
+        void Txt(double top, double h, int c1, int c2, string? text, XFont f, XStringAlignment ha = XStringAlignment.Near)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            var (x, w) = Cx(c1, c2);
+            double px = ha == XStringAlignment.Near ? x + 2 : x;
+            double pw = ha == XStringAlignment.Near ? w - 4 : w;
+
+            var fUse = f;
+            double textW = g.MeasureString(text, fUse).Width;
+            if (textW > pw && pw > 0)
+                fUse = new XFont(f.Name, Math.Max(f.Size * (pw / textW), 5.5), f.Style);
+
+            var fmt = new XStringFormat { Alignment = ha, LineAlignment = XLineAlignment.Center };
+            var rect = new XRect(px, top, pw, h);
+            g.Save();
+            g.IntersectClip(rect);
+            g.DrawString(text, fUse, XBrushes.Black, rect, fmt);
+            g.Restore();
+        }
+
+        void LV(double top, double h, int lc1, int lc2, int vc1, int vc2, string label, string? val)
+        {
+            Txt(top, h, lc1, lc2, label, fBold);
+            Txt(top, h, vc1, vc2, val,   fNorm);
+        }
+
+        void Sec(double top, double h, string text)
+        {
+            Box(top, h, 1, 9, gray);
+            Txt(top, h, 1, 9, text, fBold9, XStringAlignment.Center);
+        }
 
         void NewPage()
         {
             page = doc.AddPage();
             page.Size = PdfSharpCore.PageSize.Letter;
             g = XGraphics.FromPdfPage(page);
-            usable = page.Width.Point - ML - MR;
+            double W = page.Width.Point;
+            usable = W - ML - MR;
+            double total = ColChars.Sum();
+            cp = ColChars.Select(c => c * usable / total).ToArray();
             y = TOP;
         }
 
-        void Encabezado()
+        // Deja lugar para el bloque de firmas (90pt) al final de la
+        // ultima pagina; si no alcanza, salta de pagina.
+        bool SaltarSiFalta(double alto, string? tituloContinuacion = null)
         {
-            string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
-            if (!File.Exists(logoPath))
-                logoPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "images", "gcs_logo.png");
-            double logoH = 40;
-            if (File.Exists(logoPath))
-            {
-                try
-                {
-                    var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
-                    double ratio = logoH / img.PixelHeight;
-                    g.DrawImage(img, ML, y, img.PixelWidth * ratio, logoH);
-                }
-                catch { /* seguir sin logo si falla */ }
-            }
-            var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-            g.DrawString("Carta General de Activos Asignados", fBold16, XBrushes.Black, new XRect(ML, y, usable, logoH * 0.6), fmtC);
-            g.DrawString("Departamento de Tecnologia", fBold10, XBrushes.Black, new XRect(ML, y + logoH * 0.6, usable, logoH * 0.4), fmtC);
-            y += logoH + 10;
-
-            var fmtR = new XStringFormat { Alignment = XStringAlignment.Far, LineAlignment = XLineAlignment.Near };
-            g.DrawString($"Fecha: {d.Fecha}", fNorm, XBrushes.Black, new XRect(ML, y, usable, 12), fmtR);
-            y += 16;
-
-            g.DrawRectangle(new XSolidBrush(gray), ML, y, usable, 16);
-            g.DrawRectangle(pen, ML, y, usable, 16);
-            g.DrawString("Datos del Colaborador", fBold9, XBrushes.Black, new XRect(ML, y, usable, 16), fmtC);
-            y += 16;
-
-            double boxH = 15 * 3;
-            g.DrawRectangle(pen, ML, y, usable, boxH);
-            var fmtL = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
-            void Linea(string texto, int fila)
-            {
-                g.DrawString(texto, fNorm, XBrushes.Black, new XRect(ML + 6, y + 15 * fila, usable - 12, 15), fmtL);
-            }
-            Linea($"Colaborador: {d.Colaborador}      Centro: {d.Centro}", 0);
-            Linea($"Area: {d.Area}      Cod. Empleado: {d.CodEmpleado}", 1);
-            Linea($"Identificacion: {d.Identificacion}", 2);
-            y += boxH + 14;
-        }
-
-        void EncabezadoTabla(string titulo, string[] columnas, double[] anchos)
-        {
-            g.DrawRectangle(new XSolidBrush(gray), ML, y, usable, 16);
-            g.DrawRectangle(pen, ML, y, usable, 16);
-            var fmtC = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
-            g.DrawString(titulo, fBold9, XBrushes.Black, new XRect(ML, y, usable, 16), fmtC);
-            y += 16;
-
-            double x = ML;
-            var fmtL = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
-            for (int i = 0; i < columnas.Length; i++)
-            {
-                double w = usable * anchos[i];
-                g.DrawRectangle(new XSolidBrush(headerBg), x, y, w, headH);
-                g.DrawString(columnas[i], fHead, XBrushes.White, new XRect(x + 4, y, w - 6, headH), fmtL);
-                x += w;
-            }
-            y += headH;
-        }
-
-        bool AsegurarEspacio(double alto, string tituloContinuacion, string[] columnas, double[] anchos)
-        {
-            if (y + alto <= page.Height.Point - 20) return false;
+            if (y + alto <= page.Height.Point - 110) return false;
             NewPage();
-            EncabezadoTabla(tituloContinuacion, columnas, anchos);
+            if (tituloContinuacion != null) { Sec(y, rSec, tituloContinuacion); y += rSec; }
             return true;
         }
 
-        void Fila(string[] valores, double[] anchos, bool stripe)
+        NewPage();
+
+        // ══ HEADER ══ (mismo layout que la carta de asignacion/prestamo)
+        double logoH = rRow * 5;
+        Box(y, logoH, 1, 1);
+        var (lx, lw) = Cx(1, 1);
+        string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+        if (!File.Exists(logoPath))
+            logoPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "images", "gcs_logo.png");
+        if (File.Exists(logoPath))
         {
-            double x = ML;
-            var brush = new XSolidBrush(stripe ? stripeBg : XColors.White);
-            var fmtL = new XStringFormat { Alignment = XStringAlignment.Near, LineAlignment = XLineAlignment.Center };
-            for (int i = 0; i < valores.Length; i++)
+            try
             {
-                double w = usable * anchos[i];
-                g.DrawRectangle(brush, x, y, w, rowH);
-                g.DrawRectangle(linePen, x, y, w, rowH);
-                g.DrawString(valores[i] ?? "", fData, XBrushes.Black, new XRect(x + 4, y, w - 6, rowH), fmtL);
-                x += w;
+                var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                double padding = 4;
+                double ratio = Math.Min((lw - padding * 2) / img.PixelWidth, (logoH - padding * 2) / img.PixelHeight);
+                double drawW = img.PixelWidth * ratio, drawH = img.PixelHeight * ratio;
+                g.DrawImage(img, lx + (lw - drawW) / 2, y + (logoH - drawH) / 2, drawW, drawH);
             }
-            y += rowH;
+            catch
+            {
+                g.DrawString("GCS", fBold16, XBrushes.Black, new XRect(lx, y, lw, logoH),
+                    new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center });
+            }
+        }
+        else
+        {
+            g.DrawString("GCS", fBold16, XBrushes.Black, new XRect(lx, y, lw, logoH),
+                new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center });
         }
 
-        NewPage();
-        Encabezado();
+        Box(y, rRow, 2, 9);
+        Txt(y, rRow, 2, 9, "Carta de Compromiso de Equipos Tecnológicos", fBold, XStringAlignment.Center);
+        Box(y + rRow, rRow * 2, 2, 7);
+        Txt(y + rRow, rRow * 2, 2, 7, "Departamento de Tecnologia", fBold10, XStringAlignment.Center);
+        Box(y + rRow * 3, rRow * 2, 2, 7);
+        Txt(y + rRow * 3, rRow * 2, 2, 7, d.Colaborador, fBold10, XStringAlignment.Center);
+        Box(y + rRow, rRow, 8, 9); Txt(y + rRow, rRow, 8, 9, "Fecha:", fBold, XStringAlignment.Center);
+        Box(y + rRow * 2, rRow, 8, 9); Txt(y + rRow * 2, rRow, 8, 9, d.Fecha, fNorm, XStringAlignment.Center);
+        Box(y + rRow * 3, rRow * 2, 8, 9);
+        y += logoH;
 
-        var colsEq  = new[] { "Tipo", "Marca / Modelo", "No. Serie", "Movimiento", "Desde" };
-        var anchEq  = new[] { 0.15, 0.33, 0.20, 0.17, 0.15 };
-        EncabezadoTabla("Equipos asignados", colsEq, anchEq);
+        // ══ DATOS DEL COLABORADOR ══
+        Sec(y, rSec, "Datos del Colaborador"); y += rSec;
+        Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+        LV(y, rRow, 1, 1, 2, 5, "Colaborador:", d.Colaborador);
+        LV(y, rRow, 6, 6, 7, 9, "Centro:", d.Centro);
+        y += rRow;
+        Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+        LV(y, rRow, 1, 1, 2, 5, "Area:", d.Area);
+        LV(y, rRow, 6, 6, 7, 9, "Cod. Empleado:", d.CodEmpleado);
+        y += rRow;
+        Box(y, rRow, 1, 1); Box(y, rRow, 2, 9);
+        LV(y, rRow, 1, 1, 2, 9, "Identificacion:", d.Identificacion);
+        y += rRow + 10;
+
+        // ══ EQUIPOS ══
+        Sec(y, rSec, "Equipos Asignados"); y += rSec;
         if (d.Equipos.Any())
         {
-            bool stripe = false;
             foreach (var eq in d.Equipos)
             {
-                AsegurarEspacio(rowH, "Equipos asignados (continuacion)", colsEq, anchEq);
-                Fila([eq.Tipo, $"{eq.Marca} {eq.Modelo}".Trim(), eq.NumeroSerie, eq.Movimiento, eq.Desde], anchEq, stripe);
-                stripe = !stripe;
+                var specs = new[] {
+                    string.IsNullOrWhiteSpace(eq.Ram)            ? null : $"RAM: {eq.Ram}",
+                    string.IsNullOrWhiteSpace(eq.Procesador)     ? null : $"Procesador: {eq.Procesador}",
+                    string.IsNullOrWhiteSpace(eq.Almacenamiento) ? null : $"Almacenamiento: {eq.Almacenamiento}",
+                    string.IsNullOrWhiteSpace(eq.Accesorios)     ? null : $"Accesorios: {eq.Accesorios}"
+                }.Where(s => s != null);
+                string? specsLine = specs.Any() ? string.Join("   •   ", specs) : null;
+
+                SaltarSiFalta(specsLine != null ? rRow * 2 : rRow, "Equipos Asignados (continuacion)");
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, $"{eq.Tipo}:", $"{eq.Marca} {eq.Modelo}".Trim());
+                LV(y, rRow, 6, 6, 7, 9, "Serie:", eq.NumeroSerie);
+                y += rRow;
+                if (specsLine != null)
+                {
+                    Box(y, rRow, 1, 9);
+                    Txt(y, rRow, 1, 9, specsLine, fNorm);
+                    y += rRow;
+                }
             }
         }
         else
         {
-            g.DrawRectangle(pen, ML, y, usable, rowH);
-            g.DrawString("Sin equipos asignados.", fData, XBrushes.Gray,
-                new XRect(ML + 4, y, usable - 8, rowH), new XStringFormat { LineAlignment = XLineAlignment.Center });
-            y += rowH;
+            Box(y, rRow, 1, 9);
+            Txt(y, rRow, 1, 9, "Sin equipos asignados", fNorm);
+            y += rRow;
         }
-        y += 14;
+        y += 10;
 
-        var colsPf = new[] { "Tipo", "Marca / Modelo", "No. Serie", "Via equipo" };
-        var anchPf = new[] { 0.18, 0.35, 0.22, 0.25 };
-        if (y + 16 + headH > page.Height.Point - 20) NewPage();
-        EncabezadoTabla("Periféricos asignados", colsPf, anchPf);
+        // ══ PERIFÉRICOS ══
+        SaltarSiFalta(rSec);
+        Sec(y, rSec, "Perifericos Asignados"); y += rSec;
         if (d.Perifericos.Any())
         {
-            bool stripe = false;
             foreach (var pf in d.Perifericos)
             {
-                AsegurarEspacio(rowH, "Periféricos asignados (continuacion)", colsPf, anchPf);
-                Fila([pf.Tipo, $"{pf.Marca} {pf.Modelo}".Trim(), pf.NumeroSerie, pf.ViaEquipo], anchPf, stripe);
-                stripe = !stripe;
+                SaltarSiFalta(rRow, "Perifericos Asignados (continuacion)");
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, $"{pf.Tipo}:", $"{pf.Marca} {pf.Modelo}".Trim());
+                LV(y, rRow, 6, 6, 7, 9, "Serie:", pf.NumeroSerie);
+                y += rRow;
             }
         }
         else
         {
-            g.DrawRectangle(pen, ML, y, usable, rowH);
-            g.DrawString("Sin periféricos asignados.", fData, XBrushes.Gray,
-                new XRect(ML + 4, y, usable - 8, rowH), new XStringFormat { LineAlignment = XLineAlignment.Center });
-            y += rowH;
+            Box(y, rRow, 1, 9);
+            Txt(y, rRow, 1, 9, "Sin perifericos asignados", fNorm);
+            y += rRow;
         }
 
         // ══ FIRMAS ══ (la de TI se rellena si el emisor tiene firma
         // guardada; la del colaborador queda en blanco para firma fisica,
         // porque este resumen no esta atado a una sola captura digital)
-        const double firmaBloque = 90;
-        if (y + firmaBloque > page.Height.Point - 20)
-            NewPage();
+        // Se ancla cerca del pie de pagina, como en la carta de siempre,
+        // en vez de quedar pegada justo debajo de la ultima tabla.
+        double yFirmaAnchor = page.Height.Point - 110;
+        if (y > yFirmaAnchor) NewPage();
+        y = Math.Max(y, yFirmaAnchor);
         y += 20;
-        double fw  = usable * 0.26;
-        double fx1 = ML + usable * 0.04;
-        double fx2 = ML + usable * 0.53;
+        double fw   = usable * 0.26;
+        double fx1  = ML + usable * 0.04;
+        double fx2  = ML + usable * 0.53;
         double lineY = y + 55;
         g.DrawLine(pen, fx1, lineY, fx1 + fw, lineY);
         g.DrawLine(pen, fx2, lineY, fx2 + fw, lineY);
@@ -1546,6 +1775,27 @@ public class PdfService
         g.DrawString("Firma de Empleado",  fBold, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
         if (!string.IsNullOrEmpty(d.NombreEmisor))
             g.DrawString(d.NombreEmisor, fNorm, XBrushes.Black, new XRect(fx1, lineY + 15, fw, 12), lFmt);
+
+        // Firma digital del colaborador (capturada en persona o por link remoto)
+        if (!string.IsNullOrEmpty(d.FirmaEmpleadoBase64))
+        {
+            try
+            {
+                string b64 = d.FirmaEmpleadoBase64;
+                int comma = b64.IndexOf(',');
+                if (comma >= 0) b64 = b64[(comma + 1)..];
+                byte[] imgBytes = Convert.FromBase64String(b64);
+                var firmaImg = XImage.FromStream(() => new MemoryStream(imgBytes));
+                double espacioDisp = lineY - y - 6;
+                double ratio = Math.Min(fw / firmaImg.PixelWidth, espacioDisp / firmaImg.PixelHeight);
+                double drawW = firmaImg.PixelWidth  * ratio;
+                double drawH = firmaImg.PixelHeight * ratio;
+                double drawX = fx2 + (fw - drawW) / 2;
+                double drawY = y + (espacioDisp - drawH) / 2 + 3;
+                g.DrawImage(firmaImg, drawX, drawY, drawW, drawH);
+            }
+            catch { /* continuar sin firma si hay error */ }
+        }
 
         if (!string.IsNullOrEmpty(d.RutaFirmaIT))
         {
@@ -1566,14 +1816,9 @@ public class PdfService
             }
             catch { /* continuar sin firma IT si falla */ }
         }
-
-        using var ms = new MemoryStream();
-        doc.Save(ms, false);
-        return ms.ToArray();
     }
 
 }
-
 
 public class FiniquitoData
 {
@@ -1627,6 +1872,7 @@ public class CartaGeneralData
     public string Identificacion { get; set; } = "";
     public string? RutaFirmaIT   { get; set; }
     public string? NombreEmisor  { get; set; }
+    public string? FirmaEmpleadoBase64 { get; set; }
     public List<EquipoResumenItem> Equipos { get; set; } = [];
     public List<PerifericoResumenItem> Perifericos { get; set; } = [];
 }
@@ -1639,6 +1885,10 @@ public class EquipoResumenItem
     public string NumeroSerie{ get; set; } = "";
     public string Movimiento { get; set; } = "";
     public string Desde      { get; set; } = "";
+    public string? Ram          { get; set; }
+    public string? Procesador   { get; set; }
+    public string? Almacenamiento { get; set; }
+    public string? Accesorios   { get; set; }
 }
 
 public class PerifericoResumenItem
@@ -1647,5 +1897,4 @@ public class PerifericoResumenItem
     public string Marca       { get; set; } = "";
     public string Modelo      { get; set; } = "";
     public string NumeroSerie { get; set; } = "";
-    public string ViaEquipo   { get; set; } = "";
 }

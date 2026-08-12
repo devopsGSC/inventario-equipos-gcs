@@ -1,19 +1,25 @@
 @model SolicitudFirma
 @{
     Layout = null;
-    bool esPeriferico = Model.EquipoPeriferico != null;
+    bool esCartaGeneral = Model.CartaGeneral != null;
+    bool esPeriferico = !esCartaGeneral && Model.EquipoPeriferico != null;
     var mov = Model.Movimiento;
     var ep = Model.EquipoPeriferico;
-    string tipoMovimiento = esPeriferico ? ep!.TipoMovimiento : mov!.TipoMovimiento;
+    var cg = Model.CartaGeneral;
+    string tipoMovimiento = esCartaGeneral ? "" : esPeriferico ? ep!.TipoMovimiento : mov!.TipoMovimiento;
     bool esPrestamo = tipoMovimiento == "Prestamo";
-    string nombreResponsable = esPeriferico ? ep!.NombreResponsable : mov!.NombreResponsable;
-    string tituloItem = esPeriferico ? $"{ep!.Periferico?.TipoPeriferico?.Nombre} — {ep.Periferico?.Marca} {ep.Periferico?.Modelo}" : mov!.Equipo?.NombreEquipo ?? "";
-    string serieItem = esPeriferico ? (ep!.Periferico?.NumeroSerie ?? "") : (mov!.Equipo?.NumeroSerie ?? "");
-    DateTime fechaInicio = esPeriferico ? ep!.FechaAsignacion : mov!.FechaInicio;
-    DateTime? fechaFinEstimada = esPeriferico ? ep!.FechaDevolucionEstimada : mov!.FechaFinEstimada;
-    string tipoLabel = esPeriferico
-        ? (esPrestamo ? "Préstamo de periférico" : "Asignación de periférico")
+    string nombreResponsable = esCartaGeneral ? cg!.NombreResponsable : esPeriferico ? ep!.NombreResponsable : mov!.NombreResponsable;
+    string tituloItem = esCartaGeneral ? "Todos tus equipos y periféricos actuales"
+        : esPeriferico ? $"{ep!.Periferico?.TipoPeriferico?.Nombre} — {ep.Periferico?.Marca} {ep.Periferico?.Modelo}"
+        : mov!.Equipo?.NombreEquipo ?? "";
+    string serieItem = esCartaGeneral ? "" : esPeriferico ? (ep!.Periferico?.NumeroSerie ?? "") : (mov!.Equipo?.NumeroSerie ?? "");
+    DateTime fechaInicio = esCartaGeneral ? cg!.FechaCreacion : esPeriferico ? ep!.FechaAsignacion : mov!.FechaInicio;
+    DateTime? fechaFinEstimada = esCartaGeneral ? null : esPeriferico ? ep!.FechaDevolucionEstimada : mov!.FechaFinEstimada;
+    string tipoLabel = esCartaGeneral ? "Carta general de activos"
+        : esPeriferico ? (esPrestamo ? "Préstamo de periférico" : "Asignación de periférico")
         : (esPrestamo ? "Préstamo de equipo" : "Asignación de equipo");
+    var equiposCG = ViewBag.EquiposCartaGeneral as List<Movimiento> ?? new();
+    var perifsCG  = ViewBag.PerifericosCartaGeneral as List<EquipoPeriferico> ?? new();
     ViewData["Title"] = "Firmar — InventarioTI";
 }
 <!DOCTYPE html>
@@ -92,30 +98,59 @@
     </div>
 
     @{
-        var perifs = esPeriferico ? new() : mov!.Equipo?.EquiposPerifericos?.Where(x => x.FechaDesvinculacion == null).ToList() ?? new();
+        var perifs = ViewBag.Perifericos as List<EquipoPeriferico> ?? new();
         var licencias = ViewBag.Licencias as List<LicenciaAsignacion> ?? new();
     }
-    @if (perifs.Count > 0 || licencias.Count > 0)
+    @if (esCartaGeneral)
     {
         <div class="card">
             <div class="card-body">
-                <div class="form-label" style="margin-bottom:10px">También estás recibiendo</div>
-                @foreach (var epItem in perifs)
+                <div class="form-label" style="margin-bottom:10px">Equipos y periféricos incluidos</div>
+                @foreach (var m in equiposCG)
+                {
+                    <div class="fila">
+                        <span class="k"><i class="bi bi-laptop"></i> @m.Equipo?.TipoEquipo?.Nombre</span>
+                        <span class="v">@m.Equipo?.Marca @m.Equipo?.Modelo</span>
+                    </div>
+                }
+                @foreach (var epItem in perifsCG)
                 {
                     <div class="fila">
                         <span class="k"><i class="bi bi-mouse2"></i> @epItem.Periferico?.TipoPeriferico?.Nombre</span>
                         <span class="v">@epItem.Periferico?.Marca @epItem.Periferico?.Modelo</span>
                     </div>
                 }
-                @foreach (var la in licencias)
+                @if (!equiposCG.Any() && !perifsCG.Any())
                 {
-                    <div class="fila">
-                        <span class="k"><i class="bi bi-key"></i> Licencia</span>
-                        <span class="v">@la.TipoLicencia?.Nombre</span>
-                    </div>
+                    <div class="text-muted" style="font-size:13px">No hay equipos ni periféricos asignados actualmente.</div>
                 }
             </div>
         </div>
+    }
+    else
+    {
+        @if (perifs.Count > 0 || licencias.Count > 0)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="form-label" style="margin-bottom:10px">También estás recibiendo</div>
+                    @foreach (var epItem in perifs)
+                    {
+                        <div class="fila">
+                            <span class="k"><i class="bi bi-mouse2"></i> @epItem.Periferico?.TipoPeriferico?.Nombre</span>
+                            <span class="v">@epItem.Periferico?.Marca @epItem.Periferico?.Modelo</span>
+                        </div>
+                    }
+                    @foreach (var la in licencias)
+                    {
+                        <div class="fila">
+                            <span class="k"><i class="bi bi-key"></i> Licencia</span>
+                            <span class="v">@la.TipoLicencia?.Nombre</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 
     <div class="alert alert-info">

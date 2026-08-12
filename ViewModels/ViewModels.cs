@@ -35,6 +35,26 @@ public class ActividadItem
     public int? LinkId { get; set; }
 }
 
+// Un renglón de la pantalla central "Cartas": une en una sola lista las
+// cartas de asignación/préstamo de equipo, las de periféricos asignados
+// "Directo" y las cartas generales, cada una con su estado de entrega y
+// sus links de acción, para no tener que ir a buscarlas por separado en
+// el detalle de cada equipo/empleado/periférico.
+public class CartaListItem
+{
+    public string Tipo { get; set; } = ""; // "Equipo" | "Periferico" | "General"
+    public string Responsable { get; set; } = "";
+    public string Detalle { get; set; } = "";
+    public DateTime Fecha { get; set; }
+    public bool EntregaCompletada { get; set; }
+    public string? EntregadoPor { get; set; }
+    public DateTime? FechaEntrega { get; set; }
+    public bool TieneFirma { get; set; }
+    public string LinkVer { get; set; } = "";
+    public string LinkDescargar { get; set; } = "";
+    public string? LinkFirmaRemota { get; set; }
+}
+
 public class MovimientoCreateViewModel
 {
     public int EquipoId { get; set; }

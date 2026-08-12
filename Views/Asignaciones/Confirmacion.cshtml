@@ -1,0 +1,77 @@
+@{
+  ViewData["Title"] = "Asignación registrada";
+  string tipo = ViewBag.Tipo;
+  int anclaId = ViewBag.AnclaId;
+  var movimiento = ViewBag.Movimiento as Movimiento;
+  var perifericos = ViewBag.Perifericos as List<EquipoPeriferico> ?? new();
+  int licenciasCount = ViewBag.LicenciasCount;
+  string controllerDetalle = tipo switch {
+    "empleado" => "Empleados", "miembroExterno" => "MiembrosExternos", "grupo" => "Grupos",
+    "equipo" => "Equipos", "periferico" => "Perifericos", "licencia" => "Licencias",
+    _ => "Empleados"
+  };
+}
+
+<div class="page-header">
+  <div class="page-title">Asignación registrada</div>
+</div>
+
+<div class="card" style="max-width:700px">
+  <div class="card-body">
+    <div class="alert alert-success">
+      <i class="bi bi-check-circle-fill"></i>
+      Se registró la asignación completa correctamente.
+    </div>
+
+    @if (movimiento != null)
+    {
+      <div style="margin-bottom:14px">
+        <div class="form-label">Equipo</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #dde2ec;border-radius:8px">
+          <div>
+            <div style="font-weight:500">@movimiento.Equipo?.NombreEquipo</div>
+            <div class="text-muted mono" style="font-size:11.5px">@movimiento.Equipo?.NumeroSerie</div>
+          </div>
+          <a asp-controller="Movimientos" asp-action="Carta" asp-route-id="@movimiento.Id" class="btn btn-secondary btn-sm">
+            <i class="bi bi-file-earmark-pdf"></i> Ver carta
+          </a>
+        </div>
+      </div>
+    }
+
+    @if (perifericos.Any())
+    {
+      <div style="margin-bottom:14px">
+        <div class="form-label">Periféricos</div>
+        @foreach (var ep in perifericos)
+        {
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #dde2ec;border-radius:8px;margin-bottom:6px">
+            <div>
+              <div style="font-weight:500">@ep.Periferico?.TipoPeriferico?.Nombre — @ep.Periferico?.Marca @ep.Periferico?.Modelo</div>
+              <div class="text-muted mono" style="font-size:11.5px">@ep.Periferico?.NumeroSerie</div>
+            </div>
+            <a asp-controller="Perifericos" asp-action="CartaDirecta" asp-route-asignacionId="@ep.Id" class="btn btn-secondary btn-sm">
+              <i class="bi bi-file-earmark-pdf"></i> Ver carta
+            </a>
+          </div>
+        }
+      </div>
+    }
+
+    @if (licenciasCount > 0)
+    {
+      <div style="margin-bottom:14px">
+        <div class="form-label">Licencias</div>
+        <div class="text-muted" style="font-size:13px">
+          @licenciasCount licencia(s) asignada(s) — de control interno, sin carta.
+        </div>
+      </div>
+    }
+
+    <div class="divider"></div>
+
+    <a asp-controller="@controllerDetalle" asp-action="Details" asp-route-id="@anclaId" class="btn btn-secondary">
+      <i class="bi bi-arrow-left"></i> Volver al detalle
+    </a>
+  </div>
+</div>

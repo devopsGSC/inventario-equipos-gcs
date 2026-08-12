@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using InventarioTI.Data;
@@ -11,10 +10,7 @@ namespace InventarioTI.Controllers;
 public class GruposController : BaseController
 {
     private readonly AppDbContext _db;
-    private readonly PdfService _pdf;
-    private readonly UserManager<UsuarioApp> _users;
-    public GruposController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
-    { _db = db; _pdf = pdf; _users = users; }
+    public GruposController(AppDbContext db, PermisoService permisos) : base(permisos) => _db = db;
 
     public async Task<IActionResult> Index(bool? activo, string? buscar, int pagina = 1)
     {
@@ -107,66 +103,6 @@ public class GruposController : BaseController
         };
         return View(grupo);
     }
-
-    // Carta con TODOS los equipos y periféricos que tiene actualmente el
-    // grupo, para no tener que generar una por cada equipo asignado.
-    public async Task<IActionResult> DescargarCartaGeneral(int id)
-    {
-        if (!await Puede("movimientos.carta")) return AccesoDenegado();
-
-        var grupo = await _db.Grupos.FirstOrDefaultAsync(g => g.Id == id);
-        if (grupo == null) return NotFound();
-
-        var equiposActuales = await _db.Movimientos
-            .Include(m => m.Equipo).ThenInclude(eq => eq!.TipoEquipo)
-            .Where(m => m.GrupoId == id && m.FechaDevolucion == null &&
-                        (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
-            .ToListAsync();
-
-        var perifsActuales = await _db.EquiposPerifericos
-            .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
-            .Include(ep => ep.Equipo)
-            .Where(ep => ep.GrupoId == id && ep.FechaDesvinculacion == null)
-            .OrderByDescending(ep => ep.FechaAsignacion)
-            .ToListAsync();
-
-        var usuarioActual = await _users.GetUserAsync(User);
-
-        var data = new CartaGeneralData
-        {
-            Colaborador    = grupo.Nombre,
-            Centro         = grupo.Descripcion ?? "",
-            Area           = "",
-            CodEmpleado    = "N/A",
-            Identificacion = "",
-            NombreEmisor   = usuarioActual?.NombreCompleto,
-            RutaFirmaIT    = usuarioActual?.RutaFirmaIT,
-            Equipos = equiposActuales.Select(m => new EquipoResumenItem
-            {
-                Tipo        = m.Equipo?.TipoEquipo?.Nombre ?? "",
-                Marca       = m.Equipo?.Marca ?? "",
-                Modelo      = m.Equipo?.Modelo ?? "",
-                NumeroSerie = m.Equipo?.NumeroSerie ?? "",
-                Movimiento  = m.TipoMovimiento,
-                Desde       = m.FechaInicio.ToString("dd/MM/yyyy")
-            }).ToList(),
-            Perifericos = perifsActuales.Select(ep => new PerifericoResumenItem
-            {
-                Tipo        = ep.Periferico?.TipoPeriferico?.Nombre ?? "",
-                Marca       = ep.Periferico?.Marca ?? "",
-                Modelo      = ep.Periferico?.Modelo ?? "",
-                NumeroSerie = ep.Periferico?.NumeroSerie ?? "",
-                ViaEquipo   = ep.Equipo?.NombreEquipo ?? "Directo"
-            }).ToList()
-        };
-
-        var bytes = _pdf.GenerarCartaGeneral(data);
-        var nombre = $"Carta_General_{SanitizarNombreArchivo(grupo.Nombre)}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(bytes, "application/pdf", nombre);
-    }
-
-    private static string SanitizarNombreArchivo(string nombre) =>
-        string.Join("_", nombre.Split(Path.GetInvalidFileNameChars().Append(' ').ToArray(), StringSplitOptions.RemoveEmptyEntries));
 
     public async Task<IActionResult> Create()
     {
