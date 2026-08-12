@@ -370,14 +370,8 @@
       </a>
     </div>
     @{
-      bool _puedeEquipoCrear  = await PermisoSvc.TienePermiso(User, "equipos.crear");
-      bool _puedeCargaMasiva  = await PermisoSvc.TienePermiso(User, "cargamasiva.usar");
+      bool _puedeCargaMasiva     = await PermisoSvc.TienePermiso(User, "cargamasiva.usar");
       bool _puedeHistorialCargas = User.IsInRole("Administrador") || User.IsInRole("TecnicoIT");
-      bool _puedePerifCrear   = await PermisoSvc.TienePermiso(User, "perifericos.crear");
-      bool _puedeEmpleadoCrear= await PermisoSvc.TienePermiso(User, "empleados.crear");
-      bool _puedeMiembroExternoCrear = await PermisoSvc.TienePermiso(User, "miembrosexternos.crear");
-      bool _puedeGrupoCrear  = await PermisoSvc.TienePermiso(User, "grupos.crear");
-      bool _puedeLicenciaCrear = await PermisoSvc.TienePermiso(User, "licencias.crear");
     }
     <div class="nav-section">
       <div class="nav-label">Inventario</div>
@@ -396,12 +390,6 @@
       <a class="nav-link nav-sub" asp-controller="Equipos" asp-action="Index" asp-route-estado="EnGarantia" onclick="closeSidebar()">
         En garantía
       </a>
-      @if (_puedeEquipoCrear)
-      {
-        <a class="nav-link nav-sub" asp-controller="Equipos" asp-action="Create" onclick="closeSidebar()">
-          Registrar equipo
-        </a>
-      }
       @if (_puedeCargaMasiva)
       {
         <a class="nav-link nav-sub @(ViewContext.RouteData.Values["controller"]?.ToString()=="CargaMasiva"?"active":"")" asp-controller="CargaMasiva" asp-action="Index" onclick="closeSidebar()">
@@ -417,86 +405,37 @@
       <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Perifericos"?"active":"")" asp-controller="Perifericos" asp-action="Index" onclick="closeSidebar()">
         Periféricos
       </a>
-      @if (_puedePerifCrear)
-      {
-        <a class="nav-link nav-sub" asp-controller="Perifericos" asp-action="Create" onclick="closeSidebar()">
-          Registrar periférico
-        </a>
-      }
     </div>
     <div class="nav-section">
       <div class="nav-label">Personas</div>
       <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Empleados"?"active":"")" asp-controller="Empleados" asp-action="Index" onclick="closeSidebar()">
         Empleados
       </a>
-      @if (_puedeEmpleadoCrear)
-      {
-        <a class="nav-link nav-sub" asp-controller="Empleados" asp-action="Create" onclick="closeSidebar()">
-          Registrar empleado
-        </a>
-      }
       @if (await PermisoSvc.TienePermiso(User, "miembrosexternos.ver"))
       {
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="MiembrosExternos"?"active":"")" asp-controller="MiembrosExternos" asp-action="Index" onclick="closeSidebar()">
           Miembros Externos
         </a>
-        @if (_puedeMiembroExternoCrear)
-        {
-          <a class="nav-link nav-sub" asp-controller="MiembrosExternos" asp-action="Create" onclick="closeSidebar()">
-            Registrar miembro externo
-          </a>
-        }
       }
       @if (await PermisoSvc.TienePermiso(User, "grupos.ver"))
       {
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Grupos"?"active":"")" asp-controller="Grupos" asp-action="Index" onclick="closeSidebar()">
           Grupos
         </a>
-        @if (_puedeGrupoCrear)
-        {
-          <a class="nav-link nav-sub" asp-controller="Grupos" asp-action="Create" onclick="closeSidebar()">
-            Registrar grupo
-          </a>
-        }
       }
     </div>
     @if (await PermisoSvc.TienePermiso(User, "licencias.ver"))
     {
       <div class="nav-section">
-        <div class="nav-label">Licencias</div>
         <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Licencias"?"active":"")" asp-controller="Licencias" asp-action="Index" onclick="closeSidebar()">
           Licencias
         </a>
-        @if (_puedeLicenciaCrear)
-        {
-          <a class="nav-link nav-sub" asp-controller="Licencias" asp-action="Create" onclick="closeSidebar()">
-            Registrar tipo de licencia
-          </a>
-        }
       </div>
     }
     <div class="nav-section">
-      <div class="nav-label">Reportes</div>
-      @{
-        string? _rptCtl    = ViewContext.RouteData.Values["controller"]?.ToString();
-        string? _rptAction = ViewContext.RouteData.Values["action"]?.ToString();
-        bool    _enRep     = _rptCtl == "Reportes";
-      }
-      <a class="nav-link @(_enRep && _rptAction == "Index" ? "active" : "")"
+      <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString()=="Reportes"?"active":"")"
          asp-controller="Reportes" asp-action="Index" onclick="closeSidebar()">
         Reportes
-      </a>
-      <a class="nav-link nav-sub @(_enRep && _rptAction == "Equipos" ? "active" : "")"
-         asp-controller="Reportes" asp-action="Equipos" onclick="closeSidebar()">
-        Inventario de equipos
-      </a>
-      <a class="nav-link nav-sub @(_enRep && _rptAction == "Perifericos" ? "active" : "")"
-         asp-controller="Reportes" asp-action="Perifericos" onclick="closeSidebar()">
-        Inventario de periféricos
-      </a>
-      <a class="nav-link nav-sub @(_enRep && _rptAction == "Empleados" ? "active" : "")"
-         asp-controller="Reportes" asp-action="Empleados" onclick="closeSidebar()">
-        Asignaciones por empleado
       </a>
     </div>
     @if (User.IsInRole("Administrador"))

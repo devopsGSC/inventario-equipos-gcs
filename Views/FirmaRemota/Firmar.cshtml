@@ -66,6 +66,7 @@
         .alert-info { background: #eff6ff; color: #1e40af; }
         .status { font-size: 12px; color: var(--dark-text2); }
         .status.ok { color: var(--green-text); }
+        .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 7px; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -109,14 +110,14 @@
                 @foreach (var m in equiposCG)
                 {
                     <div class="fila">
-                        <span class="k"><i class="bi bi-laptop"></i> @m.Equipo?.TipoEquipo?.Nombre</span>
+                        <span class="k"><span class="dot"></span>@m.Equipo?.TipoEquipo?.Nombre</span>
                         <span class="v">@m.Equipo?.Marca @m.Equipo?.Modelo</span>
                     </div>
                 }
                 @foreach (var epItem in perifsCG)
                 {
                     <div class="fila">
-                        <span class="k"><i class="bi bi-mouse2"></i> @epItem.Periferico?.TipoPeriferico?.Nombre</span>
+                        <span class="k"><span class="dot"></span>@epItem.Periferico?.TipoPeriferico?.Nombre</span>
                         <span class="v">@epItem.Periferico?.Marca @epItem.Periferico?.Modelo</span>
                     </div>
                 }
@@ -137,7 +138,7 @@
                     @foreach (var epItem in perifs)
                     {
                         <div class="fila">
-                            <span class="k"><i class="bi bi-mouse2"></i> @epItem.Periferico?.TipoPeriferico?.Nombre</span>
+                            <span class="k"><span class="dot"></span>@epItem.Periferico?.TipoPeriferico?.Nombre</span>
                             <span class="v">@epItem.Periferico?.Marca @epItem.Periferico?.Modelo</span>
                         </div>
                     }
