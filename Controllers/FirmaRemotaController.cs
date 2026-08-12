@@ -30,14 +30,26 @@ public class FirmaRemotaController : Controller
             .Include(s => s.CartaGeneral).ThenInclude(c => c!.Grupo)
             .FirstOrDefaultAsync(s => s.Token == token);
 
-    // Periféricos y licencias de la misma persona/miembro externo/grupo del
-    // movimiento, para mostrarlos junto con el equipo en la pantalla de
-    // firma ("también estás recibiendo").
+    // Periféricos y licencias creados junto con este movimiento en la misma
+    // Asignación completa, para mostrarlos junto con el equipo en la
+    // pantalla de firma ("también estás recibiendo"). Se identifican por
+    // haberse creado prácticamente en el mismo instante (AsignacionesController
+    // usa una sola variable "ahora" para el movimiento, los periféricos y las
+    // licencias de un mismo envío) — filtrar solo por responsable mostraría
+    // también periféricos/licencias de esa persona que no tienen nada que
+    // ver con esta asignación en particular. Se usa una ventana de ±2s en
+    // vez de igualdad exacta porque Movimientos/EquiposPerifericos/
+    // LicenciasAsignaciones no necesariamente tienen la misma precisión de
+    // columna de fecha.
     private async Task CargarLicencias(Movimiento movimiento)
     {
+        var desde = movimiento.FechaInicio.AddSeconds(-2);
+        var hasta = movimiento.FechaInicio.AddSeconds(2);
+
         ViewBag.Perifericos = await _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
             .Where(ep => ep.FechaDesvinculacion == null &&
+                ep.FechaAsignacion >= desde && ep.FechaAsignacion <= hasta &&
                 ((movimiento.EmpleadoId != null && ep.EmpleadoId == movimiento.EmpleadoId) ||
                  (movimiento.MiembroExternoId != null && ep.MiembroExternoId == movimiento.MiembroExternoId) ||
                  (movimiento.GrupoId != null && ep.GrupoId == movimiento.GrupoId)))
@@ -46,6 +58,7 @@ public class FirmaRemotaController : Controller
         ViewBag.Licencias = await _db.LicenciasAsignaciones
             .Include(la => la.TipoLicencia)
             .Where(la => la.FechaDesvinculacion == null &&
+                la.FechaAsignacion >= desde && la.FechaAsignacion <= hasta &&
                 ((movimiento.EmpleadoId != null && la.EmpleadoId == movimiento.EmpleadoId) ||
                  (movimiento.MiembroExternoId != null && la.MiembroExternoId == movimiento.MiembroExternoId) ||
                  (movimiento.GrupoId != null && la.GrupoId == movimiento.GrupoId)))
