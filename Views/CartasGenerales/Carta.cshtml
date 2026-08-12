@@ -50,9 +50,19 @@
       </span>
     </div>
 
-    <div class="text-muted" style="margin-bottom:6px">
-      Preparada por <strong>@(Model.CreadoPorUsuario?.NombreCompleto ?? Model.CreadoPorUsuario?.Email ?? "—")</strong>
-      el @Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm").
+    <div class="text-muted" style="margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>
+        Preparada por <strong>@(Model.CreadoPorUsuario?.NombreCompleto ?? Model.CreadoPorUsuario?.Email ?? "—")</strong>
+        el @Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm").
+      </span>
+      @if (!Model.EntregaCompletada)
+      {
+        <form method="post" asp-action="TomarComoPreparador" asp-route-id="@Model.Id" style="display:inline">
+          <button type="submit" class="btn btn-secondary btn-sm" title="Si vas a ser quien entregue y firme esta carta, reclamala para que tu firma de Tecnología aparezca en el PDF">
+            <i class="bi bi-person-check"></i> Tomar como preparador
+          </button>
+        </form>
+      }
     </div>
 
     @if (!tieneFirma)

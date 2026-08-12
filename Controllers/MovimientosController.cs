@@ -271,17 +271,22 @@ public class MovimientosController : BaseController
         TempData["OK"] = "Movimiento registrado correctamente.";
 
         // Carta de préstamo/asignación → va a Carta (descarga inmediata)
-        // Devolución con responsable identificado → va al Finiquito TI
+        // Devolución con responsable identificado → puede ir al Finiquito TI,
+        // pero no siempre se necesita (a veces el equipo solo se devuelve sin
+        // que la persona se vaya de la empresa), así que el cliente pregunta
+        // antes de decidir entre redirectUrl y equipoDetailsUrl.
         // Resto → detalle del equipo
         bool tieneResponsableFinal = movimiento.EmpleadoId != null || movimiento.MiembroExternoId != null || movimiento.GrupoId != null;
+        bool preguntarFiniquito = vm.TipoMovimiento == "Devolucion" && tieneResponsableFinal;
+        string equipoDetailsUrl = Url.Action("Details", "Equipos", new { id = vm.EquipoId })!;
         string redirectUrl = (vm.TipoMovimiento == "Prestamo" || vm.TipoMovimiento == "Asignacion")
             ? Url.Action(nameof(Carta), new { id = movimiento.Id })!
-            : (vm.TipoMovimiento == "Devolucion" && tieneResponsableFinal)
+            : preguntarFiniquito
                 ? Url.Action(nameof(Finiquito), new { movimientoId = movimiento.Id })!
-                : Url.Action("Details", "Equipos", new { id = vm.EquipoId })!;
+                : equipoDetailsUrl;
 
         if (esAjax)
-            return Json(new { movimientoId = movimiento.Id, redirectUrl });
+            return Json(new { movimientoId = movimiento.Id, redirectUrl, preguntarFiniquito, equipoDetailsUrl });
 
         return Redirect(redirectUrl);
     }

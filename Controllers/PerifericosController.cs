@@ -263,6 +263,7 @@ public class PerifericosController : BaseController
             .Include(ep => ep.Empleado).ThenInclude(e => e!.Departamento)
             .Include(ep => ep.MiembroExterno)
             .Include(ep => ep.Grupo)
+            .Include(ep => ep.CreadoPorUsuario)
             .Include(ep => ep.EntregadoPorUsuario)
             .FirstOrDefaultAsync(ep => ep.Id == asignacionId);
         if (ep == null || ep.Periferico == null ||

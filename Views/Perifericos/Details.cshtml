@@ -75,7 +75,7 @@
           @if (await PermisoSvc.TienePermiso(User, "perifericos.asignar"))
           {
             <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="periferico" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar este periférico (y equipo/licencias) a alguien">
-              <i class="bi bi-person-check"></i> Asignación completa
+              <i class="bi bi-person-check"></i> Asignación
             </a>
           }
           @if (await PermisoSvc.TienePermiso(User, "perifericos.baja"))
@@ -98,9 +98,8 @@
           </a>
           @if (asigActiva != null)
           {
-            <a asp-action="DescargarCartaDirecta" asp-route-asignacionId="@asigActiva.Id"
-               class="btn btn-secondary btn-sm" target="_blank">
-              <i class="bi bi-file-earmark-pdf"></i> Descargar carta
+            <a asp-action="CartaDirecta" asp-route-asignacionId="@asigActiva.Id" class="btn btn-secondary btn-sm">
+              <i class="bi bi-file-earmark-pdf"></i> Ver carta
             </a>
           }
         </div>

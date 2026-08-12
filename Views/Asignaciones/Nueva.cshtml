@@ -1,6 +1,6 @@
 @using InventarioTI.Models
 @{
-  ViewData["Title"] = "Asignación completa";
+  ViewData["Title"] = "Asignación";
   string tipo = ViewBag.Tipo;
   int anclaId = ViewBag.AnclaId;
   bool anclaEsPersona = ViewBag.AnclaEsPersona;
@@ -24,7 +24,7 @@
 <div class="page-header">
   <div>
     <a asp-controller="Navegacion" asp-action="Volver" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @nombreAncla</a>
-    <div class="page-title" style="margin-top:4px">Asignación completa</div>
+    <div class="page-title" style="margin-top:4px">Asignación</div>
   </div>
 </div>
 
@@ -520,26 +520,25 @@ function limpiarFirma() {
   document.getElementById('firmaInput').value = '';
 }
 
-function antesDeEnviar() {
+async function antesDeEnviar() {
   if (!@Json.Serialize(anclaEsPersona)) {
     const tipoResp = document.querySelector('input[name="TipoResponsable"]:checked')?.value;
     const valorResp = tipoResp ? document.getElementById(`sel-${tipoResp === 'Empleado' ? 'empleado' : tipoResp === 'MiembroExterno' ? 'miembroexterno' : 'grupo'}`).value : '';
     if (!tipoResp || !valorResp) {
-      alert('Selecciona el responsable (empleado, miembro externo o grupo) al que se le hará la asignación.');
+      await customAlert('Selecciona el responsable (empleado, miembro externo o grupo) al que se le hará la asignación.', 'warn');
       return false;
     }
   }
   const equipoSel = document.getElementById('selEquipo')?.value;
   if (!equipoSel && perifs.length === 0 && licencias.length === 0) {
-    alert('Selecciona al menos un equipo, periférico o licencia.');
+    await customAlert('Selecciona al menos un equipo, periférico o licencia.', 'warn');
     return false;
   }
   const secFirma = document.getElementById('sec-firma');
   if (secFirma.style.display === 'block') {
     if (!hasFirma) {
-      if (!confirm('No se detecta una firma del colaborador (si estabas en un celular o tablet, es posible que el teclado en pantalla haya borrado el trazo). ¿Continuar de todas formas sin firma?')) {
-        return false;
-      }
+      const continuar = await customConfirm('No se detecta una firma del colaborador (si estabas en un celular o tablet, es posible que el teclado en pantalla haya borrado el trazo). ¿Continuar de todas formas sin firma?', 'warn');
+      if (!continuar) return false;
     } else {
       document.getElementById('firmaInput').value = canvas.toDataURL('image/png');
     }
@@ -660,7 +659,7 @@ async function abrirCamaraFotos() {
       });
       document.getElementById('videoCamaraFotos').srcObject = streamCamaraFotos;
     } catch(e) {
-      alert('Cámara no disponible.');
+      await customAlert('Cámara no disponible.', 'danger');
       cerrarCamaraFotos();
     }
   }
@@ -693,12 +692,12 @@ function handleDropFotos(e) {
     if (file.type.startsWith('image/')) agregarFotoMovimiento(file);
   });
 }
-function agregarFotoMovimiento(file) {
-  if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+async function agregarFotoMovimiento(file) {
+  if (file.size > 10 * 1024 * 1024) { await customAlert(`"${file.name}" supera los 10 MB.`, 'warn'); return; }
   const extsValidas = ['.jpg', '.jpeg', '.png', '.webp'];
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
   if (!extsValidas.includes(ext)) {
-    alert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`);
+    await customAlert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`, 'warn');
     return;
   }
   const reader = new FileReader();
@@ -752,7 +751,7 @@ async function subirFotosMovimiento(movimientoId) {
     if (res.ok) {
       const data = await res.json();
       if (data.omitidas && data.omitidas.length) {
-        alert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'));
+        await customAlert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'), 'warn');
       }
     }
   } catch (e) { /* la asignación ya quedó registrada; solo falló la subida de fotos */ }
@@ -761,7 +760,7 @@ async function subirFotosMovimiento(movimientoId) {
 // ── Envío del formulario vía AJAX (para poder subir fotos después) ──
 document.getElementById('frmAsignacion').addEventListener('submit', async function(e) {
   e.preventDefault();
-  if (!antesDeEnviar()) return;
+  if (!(await antesDeEnviar())) return;
   const btnSubmit = this.querySelector('button[type="submit"]');
   setBtnLoading(btnSubmit, true, 'Registrando...');
   const fd = new FormData(this);
@@ -774,14 +773,14 @@ document.getElementById('frmAsignacion').addEventListener('submit', async functi
     });
   } catch (err) {
     setBtnLoading(btnSubmit, false);
-    alert('Error de conexión. Intenta de nuevo.');
+    await customAlert('Error de conexión. Intenta de nuevo.', 'danger');
     return;
   }
   if (!res.ok) {
     setBtnLoading(btnSubmit, false);
     let msg = 'No se pudo registrar la asignación. Verifica los datos.';
     try { const data = await res.json(); if (data.error) msg = data.error; } catch (err) {}
-    alert(msg);
+    await customAlert(msg, 'danger');
     return;
   }
   const data = await res.json();

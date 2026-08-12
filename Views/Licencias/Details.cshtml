@@ -16,7 +16,7 @@
   <div style="display:flex;gap:8px">
     @if (Model.Activo && await PermisoSvc.TienePermiso(User, "licencias.asignar"))
     {
-      <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="licencia" asp-route-id="@Model.Id" class="btn btn-primary" title="Asignar esta licencia (y equipo/periféricos) a alguien"><i class="bi bi-person-check"></i> Asignación completa</a>
+      <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="licencia" asp-route-id="@Model.Id" class="btn btn-primary" title="Asignar esta licencia (y equipo/periféricos) a alguien"><i class="bi bi-person-check"></i> Asignación</a>
     }
     @if (await PermisoSvc.TienePermiso(User, "licencias.editar"))
     {

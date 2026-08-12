@@ -1128,16 +1128,16 @@ public class PdfService
         double ML = 54, MR = 54, MT = 36;
         double H = 0, TW = 0;
 
-        var fTitle = new XFont("Arial", 12, XFontStyle.Bold);
-        var fBold  = new XFont("Arial", 10.5, XFontStyle.Bold);
-        var fNorm  = new XFont("Arial", 10.5, XFontStyle.Regular);
-        var fSm    = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var fTitle = new XFont("Arial", 11, XFontStyle.Bold);
+        var fBold  = new XFont("Arial", 9.5, XFontStyle.Bold);
+        var fNorm  = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var fSm    = new XFont("Arial", 8.5, XFontStyle.Regular);
         var gray   = XColor.FromArgb(209, 209, 209);
 
         PdfPage page = null!;
         XGraphics g  = null!;
         double y = 0;
-        double leading = 15.5;  // interlineado uniforme para todo el texto
+        double leading = 13.5;  // interlineado uniforme para todo el texto — mas compacto para que quepa en menos paginas
         // Espacio reservado al fondo de cada pagina para el pie de pagina,
         // que se redibuja en TODAS las paginas (no solo en la ultima) para
         // que se vea igual sin importar cuantas se necesiten.
@@ -1404,16 +1404,16 @@ public class PdfService
         double ML = 54, MR = 54, MT = 36;
         double H = 0, TW = 0;
 
-        var fTitle = new XFont("Arial", 12, XFontStyle.Bold);
-        var fBold  = new XFont("Arial", 10.5, XFontStyle.Bold);
-        var fNorm  = new XFont("Arial", 10.5, XFontStyle.Regular);
-        var fSm    = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var fTitle = new XFont("Arial", 11, XFontStyle.Bold);
+        var fBold  = new XFont("Arial", 9.5, XFontStyle.Bold);
+        var fNorm  = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var fSm    = new XFont("Arial", 8.5, XFontStyle.Regular);
         var gray   = XColor.FromArgb(209, 209, 209);
 
         PdfPage page = null!;
         XGraphics g  = null!;
         double y = 0;
-        double leading = 15.5;
+        double leading = 13.5;  // interlineado mas compacto para que quepa en menos paginas
         // Espacio reservado al fondo de cada pagina para el pie de pagina,
         // que se redibuja en TODAS las paginas (no solo en la ultima) para
         // que se vea igual sin importar cuantas se necesiten.

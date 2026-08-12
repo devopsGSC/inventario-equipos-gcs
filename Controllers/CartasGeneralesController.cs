@@ -109,6 +109,31 @@ public class CartasGeneralesController : BaseController
         return RedirectToAction(nameof(Carta), new { id });
     }
 
+    // Reclama la atribución de "quién preparó esta carta" para el usuario
+    // actual — necesario porque Preparar reutiliza la misma fila
+    // indefinidamente, así que quien la haya creado primero (aunque solo
+    // haya entrado a revisarla) se queda fijo como emisor por defecto en el
+    // PDF hasta que alguien la marque como entregada. Como MarcarEntrega, es
+    // una acción explícita: nunca cambia solo por ver o descargar la carta.
+    // Una vez entregada queda fija para siempre (igual que EntregadoPorUsuario).
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TomarComoPreparador(int id)
+    {
+        if (!await Puede("movimientos.carta")) return AccesoDenegado();
+
+        var carta = await _db.CartasGenerales.FirstOrDefaultAsync(c => c.Id == id);
+        if (carta == null) return NotFound();
+
+        if (!carta.EntregaCompletada)
+        {
+            carta.CreadoPorUsuarioId = UsuarioActualId;
+            await _db.SaveChangesAsync();
+        }
+
+        return RedirectToAction(nameof(Carta), new { id });
+    }
+
     public async Task<IActionResult> DescargarCarta(int id)
     {
         if (!await Puede("movimientos.carta")) return AccesoDenegado();

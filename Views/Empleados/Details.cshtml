@@ -68,7 +68,7 @@
         @if (Model.Activo && (await PermisoSvc.TienePermiso(User, "movimientos.asignar") || await PermisoSvc.TienePermiso(User, "movimientos.prestamo") || await PermisoSvc.TienePermiso(User, "perifericos.asignar") || await PermisoSvc.TienePermiso(User, "licencias.asignar")))
         {
           <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="empleado" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar equipo, periféricos y/o licencias juntos">
-            <i class="bi bi-plus-lg"></i> Asignación completa
+            <i class="bi bi-plus-lg"></i> Asignación
           </a>
         }
       </div>

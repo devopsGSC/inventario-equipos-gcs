@@ -418,7 +418,7 @@ async function abrirCamaraFotos() {
       });
       document.getElementById('videoCamaraFotos').srcObject = streamCamaraFotos;
     } catch(e) {
-      alert('Cámara no disponible.');
+      await customAlert('Cámara no disponible.', 'danger');
       cerrarCamaraFotos();
     }
   }
@@ -451,12 +451,12 @@ function handleDropFotos(e) {
     if (file.type.startsWith('image/')) agregarFotoMovimiento(file);
   });
 }
-function agregarFotoMovimiento(file) {
-  if (file.size > 10 * 1024 * 1024) { alert(`"${file.name}" supera los 10 MB.`); return; }
+async function agregarFotoMovimiento(file) {
+  if (file.size > 10 * 1024 * 1024) { await customAlert(`"${file.name}" supera los 10 MB.`, 'warn'); return; }
   const extsValidas = ['.jpg', '.jpeg', '.png', '.webp'];
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
   if (!extsValidas.includes(ext)) {
-    alert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`);
+    await customAlert(`"${file.name}" tiene un formato no soportado (solo JPG, PNG o WEBP). Si es una foto de iPhone en formato HEIC, convertila a JPG antes de subirla (por ejemplo, compartiéndola/reenviándola).`, 'warn');
     return;
   }
   const reader = new FileReader();
@@ -510,7 +510,7 @@ async function subirFotosMovimiento(movimientoId) {
     if (res.ok) {
       const data = await res.json();
       if (data.omitidas && data.omitidas.length) {
-        alert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'));
+        await customAlert('Algunas fotos no se guardaron:\n' + data.omitidas.join('\n'), 'warn');
       }
     }
   } catch (e) { /* el movimiento ya quedó registrado; solo falló la subida de fotos */ }
@@ -519,8 +519,9 @@ async function subirFotosMovimiento(movimientoId) {
 // ── Envío del formulario vía AJAX ─────────────────────
 document.getElementById('frmMov').addEventListener('submit', async function(e) {
   e.preventDefault();
-  if (!hasFirma && !confirm('No se detecta una firma del colaborador (si estabas en un celular o tablet, es posible que el teclado en pantalla haya borrado el trazo). ¿Continuar de todas formas sin firma?')) {
-    return;
+  if (!hasFirma) {
+    const continuarSinFirma = await customConfirm('No se detecta una firma del colaborador (si estabas en un celular o tablet, es posible que el teclado en pantalla haya borrado el trazo). ¿Continuar de todas formas sin firma?', 'warn');
+    if (!continuarSinFirma) return;
   }
   const btnSubmit = this.querySelector('button[type="submit"]');
   setBtnLoading(btnSubmit, true, 'Registrando...');
@@ -535,12 +536,12 @@ document.getElementById('frmMov').addEventListener('submit', async function(e) {
     });
   } catch (err) {
     setBtnLoading(btnSubmit, false);
-    alert('Error de conexión. Intenta de nuevo.');
+    await customAlert('Error de conexión. Intenta de nuevo.', 'danger');
     return;
   }
   if (!res.ok) {
     setBtnLoading(btnSubmit, false);
-    alert('No se pudo registrar el movimiento. Verifica los datos.');
+    await customAlert('No se pudo registrar el movimiento. Verifica los datos.', 'danger');
     return;
   }
   const data = await res.json();
@@ -549,7 +550,13 @@ document.getElementById('frmMov').addEventListener('submit', async function(e) {
     await subirFotosMovimiento(data.movimientoId);
   }
   cerrarCamaraFotos();
-  window.location.href = data.redirectUrl;
+
+  let destino = data.redirectUrl;
+  if (data.preguntarFiniquito) {
+    const necesitaFiniquito = await customConfirm('¿Esta devolución requiere generar el finiquito de Tecnología para esta persona?', 'warn');
+    destino = necesitaFiniquito ? data.redirectUrl : data.equipoDetailsUrl;
+  }
+  window.location.href = destino;
 });
 
 // ── Sitio / Ubicación ────────────────────────────────

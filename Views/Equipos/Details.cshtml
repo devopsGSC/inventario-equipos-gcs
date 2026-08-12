@@ -13,7 +13,7 @@
            await PermisoSvc.TienePermiso(User, "perifericos.asignar") || await PermisoSvc.TienePermiso(User, "licencias.asignar"))
       {
         <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="equipo" asp-route-id="@eq.Id" class="btn btn-primary" title="Asignar este equipo, periféricos y/o licencias a alguien">
-          <i class="bi bi-plus-lg"></i> Asignación completa
+          <i class="bi bi-plus-lg"></i> Asignación
         </a>
       }
       @if (await PermisoSvc.TienePermiso(User, "movimientos.garantia"))
