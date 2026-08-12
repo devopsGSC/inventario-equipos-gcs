@@ -124,18 +124,9 @@ public class CartasGeneralesController : BaseController
 
         var usuarioActual = await _users.GetUserAsync(User);
 
-        // Misma regla que en la carta de un equipo individual: la primera
-        // descarga fija quien entrega; las siguientes ya no la cambian.
-        if (!carta.EntregaCompletada && usuarioActual != null)
-        {
-            carta.EntregadoPorUsuarioId = usuarioActual.Id;
-            carta.EntregadoPorUsuario   = usuarioActual;
-            carta.EntregaCompletada     = true;
-            carta.FechaEntrega          = DateTime.Now;
-            carta.Observaciones = AgregarNotaObservacion(carta.Observaciones,
-                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", "Entrega registrada al generar la carta.");
-        }
-
+        // Quién entrega se fija explícitamente con MarcarEntrega (el usuario
+        // la marca a mano); descargar la carta para revisarla no implica
+        // que ya se entregó.
         var (colaborador, centro, area, codEmpleado, identificacion) = DatosResponsable(carta);
         var (equipos, perifericos) = await ObtenerActivos(carta);
         var usuarioEmisor = carta.EntregadoPorUsuario ?? carta.CreadoPorUsuario ?? usuarioActual;
@@ -256,7 +247,8 @@ public class CartasGeneralesController : BaseController
                 Ram            = m.Equipo?.RAM,
                 Procesador     = m.Equipo?.Procesador,
                 Almacenamiento = m.Equipo?.Almacenamiento,
-                Accesorios     = m.Equipo?.Accesorios
+                Accesorios     = m.Equipo?.Accesorios,
+                FechaGarantia  = m.Equipo?.FechaGarantia?.ToString("dd/MM/yyyy")
             }).ToList(),
             perifericos.Select(ep => new PerifericoResumenItem
             {

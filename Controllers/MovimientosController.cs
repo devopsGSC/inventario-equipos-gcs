@@ -199,12 +199,19 @@ public class MovimientosController : BaseController
         int? grupoAnteriorId = null;
         if (vm.TipoMovimiento == "Devolucion" || vm.TipoMovimiento == "SalidaGarantia")
         {
-            var activo = await _db.Movimientos.FirstOrDefaultAsync(m =>
-                m.EquipoId == vm.EquipoId &&
-                m.FechaDevolucion == null &&
-                (m.TipoMovimiento == "Asignacion" ||
-                 m.TipoMovimiento == "Prestamo" ||
-                 m.TipoMovimiento == "EntradaGarantia"));
+            // OrderByDescending es imprescindible: si por algún motivo quedó
+            // más de un movimiento abierto para este equipo (no debería
+            // pasar, pero ya pasó), sin esto se cierra uno arbitrario en vez
+            // del más reciente, y la devolución queda atribuida a la persona
+            // equivocada.
+            var activo = await _db.Movimientos
+                .Where(m => m.EquipoId == vm.EquipoId &&
+                    m.FechaDevolucion == null &&
+                    (m.TipoMovimiento == "Asignacion" ||
+                     m.TipoMovimiento == "Prestamo" ||
+                     m.TipoMovimiento == "EntradaGarantia"))
+                .OrderByDescending(m => m.FechaInicio)
+                .FirstOrDefaultAsync();
 
             if (activo != null)
             {
@@ -500,22 +507,10 @@ public class MovimientosController : BaseController
         var usuarioActual = await _users.GetUserAsync(User);
 
         // Quién entrega el equipo y firma por TI puede ser distinto de quien
-        // registró la asignación en el sistema (p.ej. un técnico asigna el
-        // equipo en el sistema y otro lo entrega físicamente días después).
-        // La PRIMERA descarga de la carta fija esa atribución con quien la
-        // está descargando en ese momento; descargas posteriores (reimpresiones,
-        // otra persona revisando) ya no la cambian.
-        if (!movimiento.EntregaCompletada && usuarioActual != null)
-        {
-            movimiento.EntregadoPorUsuarioId = usuarioActual.Id;
-            movimiento.EntregadoPorUsuario   = usuarioActual;
-            movimiento.EntregaCompletada     = true;
-            movimiento.FechaEntrega          = DateTime.Now;
-            movimiento.Observaciones = AgregarNotaObservacion(movimiento.Observaciones,
-                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", "Equipo entregado y carta generada.");
-        }
-
-        // Para movimientos de antes de guardar esta atribución, se cae en
+        // registró la asignación en el sistema. Esa atribución la fija
+        // explícitamente MarcarEntrega (el usuario la marca a mano); descargar
+        // la carta (para revisarla, reimprimirla, etc.) no debe darla por
+        // entregada por sí sola. Mientras no se haya marcado, se cae en
         // CreadoPorUsuarioId y, en última instancia, en el usuario actual.
         var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;

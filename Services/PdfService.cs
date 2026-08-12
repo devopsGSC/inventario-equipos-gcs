@@ -369,12 +369,12 @@ public class PdfService
 
         // ══ FIRMAS ══
         Box(50, 1,53, 9);
-        double fw  = usable * 0.26;
+        double fw  = usable * 0.32;
         double fx1 = ML + usable * 0.04;
         double fx2 = ML + usable * 0.53;
         double firmaY  = CellTop(50);
         double firmaH  = CellH(50, 53);
-        double lineY   = firmaY + firmaH * 0.78;  // líneas más abajo
+        double lineY   = firmaY + firmaH * 0.85;  // líneas más abajo
         g.DrawLine(pen, fx1, lineY, fx1 + fw, lineY);
         g.DrawLine(pen, fx2, lineY, fx2 + fw, lineY);
         var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
@@ -417,7 +417,7 @@ public class PdfService
                 {
                     var firmaITImg = XImage.FromStream(() =>
                         new MemoryStream(File.ReadAllBytes(rutaFisica)));
-                    double itH = firmaH * 0.55;
+                    double itH = firmaH * 0.65;
                     double ratio = Math.Min(fw / firmaITImg.PixelWidth, itH / firmaITImg.PixelHeight);
                     double dw = firmaITImg.PixelWidth  * ratio;
                     double dh = firmaITImg.PixelHeight * ratio;
@@ -1672,7 +1672,10 @@ public class PdfService
 
         NewPage();
 
-        // ══ HEADER ══ (mismo layout que la carta de asignacion/prestamo)
+        // ══ HEADER ══ (idéntico a la carta de asignación/préstamo individual:
+        // logo | texto de accion | "Departamento de Tecnologia" | titulo, con
+        // los mismos recuadros de Version/Fecha creacion/Emision/Fecha ultim.
+        // mod. a la derecha, que ahi tambien quedan siempre en blanco)
         double logoH = rRow * 5;
         Box(y, logoH, 1, 1);
         var (lx, lw) = Cx(1, 1);
@@ -1702,73 +1705,88 @@ public class PdfService
         }
 
         Box(y, rRow, 2, 9);
-        Txt(y, rRow, 2, 9, "Carta de Compromiso de Equipos Tecnológicos", fBold, XStringAlignment.Center);
+        Txt(y, rRow, 2, 9, "Resumen general de equipos y perifericos asignados al colaborador.", fBold, XStringAlignment.Center);
         Box(y + rRow, rRow * 2, 2, 7);
         Txt(y + rRow, rRow * 2, 2, 7, "Departamento de Tecnologia", fBold10, XStringAlignment.Center);
         Box(y + rRow * 3, rRow * 2, 2, 7);
-        Txt(y + rRow * 3, rRow * 2, 2, 7, d.Colaborador, fBold10, XStringAlignment.Center);
-        Box(y + rRow, rRow, 8, 9); Txt(y + rRow, rRow, 8, 9, "Fecha:", fBold, XStringAlignment.Center);
-        Box(y + rRow * 2, rRow, 8, 9); Txt(y + rRow * 2, rRow, 8, 9, d.Fecha, fNorm, XStringAlignment.Center);
-        Box(y + rRow * 3, rRow * 2, 8, 9);
+        Txt(y + rRow * 3, rRow * 2, 2, 7, "Carta de Compromiso de Equipos Tecnologicos", fBold10, XStringAlignment.Center);
+        Box(y + rRow, rRow, 8, 8); Txt(y + rRow, rRow, 8, 8, "Version:", fBold, XStringAlignment.Center);
+        Box(y + rRow, rRow, 9, 9); Txt(y + rRow, rRow, 9, 9, "1.1", fNorm, XStringAlignment.Center);
+        Box(y + rRow * 2, rRow, 8, 9); Txt(y + rRow * 2, rRow, 8, 9, "Fecha creacion:", fBold, XStringAlignment.Center);
+        Box(y + rRow * 3, rRow, 8, 9); Txt(y + rRow * 3, rRow, 8, 9, "Emision:", fBold, XStringAlignment.Center);
+        Box(y + rRow * 4, rRow, 8, 9); Txt(y + rRow * 4, rRow, 8, 9, "Fecha ultim. mod.", fBold, XStringAlignment.Center);
         y += logoH;
 
-        // ══ DATOS DEL COLABORADOR ══
-        Sec(y, rSec, "Datos del Colaborador"); y += rSec;
+        // ══ FECHA ══
+        Box(y, rRow * 2, 1, 1); Txt(y, rRow * 2, 1, 1, "Fecha:", fBold, XStringAlignment.Center);
+        Box(y, rRow * 2, 2, 9); Txt(y, rRow * 2, 2, 5, d.Fecha, fNorm);
+        y += rRow * 2;
+
+        // ══ DATOS DEL USUARIO ══ (mismos campos y orden que la carta individual)
+        Sec(y, rSec, "Datos del Usuario"); y += rSec;
         Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
         LV(y, rRow, 1, 1, 2, 5, "Colaborador:", d.Colaborador);
         LV(y, rRow, 6, 6, 7, 9, "Centro:", d.Centro);
         y += rRow;
         Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
         LV(y, rRow, 1, 1, 2, 5, "Area:", d.Area);
-        LV(y, rRow, 6, 6, 7, 9, "Cod. Empleado:", d.CodEmpleado);
+        LV(y, rRow, 6, 6, 7, 9, "Sub-Area:", "");
         y += rRow;
-        Box(y, rRow, 1, 1); Box(y, rRow, 2, 9);
-        LV(y, rRow, 1, 1, 2, 9, "Identificacion:", d.Identificacion);
+        Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+        LV(y, rRow, 1, 1, 2, 5, "Cod. Empleado:", d.CodEmpleado);
+        LV(y, rRow, 6, 6, 7, 9, "# Identificacion:", d.Identificacion);
         y += rRow + 10;
 
-        // ══ EQUIPOS ══
-        Sec(y, rSec, "Equipos Asignados"); y += rSec;
+        // ══ EQUIPOS ══ (un bloque "Especificaciones del Equipo" por cada
+        // equipo asignado, con los mismos campos que la carta individual —
+        // ahi es exactamente este mismo bloque, una sola vez porque siempre
+        // es un solo equipo)
         if (d.Equipos.Any())
         {
             foreach (var eq in d.Equipos)
             {
-                var specs = new[] {
-                    string.IsNullOrWhiteSpace(eq.Ram)            ? null : $"RAM: {eq.Ram}",
-                    string.IsNullOrWhiteSpace(eq.Procesador)     ? null : $"Procesador: {eq.Procesador}",
-                    string.IsNullOrWhiteSpace(eq.Almacenamiento) ? null : $"Almacenamiento: {eq.Almacenamiento}",
-                    string.IsNullOrWhiteSpace(eq.Accesorios)     ? null : $"Accesorios: {eq.Accesorios}"
-                }.Where(s => s != null);
-                string? specsLine = specs.Any() ? string.Join("   •   ", specs) : null;
-
-                SaltarSiFalta(specsLine != null ? rRow * 2 : rRow, "Equipos Asignados (continuacion)");
+                SaltarSiFalta(rSec + rRow * 5);
+                Sec(y, rSec, "Especificaciones del Equipo"); y += rSec;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
-                LV(y, rRow, 1, 1, 2, 5, $"{eq.Tipo}:", $"{eq.Marca} {eq.Modelo}".Trim());
-                LV(y, rRow, 6, 6, 7, 9, "Serie:", eq.NumeroSerie);
+                LV(y, rRow, 1, 1, 2, 5, "Tipo:", eq.Tipo);
+                LV(y, rRow, 6, 6, 7, 9, "Marca:", eq.Marca);
                 y += rRow;
-                if (specsLine != null)
-                {
-                    Box(y, rRow, 1, 9);
-                    Txt(y, rRow, 1, 9, specsLine, fNorm);
-                    y += rRow;
-                }
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, "Modelo:", eq.Modelo);
+                LV(y, rRow, 6, 6, 7, 9, "Service Tag:", eq.NumeroSerie);
+                y += rRow;
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, "Memoria RAM:", eq.Ram);
+                LV(y, rRow, 6, 6, 7, 9, "Disco Duro:", eq.Almacenamiento);
+                y += rRow;
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, "Procesador:", eq.Procesador);
+                LV(y, rRow, 6, 6, 7, 9, "Fecha garantia:", eq.FechaGarantia);
+                y += rRow;
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, "Accesorio:", eq.Accesorios);
+                LV(y, rRow, 6, 6, 7, 9, "SKU:", eq.NumeroSerie);
+                y += rRow + 10;
             }
         }
         else
         {
+            Sec(y, rSec, "Especificaciones del Equipo"); y += rSec;
             Box(y, rRow, 1, 9);
             Txt(y, rRow, 1, 9, "Sin equipos asignados", fNorm);
-            y += rRow;
+            y += rRow + 10;
         }
-        y += 10;
 
-        // ══ PERIFÉRICOS ══
+        // ══ PERIFÉRICOS ══ (una sola vez: los perifericos "Directo" no
+        // dependen de un equipo en particular, igual que en la carta
+        // individual)
         SaltarSiFalta(rSec);
-        Sec(y, rSec, "Perifericos Asignados"); y += rSec;
+        Sec(y, rSec, "Especificaciones de Perifericos"); y += rSec;
         if (d.Perifericos.Any())
         {
             foreach (var pf in d.Perifericos)
             {
-                SaltarSiFalta(rRow, "Perifericos Asignados (continuacion)");
+                SaltarSiFalta(rRow, "Especificaciones de Perifericos (continuacion)");
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
                 LV(y, rRow, 1, 1, 2, 5, $"{pf.Tipo}:", $"{pf.Marca} {pf.Modelo}".Trim());
                 LV(y, rRow, 6, 6, 7, 9, "Serie:", pf.NumeroSerie);
@@ -1778,9 +1796,18 @@ public class PdfService
         else
         {
             Box(y, rRow, 1, 9);
-            Txt(y, rRow, 1, 9, "Sin perifericos asignados", fNorm);
+            Txt(y, rRow, 1, 9, "Sin perifericos adjuntos", fNorm);
             y += rRow;
         }
+        y += 10;
+
+        // ══ EMISOR POR PARTE DE TECNOLOGIA ══
+        SaltarSiFalta(rSec + rRow);
+        Sec(y, rSec, "Emisor por parte de tecnologia"); y += rSec;
+        Box(y, rRow, 1, 1); Box(y, rRow, 2, 4); Box(y, rRow, 5, 6); Box(y, rRow, 7, 9);
+        LV(y, rRow, 1, 1, 2, 4, "Entregado por:", d.NombreEmisor);
+        LV(y, rRow, 5, 6, 7, 9, "Recibido por:", d.Colaborador);
+        y += rRow;
 
         // ══ FIRMAS ══ (la de TI se rellena si el emisor tiene firma
         // guardada; la del colaborador queda en blanco para firma fisica,
@@ -1791,17 +1818,15 @@ public class PdfService
         if (y > yFirmaAnchor) NewPage();
         y = Math.Max(y, yFirmaAnchor);
         y += 20;
-        double fw   = usable * 0.26;
+        double fw   = usable * 0.32;
         double fx1  = ML + usable * 0.04;
         double fx2  = ML + usable * 0.53;
-        double lineY = y + 55;
+        double lineY = y + 65;
         g.DrawLine(pen, fx1, lineY, fx1 + fw, lineY);
         g.DrawLine(pen, fx2, lineY, fx2 + fw, lineY);
         var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
         g.DrawString("Firma de Tecnologia", fBold, XBrushes.Black, new XRect(fx1, lineY + 3, fw, 12), lFmt);
         g.DrawString("Firma de Empleado",  fBold, XBrushes.Black, new XRect(fx2, lineY + 3, fw, 12), lFmt);
-        if (!string.IsNullOrEmpty(d.NombreEmisor))
-            g.DrawString(d.NombreEmisor, fNorm, XBrushes.Black, new XRect(fx1, lineY + 15, fw, 12), lFmt);
 
         // Firma digital del colaborador (capturada en persona o por link remoto)
         if (!string.IsNullOrEmpty(d.FirmaEmpleadoBase64))
@@ -1834,7 +1859,7 @@ public class PdfService
                 if (File.Exists(rutaFisica))
                 {
                     var firmaITImg = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(rutaFisica)));
-                    double itH = 45;
+                    double itH = 55;
                     double ratio = Math.Min(fw / firmaITImg.PixelWidth, itH / firmaITImg.PixelHeight);
                     double dw = firmaITImg.PixelWidth  * ratio;
                     double dh = firmaITImg.PixelHeight * ratio;
@@ -1916,6 +1941,7 @@ public class EquipoResumenItem
     public string? Procesador   { get; set; }
     public string? Almacenamiento { get; set; }
     public string? Accesorios   { get; set; }
+    public string? FechaGarantia { get; set; }
 }
 
 public class PerifericoResumenItem

@@ -256,7 +256,14 @@
                 @m.FechaInicio.ToString("dd/MM/yyyy HH:mm")
                 @if (m.Empleado != null || m.MiembroExterno != null || m.Grupo != null) { <span> — @m.NombreResponsable@(m.Empleado != null ? $" ({m.Empleado.CodigoEmpleado})" : "")</span> }
                 @if (m.Sitio != null) { <span> — <i class="bi bi-geo-alt"></i> @m.Sitio.Nombre</span> }
-                @if (m.CreadoPorUsuario != null) { <span> — Asignado por @m.CreadoPorUsuario.NombreCompleto</span> }
+                @{
+                  var verboRegistro = m.TipoMovimiento switch {
+                    "Asignacion" or "Prestamo" => "Asignado por",
+                    "Devolucion" or "SalidaGarantia" => "Recibido por",
+                    _ => "Registrado por"
+                  };
+                }
+                @if (m.CreadoPorUsuario != null) { <span> — @verboRegistro @m.CreadoPorUsuario.NombreCompleto</span> }
                 @if (m.FechaDevolucion.HasValue) { <span> — Devuelto: @m.FechaDevolucion.Value.ToString("dd/MM/yyyy")</span> }
                 @if (!string.IsNullOrEmpty(m.Observaciones)) { <div style="white-space:pre-line">@m.Observaciones</div> }
               </div>

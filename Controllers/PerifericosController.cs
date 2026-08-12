@@ -515,23 +515,10 @@ public class PerifericosController : BaseController
 
         var usuarioActual = await _users.GetUserAsync(User);
 
-        // Quién entrega el periférico y firma por TI puede ser distinto de
-        // quien registró la asignación. La PRIMERA descarga de la carta fija
-        // esa atribución con quien la está descargando; descargas
-        // posteriores ya no la cambian.
-        if (!ep.EntregaCompletada && usuarioActual != null)
-        {
-            ep.EntregadoPorUsuarioId = usuarioActual.Id;
-            ep.EntregadoPorUsuario   = usuarioActual;
-            ep.EntregaCompletada     = true;
-            ep.FechaEntrega          = DateTime.Now;
-            ep.Observaciones = AgregarNotaObservacion(ep.Observaciones,
-                usuarioActual.NombreCompleto ?? usuarioActual.Email ?? "Usuario", "Periférico entregado y carta generada.");
-            await _db.SaveChangesAsync();
-        }
-
-        // La firma de IT en la carta debe ser de quien realmente hizo la
-        // entrega, no de quien la descarga después.
+        // Quién entrega el periférico se fija explícitamente con
+        // MarcarEntregaDirecta (el usuario la marca a mano); descargar la
+        // carta para revisarla no implica que ya se entregó. La firma de IT
+        // en la carta cae en quien creó la asignación mientras tanto.
         var usuarioEmisor = ep.EntregadoPorUsuario ?? ep.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
