@@ -74,8 +74,13 @@ public class PdfService
         // hueco en blanco.
         bool esCelular = string.Equals(d.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
         bool ocultarTelefono = esCelular || esPeriferico || !esFiniquito;
+        // Observaciones (filas 38-42) solo tiene sentido en el finiquito; en
+        // la carta de asignacion/prestamo no aporta nada al colaborador, asi
+        // que se oculta igual que el telefono (altura 0, el resto se estira).
+        bool ocultarObservaciones = headerText != null;
         double RawH(int r) =>
             (ocultarTelefono && r is >= 31 and <= 35) ||
+            (ocultarObservaciones && r is >= 38 and <= 42) ||
             (esPeriferico && r is >= 22 and <= 37)
                 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
 
@@ -306,16 +311,19 @@ public class PdfService
             Box(35, 1,35, 9);
         }
 
-        // ══ OBSERVACIONES ══
-        Sec(38, "Observaciones");
-        Box(39, 1,42, 9);
-        if (!string.IsNullOrEmpty(d.Observaciones))
+        // ══ OBSERVACIONES (solo Finiquito — no aplica a Asignación/Préstamo) ══
+        if (!ocultarObservaciones)
         {
-            var (ox, ow) = Cx(1, 9);
-            double oy = CellTop(39);
-            var tf = new XTextFormatter(g);
-            tf.DrawString(d.Observaciones, fNorm, XBrushes.Black,
-                new XRect(ox + 3, oy + 3, ow - 6, CellH(39, 42) - 6));
+            Sec(38, "Observaciones");
+            Box(39, 1,42, 9);
+            if (!string.IsNullOrEmpty(d.Observaciones))
+            {
+                var (ox, ow) = Cx(1, 9);
+                double oy = CellTop(39);
+                var tf = new XTextFormatter(g);
+                tf.DrawString(d.Observaciones, fNorm, XBrushes.Black,
+                    new XRect(ox + 3, oy + 3, ow - 6, CellH(39, 42) - 6));
+            }
         }
 
         // ══ MOTIVO (solo Finiquito — no aplica a Asignación/Préstamo) ══
@@ -1117,14 +1125,8 @@ public class PdfService
     // ─────────────────────────────────────────────────────────────────────
     private void GenerarCaraFrontal(PdfDocument doc, FiniquitoData d, bool esPrestamo)
     {
-        var page = doc.AddPage();
-        page.Size = PdfSharpCore.PageSize.Letter;
-        var g = XGraphics.FromPdfPage(page);
-
-        double W  = page.Width.Point;
-        double H  = page.Height.Point;
         double ML = 54, MR = 54, MT = 36;
-        double TW = W - ML - MR;
+        double H = 0, TW = 0;
 
         var fTitle = new XFont("Arial", 12, XFontStyle.Bold);
         var fBold  = new XFont("Arial", 10.5, XFontStyle.Bold);
@@ -1132,8 +1134,34 @@ public class PdfService
         var fSm    = new XFont("Arial", 9.5, XFontStyle.Regular);
         var gray   = XColor.FromArgb(209, 209, 209);
 
-        double y = MT;
+        PdfPage page = null!;
+        XGraphics g  = null!;
+        double y = 0;
         double leading = 15.5;  // interlineado uniforme para todo el texto
+        // Espacio reservado al fondo de cada pagina para el pie de pagina,
+        // que se redibuja en TODAS las paginas (no solo en la ultima) para
+        // que se vea igual sin importar cuantas se necesiten.
+        const double margenInferior = 34;
+
+        void DibujarPie()
+        {
+            g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
+            var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+            g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+                new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
+                new XRect(ML, H - 22, TW, 12), fmtPie);
+        }
+
+        void NewPage()
+        {
+            if (page != null) DibujarPie();
+            page = doc.AddPage();
+            page.Size = PdfSharpCore.PageSize.Letter;
+            g = XGraphics.FromPdfPage(page);
+            H  = page.Height.Point;
+            TW = page.Width.Point - ML - MR;
+            y  = MT;
+        }
 
         // ── Función de word wrap manual ──────────────────────────────
         // Divide un texto en líneas que caben en el ancho dado
@@ -1158,18 +1186,21 @@ public class PdfService
             return lines;
         }
 
-        // Dibuja un párrafo con word wrap y devuelve la Y final
+        // Dibuja un párrafo con word wrap, paginando si no cabe
         double DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
         {
             var lines = WordWrap(text, font, TW - indentL);
             foreach (var line in lines)
             {
+                if (y + leading > H - margenInferior) NewPage();
                 g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
                 y += leading;
             }
             y += spaceAfter;
             return y;
         }
+
+        NewPage();
 
         // ── Logo ──────────────────────────────────────────────────────
         string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
@@ -1240,6 +1271,7 @@ public class PdfService
             void DrawRow(string c1, string c2, string c3, XFont f)
             {
                 double rowH = RowHeight(c1, c2, c3, f);
+                if (y + rowH > H - margenInferior) NewPage();
                 g.DrawRectangle(pen, ML, y, TW, rowH);
                 g.DrawLine(pen, colX[1], y, colX[1], y + rowH);
                 g.DrawLine(pen, colX[2], y, colX[2], y + rowH);
@@ -1303,12 +1335,7 @@ public class PdfService
             DrawPara("Finalmente, me comprometo a cuidar y hacer buen uso de los bienes asignados, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", fNorm);
         }
 
-        // ── Pie de página ─────────────────────────────────────────────
-        g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
-        var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
-        g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
-            new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
-            new XRect(ML, H - 22, TW, 12), fmtPie);
+        DibujarPie();
     }
 
     // ─────────────────────────────────────────────────────────────────────

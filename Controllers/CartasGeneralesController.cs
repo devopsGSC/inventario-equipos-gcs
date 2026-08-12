@@ -71,6 +71,7 @@ public class CartasGeneralesController : BaseController
             .Include(c => c.Empleado).ThenInclude(e => e!.Departamento)
             .Include(c => c.MiembroExterno)
             .Include(c => c.Grupo)
+            .Include(c => c.CreadoPorUsuario)
             .Include(c => c.EntregadoPorUsuario)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (carta == null) return NotFound();

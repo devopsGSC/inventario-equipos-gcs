@@ -391,6 +391,7 @@ public class MovimientosController : BaseController
             .Include(m => m.Empleado).ThenInclude(e => e!.Departamento)
             .Include(m => m.MiembroExterno)
             .Include(m => m.Grupo)
+            .Include(m => m.CreadoPorUsuario)
             .Include(m => m.EntregadoPorUsuario)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movimiento == null) return NotFound();

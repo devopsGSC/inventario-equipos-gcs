@@ -22,11 +22,6 @@
 
 <div class="card" style="max-width:700px">
   <div class="card-body">
-    <div class="alert alert-success">
-      <i class="bi bi-check-circle-fill"></i>
-      Carta preparada el @Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm").
-    </div>
-
     <div style="background:var(--navy);color:var(--text);border-radius:10px;padding:20px 24px;margin-bottom:20px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">
         Resumen de activos actuales
@@ -35,41 +30,64 @@
       <div style="font-size:13px;color:var(--text2)">@totalEquipos equipo(s) — @totalPerifericos periférico(s)</div>
     </div>
 
-    @if (string.IsNullOrEmpty(Model.FirmaEmpleado))
+    @{
+      bool tieneFirma = !string.IsNullOrEmpty(Model.FirmaEmpleado);
+      string bgOk = "var(--green-bg)", txtOk = "var(--green-text)", bgPend = "var(--amber-bg)", txtPend = "var(--amber-text)";
+    }
+
+    <div class="form-label" style="margin-bottom:10px">Trazabilidad</div>
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:@bgOk;color:@txtOk;font-size:12.5px;font-weight:600">
+        <i class="bi bi-check-circle-fill"></i> Preparada
+      </span>
+      <i class="bi bi-arrow-right-short" style="font-size:20px;color:var(--dark-text2)"></i>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:@(tieneFirma ? bgOk : bgPend);color:@(tieneFirma ? txtOk : txtPend);font-size:12.5px;font-weight:600">
+        <i class="bi @(tieneFirma ? "bi-check-circle-fill" : "bi-hourglass-split")"></i> @(tieneFirma ? "Firmada" : "Firma pendiente")
+      </span>
+      <i class="bi bi-arrow-right-short" style="font-size:20px;color:var(--dark-text2)"></i>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:@(Model.EntregaCompletada ? bgOk : bgPend);color:@(Model.EntregaCompletada ? txtOk : txtPend);font-size:12.5px;font-weight:600">
+        <i class="bi @(Model.EntregaCompletada ? "bi-check-circle-fill" : "bi-hourglass-split")"></i> @(Model.EntregaCompletada ? "Entregada" : "Entrega pendiente")
+      </span>
+    </div>
+
+    <div class="text-muted" style="margin-bottom:6px">
+      Preparada por <strong>@(Model.CreadoPorUsuario?.NombreCompleto ?? Model.CreadoPorUsuario?.Email ?? "—")</strong>
+      el @Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm").
+    </div>
+
+    @if (!tieneFirma)
     {
-      <div class="alert alert-warning">
-        <i class="bi bi-pen"></i> Esta carta todavía no tiene firma de @Model.NombreResponsable.
-        Si no está presente, generá un link para que firme a distancia desde su celular.
+      <div class="text-muted" style="margin-bottom:16px">
+        Todavía no tiene firma de @Model.NombreResponsable. Si no está presente, generá un link para que firme a distancia desde su celular.
       </div>
+    }
+    else
+    {
+      <div class="text-muted" style="margin-bottom:16px">Firma de @Model.NombreResponsable registrada.</div>
     }
 
     <div class="divider"></div>
 
     @if (Model.EntregaCompletada)
     {
-      <div class="alert alert-success" style="margin-bottom:16px">
-        <i class="bi bi-check-circle-fill"></i>
+      <div class="text-muted" style="margin-bottom:16px">
         Entregado por @(Model.EntregadoPorUsuario?.NombreCompleto ?? "—")@(Model.FechaEntrega.HasValue ? $" el {Model.FechaEntrega.Value:dd/MM/yyyy HH:mm}" : "").
-      </div>
-      <div class="gap-2">
-        <a asp-action="DescargarCarta" asp-route-id="@Model.Id" class="btn btn-primary">
-          <i class="bi bi-download"></i> Descargar carta PDF
-        </a>
       </div>
     }
     else
     {
-      <div class="alert alert-warning" style="margin-bottom:16px">
-        <i class="bi bi-hourglass-split"></i>
-        Pendiente de entrega física. Marcala como entregada cuando la entregues para que quede registrado quién lo hizo.
+      <div style="margin-bottom:16px">
+        <div class="text-muted" style="margin-bottom:8px">
+          Pendiente de entrega física. Marcala como entregada cuando la entregues para que quede registrado quién lo hizo.
+        </div>
+        <form method="post" asp-action="MarcarEntrega" asp-route-id="@Model.Id">
+          <label class="form-label">Nota de entrega (opcional)</label>
+          <textarea name="notaEntrega" class="form-control" rows="2" placeholder="Ej: Entregada y firmada en sitio."></textarea>
+          <button type="submit" class="btn btn-primary" style="margin-top:10px">
+            <i class="bi bi-check-circle"></i> Marcar como entregada
+          </button>
+        </form>
       </div>
-      <form method="post" asp-action="MarcarEntrega" asp-route-id="@Model.Id" style="margin-bottom:16px">
-        <label class="form-label">Nota de entrega (opcional)</label>
-        <textarea name="notaEntrega" class="form-control" rows="2" placeholder="Ej: Entregada y firmada en sitio."></textarea>
-        <button type="submit" class="btn btn-primary" style="margin-top:10px">
-          <i class="bi bi-check-circle"></i> Marcar como entregada
-        </button>
-      </form>
     }
 
     <div class="gap-2">
