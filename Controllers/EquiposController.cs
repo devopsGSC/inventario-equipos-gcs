@@ -26,7 +26,8 @@ public class EquiposController : BaseController
         if (!string.IsNullOrEmpty(buscar))
             query = query.Where(e => e.NumeroSerie.Contains(buscar) ||
                                      e.NombreEquipo.Contains(buscar) ||
-                                     e.Marca.Contains(buscar));
+                                     e.Marca.Contains(buscar) ||
+                                     (e.IMEI != null && e.IMEI.Contains(buscar)));
         if (garantiaVencida == true)
             query = query.Where(e => e.FechaGarantia.HasValue &&
                                      e.FechaGarantia.Value < DateTime.Today &&

@@ -45,7 +45,9 @@ public class ReportesController : BaseController
             query = query.Where(e => e.NombreEquipo.Contains(buscar) ||
                                      e.NumeroSerie.Contains(buscar) ||
                                      e.Marca.Contains(buscar) ||
-                                     e.Modelo.Contains(buscar));
+                                     e.Modelo.Contains(buscar) ||
+                                     (e.IMEI != null && e.IMEI.Contains(buscar)) ||
+                                     (e.NumeroCelular != null && e.NumeroCelular.Contains(buscar)));
         if (!string.IsNullOrEmpty(tipoEquipo))
             query = query.Where(e => e.TipoEquipo!.Nombre == tipoEquipo);
         if (!string.IsNullOrEmpty(estadoEquipo))
