@@ -520,10 +520,19 @@ public class MovimientosController : BaseController
         var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
-        // Periféricos asignados a la misma persona/miembro externo/grupo de
-        // este movimiento, para que la carta del equipo también los incluya.
+        // Periféricos incluidos en la misma Asignación completa que este
+        // movimiento (creados prácticamente en el mismo instante), para que
+        // la carta del equipo también los incluya. No se filtra solo por
+        // responsable: eso mostraría también periféricos que la persona ya
+        // tenía de antes y que no forman parte de esta asignación. Se usa
+        // una ventana de ±2s en vez de igualdad exacta por la misma razón
+        // que en FirmaRemotaController.CargarLicencias (precisión de columna
+        // de fecha distinta entre Movimientos y EquiposPerifericos).
+        var desde = movimiento.FechaInicio.AddSeconds(-2);
+        var hasta = movimiento.FechaInicio.AddSeconds(2);
         var perifericos = await _db.EquiposPerifericos
             .Where(ep => ep.FechaDesvinculacion == null &&
+                ep.FechaAsignacion >= desde && ep.FechaAsignacion <= hasta &&
                 ((movimiento.EmpleadoId != null && ep.EmpleadoId == movimiento.EmpleadoId) ||
                  (movimiento.MiembroExternoId != null && ep.MiembroExternoId == movimiento.MiembroExternoId) ||
                  (movimiento.GrupoId != null && ep.GrupoId == movimiento.GrupoId)))
