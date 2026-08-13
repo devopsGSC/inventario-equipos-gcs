@@ -1,0 +1,1 @@
+ALTER TABLE Equipos ADD NumeroCelular NVARCHAR(20) NULL;

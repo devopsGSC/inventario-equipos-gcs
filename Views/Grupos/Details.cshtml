@@ -4,9 +4,7 @@
   ViewData["Title"] = Model.Nombre;
   var equipos            = ViewBag.EquiposActuales as List<Movimiento>       ?? new List<Movimiento>();
   var perifsActuales     = ViewBag.PerifsActuales as List<EquipoPeriferico> ?? new List<EquipoPeriferico>();
-  var historialPerifs    = ViewBag.HistorialPerifericos as List<EquipoPeriferico> ?? new List<EquipoPeriferico>();
   var licenciasActuales  = ViewBag.LicenciasActuales as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>();
-  var historialLicencias = ViewBag.HistorialLicencias as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>();
 }
 
 <div class="page-header">
@@ -124,8 +122,8 @@
               <td><span class="mono text-muted">@ep.Periferico?.NumeroSerie</span></td>
               <td>@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
               <td>
-                <a asp-controller="Perifericos" asp-action="DescargarCartaDirecta"
-                   asp-route-asignacionId="@ep.Id" target="_blank"
+                <a asp-controller="Perifericos" asp-action="CartaDirecta"
+                   asp-route-asignacionId="@ep.Id"
                    class="btn btn-secondary btn-sm">
                   <i class="bi bi-file-earmark-pdf"></i>
                 </a>
@@ -138,75 +136,6 @@
   </div>
 </div>
 }
-
-<div style="margin-top:20px">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Historial de periféricos</div>
-      <span class="badge badge-asignado">@historialPerifs.Count registro(s)</span>
-    </div>
-    @if (historialPerifs.Any())
-    {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Periférico</th>
-              <th>Desde</th>
-              <th>Hasta</th>
-              <th>Duración</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach (var ep in historialPerifs)
-            {
-              var esActivo  = !ep.FechaDesvinculacion.HasValue;
-              var dias      = ep.FechaDesvinculacion.HasValue
-                ? (int)(ep.FechaDesvinculacion.Value - ep.FechaAsignacion).TotalDays
-                : (int)(DateTime.Today - ep.FechaAsignacion).TotalDays;
-              <tr>
-                <td>
-                  <a asp-controller="Perifericos" asp-action="Details" asp-route-id="@ep.PerifericoId"
-                     style="color:var(--accent);text-decoration:none;font-weight:500">
-                    @ep.Periferico?.Marca @ep.Periferico?.Modelo
-                  </a>
-                  <div class="mono text-muted" style="font-size:11px">@ep.Periferico?.NumeroSerie</div>
-                </td>
-                <td class="text-muted">@ep.FechaAsignacion.ToString("dd/MM/yyyy")</td>
-                <td>
-                  @if (esActivo)
-                  {
-                    <span class="badge badge-green">Activo</span>
-                  }
-                  else
-                  {
-                    <span class="text-muted">@ep.FechaDesvinculacion!.Value.ToString("dd/MM/yyyy")</span>
-                  }
-                </td>
-                <td class="text-muted" style="font-size:12.5px">
-                  @if (dias == 0)      { <span>Hoy</span> }
-                  else if (dias == 1)  { <span>1 día</span> }
-                  else if (dias < 30)  { <span>@dias días</span> }
-                  else if (dias < 365) { <span>@(dias / 30) mes(es)</span> }
-                  else                 { <span>@(dias / 365) año(s)</span> }
-                  @if (esActivo) { <span class="text-muted"> (en curso)</span> }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-    else
-    {
-      <div class="card-body">
-        <div class="empty-state">
-          <i class="bi bi-clock-history"></i> Sin historial de periféricos.
-        </div>
-      </div>
-    }
-  </div>
-</div>
 
 @if (licenciasActuales.Any())
 {
@@ -237,43 +166,3 @@
 </div>
 }
 
-<div style="margin-top:20px">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Historial de licencias</div>
-      <span class="badge badge-asignado">@historialLicencias.Count registro(s)</span>
-    </div>
-    @if (historialLicencias.Any())
-    {
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Licencia</th><th>Desde</th><th>Estado</th></tr></thead>
-          <tbody>
-            @foreach (var la in historialLicencias)
-            {
-              <tr>
-                <td>
-                  <a asp-controller="Licencias" asp-action="Details" asp-route-id="@la.TipoLicenciaId"
-                     style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
-                </td>
-                <td class="text-muted">@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
-                <td>
-                  @if (!la.FechaDesvinculacion.HasValue) { <span class="badge badge-green">Activa</span> }
-                  else { <span class="text-muted">@la.FechaDesvinculacion.Value.ToString("dd/MM/yyyy")</span> }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-    else
-    {
-      <div class="card-body">
-        <div class="empty-state">
-          <i class="bi bi-clock-history"></i> Sin historial de licencias.
-        </div>
-      </div>
-    }
-  </div>
-</div>

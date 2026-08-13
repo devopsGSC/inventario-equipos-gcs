@@ -63,6 +63,13 @@
             <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.IMEI</div>
           </div>
         }
+        @if (!string.IsNullOrEmpty(eq.NumeroCelular))
+        {
+          <div>
+            <div class="form-label">Número celular</div>
+            <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.NumeroCelular</div>
+          </div>
+        }
         <div>
           <div class="form-label">Costo</div>
           <div style="font-size:14px;font-weight:500">@(eq.Costo.HasValue ? "$" + eq.Costo.Value.ToString("N2") : "—")</div>

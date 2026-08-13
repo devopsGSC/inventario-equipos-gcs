@@ -73,7 +73,12 @@ public class PdfService
         // resto del contenido se estire y ocupe ese espacio sin dejar un
         // hueco en blanco.
         bool esCelular = string.Equals(d.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
-        bool ocultarTelefono = esCelular || esPeriferico || !esFiniquito;
+        // El formulario de finiquito marca estos campos como "si aplica": si
+        // la persona no tenía teléfono corporativo separado, quedan vacíos y
+        // no hay nada que mostrar (si no, quedan etiquetas en blanco).
+        bool tieneTelefono = !string.IsNullOrWhiteSpace(d.TelNumero) || !string.IsNullOrWhiteSpace(d.TelMarca) ||
+                              !string.IsNullOrWhiteSpace(d.TelModelo) || !string.IsNullOrWhiteSpace(d.TelImei);
+        bool ocultarTelefono = esCelular || esPeriferico || !esFiniquito || !tieneTelefono;
         // Observaciones (filas 38-42) solo tiene sentido en el finiquito; en
         // la carta de asignacion/prestamo no aporta nada al colaborador, asi
         // que se oculta igual que el telefono (altura 0, el resto se estira).
@@ -81,7 +86,11 @@ public class PdfService
         double RawH(int r) =>
             (ocultarTelefono && r is >= 31 and <= 35) ||
             (ocultarObservaciones && r is >= 38 and <= 42) ||
-            (esPeriferico && r is >= 22 and <= 37)
+            (esPeriferico && r is >= 22 and <= 37) ||
+            // Un periférico no tiene RAM, disco, procesador ni accesorios —
+            // esas filas son propias del grid de equipo, así que se ocultan
+            // (si no, quedan etiquetas en blanco sin ningún valor al lado).
+            (esPeriferico && r is 18 or 19 or 20)
                 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
 
         // Precalcular top de cada fila desde arriba (Y=0 es ARRIBA en PdfSharpCore)
@@ -253,15 +262,23 @@ public class PdfService
         Box(17, 1,17, 1); Box(17, 2,17, 5); Box(17, 6,17, 6); Box(17, 7,17, 9);
         LV(17, 1,1, 2,5, "Modelo:",      d.Modelo);
         LV(17, 6,6, 7,9, "Service Tag:", d.ServiceTag);
-        Box(18, 1,18, 1); Box(18, 2,18, 5); Box(18, 6,18, 6); Box(18, 7,18, 9);
-        LV(18, 1,1, 2,5, "Memoria RAM:", d.Ram);
-        LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
-        Box(19, 1,19, 1); Box(19, 2,19, 5); Box(19, 6,19, 6); Box(19, 7,19, 9);
-        LV(19, 1,1, 2,5, esCelular ? "IMEI:" : "Procesador:", esCelular ? d.TelImei : d.Procesador);
-        LV(19, 6,6, 7,9, "Fecha garantia:", d.FechaGarantia);
-        Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
-        LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
-        LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? d.TelPlan : d.Sku);
+        // Un periférico no tiene RAM, disco, procesador ni accesorios — esas
+        // filas son propias del grid de equipo, así que se omiten (si no,
+        // quedan etiquetas en blanco sin ningún valor al lado). La altura de
+        // estas filas ya se pone en 0 arriba (RawH) para que no dejen un
+        // hueco vacío.
+        if (!esPeriferico)
+        {
+            Box(18, 1,18, 1); Box(18, 2,18, 5); Box(18, 6,18, 6); Box(18, 7,18, 9);
+            LV(18, 1,1, 2,5, esCelular ? "Número celular:" : "Memoria RAM:", esCelular ? d.TelNumero : d.Ram);
+            LV(18, 6,6, 7,9, "Disco Duro:",  d.Disco);
+            Box(19, 1,19, 1); Box(19, 2,19, 5); Box(19, 6,19, 6); Box(19, 7,19, 9);
+            LV(19, 1,1, 2,5, esCelular ? "IMEI:" : "Procesador:", esCelular ? d.TelImei : d.Procesador);
+            LV(19, 6,6, 7,9, "Fecha garantia:", d.FechaGarantia);
+            Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
+            LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
+            LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? d.TelPlan : d.Sku);
+        }
         Box(21, 1,21, 9);
 
         // ══ PERIFÉRICOS ══ (no aplica cuando el documento ES de un periferico)
@@ -587,6 +604,7 @@ public class PdfService
             ReceptorNombre = nombreEmisor ?? "",
             ReceptorCentro = movimiento.NombreResponsable,
             TelImei        = eq.IMEI ?? "",
+            TelNumero      = eq.NumeroCelular ?? "",
             TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
@@ -631,6 +649,7 @@ public class PdfService
             ReceptorNombre = nombreEmisor ?? "",
             ReceptorCentro = movimiento.NombreResponsable,
             TelImei        = eq.IMEI ?? "",
+            TelNumero      = eq.NumeroCelular ?? "",
             TelPlan        = eq.PlanData?.Nombre ?? "",
             FirmaEmpleadoBase64 = firma ?? "",
             Perifericos    = perifs
@@ -1745,6 +1764,7 @@ public class PdfService
         {
             foreach (var eq in d.Equipos)
             {
+                bool esCelular = string.Equals(eq.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
                 SaltarSiFalta(rSec + rRow * 5);
                 Sec(y, rSec, "Especificaciones del Equipo"); y += rSec;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
@@ -1756,16 +1776,16 @@ public class PdfService
                 LV(y, rRow, 6, 6, 7, 9, "Service Tag:", eq.NumeroSerie);
                 y += rRow;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
-                LV(y, rRow, 1, 1, 2, 5, "Memoria RAM:", eq.Ram);
+                LV(y, rRow, 1, 1, 2, 5, esCelular ? "Número celular:" : "Memoria RAM:", esCelular ? eq.NumeroCelular : eq.Ram);
                 LV(y, rRow, 6, 6, 7, 9, "Disco Duro:", eq.Almacenamiento);
                 y += rRow;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
-                LV(y, rRow, 1, 1, 2, 5, "Procesador:", eq.Procesador);
+                LV(y, rRow, 1, 1, 2, 5, esCelular ? "IMEI:" : "Procesador:", esCelular ? eq.Imei : eq.Procesador);
                 LV(y, rRow, 6, 6, 7, 9, "Fecha garantia:", eq.FechaGarantia);
                 y += rRow;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
                 LV(y, rRow, 1, 1, 2, 5, "Accesorio:", eq.Accesorios);
-                LV(y, rRow, 6, 6, 7, 9, "SKU:", eq.NumeroSerie);
+                LV(y, rRow, 6, 6, 7, 9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? eq.PlanDatos : eq.NumeroSerie);
                 y += rRow + 10;
             }
         }
@@ -1941,6 +1961,9 @@ public class EquipoResumenItem
     public string? Procesador   { get; set; }
     public string? Almacenamiento { get; set; }
     public string? Accesorios   { get; set; }
+    public string? Imei          { get; set; }
+    public string? NumeroCelular { get; set; }
+    public string? PlanDatos     { get; set; }
     public string? FechaGarantia { get; set; }
 }
 

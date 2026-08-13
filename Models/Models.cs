@@ -104,6 +104,8 @@ public class Equipo
     public string? Accesorios { get; set; }
     [MaxLength(50, ErrorMessage = "Máximo 50 caracteres.")]
     public string? IMEI { get; set; }
+    [MaxLength(20, ErrorMessage = "Máximo 20 caracteres."), Display(Name = "Número celular")]
+    public string? NumeroCelular { get; set; }
     [Column(TypeName = "decimal(10,2)")]
     public decimal? Costo { get; set; }
     [Display(Name = "Fecha de compra")]

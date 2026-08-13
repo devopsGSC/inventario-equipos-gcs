@@ -38,7 +38,7 @@
     <div class="form-label" style="margin-bottom:10px">Trazabilidad</div>
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:16px;flex-wrap:wrap">
       <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:@bgOk;color:@txtOk;font-size:12.5px;font-weight:600">
-        <i class="bi bi-check-circle-fill"></i> Preparada
+        <i class="bi bi-check-circle-fill"></i> Asignada
       </span>
       <i class="bi bi-arrow-right-short" style="font-size:20px;color:var(--dark-text2)"></i>
       <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:@(tieneFirma ? bgOk : bgPend);color:@(tieneFirma ? txtOk : txtPend);font-size:12.5px;font-weight:600">
@@ -52,7 +52,7 @@
 
     <div class="text-muted" style="margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span>
-        Preparada por <strong>@(Model.CreadoPorUsuario?.NombreCompleto ?? Model.CreadoPorUsuario?.Email ?? "—")</strong>
+        Asignada por <strong>@(Model.CreadoPorUsuario?.NombreCompleto ?? Model.CreadoPorUsuario?.Email ?? "—")</strong>
         el @Model.FechaCreacion.ToString("dd/MM/yyyy HH:mm").
       </span>
       @if (!Model.EntregaCompletada)

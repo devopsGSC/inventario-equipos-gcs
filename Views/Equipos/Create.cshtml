@@ -99,6 +99,11 @@
           <span asp-validation-for="IMEI" class="field-error"></span>
           <div class="input-note">15 dígitos. Puedes marcarlo con *#06# en el teléfono.</div>
         </div>
+        <div id="sec-numero-celular" style="display:none" class="form-group">
+          <label class="form-label">Número celular</label>
+          <input asp-for="NumeroCelular" class="form-control" placeholder="Ej: 7123-4567" maxlength="20"/>
+          <span asp-validation-for="NumeroCelular" class="field-error"></span>
+        </div>
         <div class="form-group">
           <label class="form-label">Marca</label>
           <input asp-for="Marca" class="form-control" placeholder="Ej: Dell"/>
@@ -222,6 +227,7 @@ function seleccionarTipo(el) {
   document.getElementById('tipoId').value = el.dataset.id;
   document.getElementById('nuevoTipoWrap').classList.remove('show');
   document.getElementById('sec-imei').style.display = el.dataset.nombre === 'Celular' ? 'block' : 'none';
+  document.getElementById('sec-numero-celular').style.display = el.dataset.nombre === 'Celular' ? 'block' : 'none';
   document.getElementById('sec-plan').style.display = el.dataset.nombre === 'Celular' ? 'block' : 'none';
 }
 
@@ -308,6 +314,7 @@ async function agregarNuevoTipo() {
   document.querySelector(`#tipoGrid [data-id="${data.id}"]`).classList.add('selected');
   document.querySelector('#tipoGrid [data-id="nuevo"]').classList.remove('selected');
   document.getElementById('sec-imei').style.display = data.nombre === 'Celular' ? 'block' : 'none';
+  document.getElementById('sec-numero-celular').style.display = data.nombre === 'Celular' ? 'block' : 'none';
   document.getElementById('sec-plan').style.display = data.nombre === 'Celular' ? 'block' : 'none';
 }
 

@@ -232,6 +232,7 @@ public class CartasGeneralesController : BaseController
     {
         var equiposQ = _db.Movimientos
             .Include(m => m.Equipo).ThenInclude(eq => eq!.TipoEquipo)
+            .Include(m => m.Equipo).ThenInclude(eq => eq!.PlanData)
             .Where(m => m.FechaDevolucion == null && (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"));
         var perifsQ = _db.EquiposPerifericos
             .Include(ep => ep.Periferico).ThenInclude(p => p!.TipoPeriferico)
@@ -273,7 +274,10 @@ public class CartasGeneralesController : BaseController
                 Procesador     = m.Equipo?.Procesador,
                 Almacenamiento = m.Equipo?.Almacenamiento,
                 Accesorios     = m.Equipo?.Accesorios,
-                FechaGarantia  = m.Equipo?.FechaGarantia?.ToString("dd/MM/yyyy")
+                FechaGarantia  = m.Equipo?.FechaGarantia?.ToString("dd/MM/yyyy"),
+                Imei           = m.Equipo?.IMEI,
+                NumeroCelular  = m.Equipo?.NumeroCelular,
+                PlanDatos      = m.Equipo?.PlanData?.Nombre
             }).ToList(),
             perifericos.Select(ep => new PerifericoResumenItem
             {

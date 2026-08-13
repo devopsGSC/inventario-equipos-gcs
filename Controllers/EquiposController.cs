@@ -350,6 +350,7 @@ public class EquiposController : BaseController
         original.NumeroSerie = equipo.NumeroSerie;
         original.TipoEquipoId = equipo.TipoEquipoId;
         original.IMEI = equipo.IMEI;
+        original.NumeroCelular = equipo.NumeroCelular;
         original.Accesorios = equipo.Accesorios;
         original.Costo = equipo.Costo;
         original.FechaCompra = equipo.FechaCompra;
