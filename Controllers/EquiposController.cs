@@ -38,8 +38,19 @@ public class EquiposController : BaseController
                                      e.Estado != "Baja");
 
         var total = await query.CountAsync();
-        var equipos = await query
-            .OrderByDescending(e => e.FechaRegistro)
+
+        // En la lista de "Asignados" interesa más quién se asignó más
+        // recientemente que cuándo se registró el equipo en el sistema.
+        var ordenado = estado == "Asignado"
+            ? query.OrderByDescending(e => _db.Movimientos
+                .Where(m => m.EquipoId == e.Id && m.FechaDevolucion == null &&
+                    (m.TipoMovimiento == "Asignacion" || m.TipoMovimiento == "Prestamo"))
+                .OrderByDescending(m => m.FechaInicio)
+                .Select(m => (DateTime?)m.FechaInicio)
+                .FirstOrDefault())
+            : query.OrderByDescending(e => e.FechaRegistro);
+
+        var equipos = await ordenado
             .Skip((pagina - 1) * tamPagina)
             .Take(tamPagina)
             .ToListAsync();

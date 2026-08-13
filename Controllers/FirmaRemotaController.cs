@@ -17,7 +17,7 @@ public class FirmaRemotaController : Controller
 
     private Task<SolicitudFirma?> BuscarSolicitud(string token) =>
         _db.SolicitudesFirma
-            .Include(s => s.Movimiento).ThenInclude(m => m!.Equipo)
+            .Include(s => s.Movimiento).ThenInclude(m => m!.Equipo).ThenInclude(eq => eq!.TipoEquipo)
             .Include(s => s.Movimiento).ThenInclude(m => m!.Empleado)
             .Include(s => s.Movimiento).ThenInclude(m => m!.MiembroExterno)
             .Include(s => s.Movimiento).ThenInclude(m => m!.Grupo)

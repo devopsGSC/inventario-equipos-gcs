@@ -11,8 +11,66 @@
     string nombreResponsable = esCartaGeneral ? cg!.NombreResponsable : esPeriferico ? ep!.NombreResponsable : mov!.NombreResponsable;
     string tituloItem = esCartaGeneral ? "Todos tus equipos y periféricos actuales"
         : esPeriferico ? $"{ep!.Periferico?.TipoPeriferico?.Nombre} — {ep.Periferico?.Marca} {ep.Periferico?.Modelo}"
-        : mov!.Equipo?.NombreEquipo ?? "";
+        : $"{mov!.Equipo?.TipoEquipo?.Nombre} — {mov.Equipo?.Marca} {mov.Equipo?.Modelo}";
     string serieItem = esCartaGeneral ? "" : esPeriferico ? (ep!.Periferico?.NumeroSerie ?? "") : (mov!.Equipo?.NumeroSerie ?? "");
+
+    // Mismo texto legal que se imprime en la carta (PdfService.cs), para que
+    // la persona lo pueda leer antes de firmar a distancia y no solo al
+    // recibir el PDF. bullet=true → viñeta con sangría, igual que en el PDF.
+    var condiciones = new List<(string Texto, bool Bullet)>();
+    if (esCartaGeneral)
+    {
+        condiciones.Add(("Declaro que recibo dichos bienes con sus respectivos accesorios y me comprometo a utilizarlos exclusivamente para fines laborales, así como a devolverlos en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", false));
+        condiciones.Add(("Cualquier daño, desperfecto, pérdida, extravío o robo que sufrieren estos equipos o periféricos después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil.", false));
+        condiciones.Add(("En caso de identificar fallas de fábrica o desperfectos al momento de la recepción, me comprometo a reportarlos inmediatamente al Departamento de Tecnología para la validación y aplicación de garantía correspondiente. De no reportarse oportunamente, se entenderá que los bienes fueron recibidos a satisfacción.", false));
+        condiciones.Add(("Reconozco que la no devolución de estos equipos o periféricos corporativos, o cualquier saldo pendiente derivado de su uso, podrá dar lugar a acciones administrativas o disciplinarias conforme a las políticas internas de la empresa.", false));
+        condiciones.Add(("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", false));
+        condiciones.Add(("Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", true));
+        condiciones.Add(("No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", true));
+        condiciones.Add(("En el caso de teléfonos corporativos, cualquier cargo adicional al plan asignado, incluyendo suscripciones, promociones, compras, mensajes premium o consumos no autorizados, será responsabilidad exclusiva del usuario.", true));
+        condiciones.Add(("Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", true));
+        condiciones.Add(("Finalmente, me comprometo a cuidar y hacer buen uso de los bienes asignados, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", false));
+    }
+    else if (esPeriferico)
+    {
+        condiciones.Add(("Asimismo, declaro que recibo dicho bien con sus respectivos accesorios y me comprometo a utilizarlo exclusivamente para fines laborales, así como a devolverlo en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", false));
+        condiciones.Add(("Cualquier daño, desperfecto, pérdida, extravío o robo que sufriere el periférico después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil.", false));
+        condiciones.Add(("En caso de identificar fallas de fábrica o desperfectos al momento de la recepción, me comprometo a reportarlos inmediatamente al Departamento de Tecnología para la validación y aplicación de garantía correspondiente. De no reportarse oportunamente, se entenderá que el periférico fue recibido a satisfacción.", false));
+        condiciones.Add(("Reconozco que la no devolución del periférico corporativo o cualquier saldo pendiente derivado de su uso podrá dar lugar a acciones administrativas o disciplinarias conforme a las políticas internas de la empresa.", false));
+        condiciones.Add(("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", false));
+        condiciones.Add(("Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", true));
+        condiciones.Add(("No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", true));
+        condiciones.Add(("Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", true));
+        condiciones.Add(("Finalmente, me comprometo a cuidar y hacer buen uso del bien asignado, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", false));
+    }
+    else if (esPrestamo)
+    {
+        string condicionPrestamo = string.IsNullOrEmpty(mov!.Observaciones)
+            ? "Me comprometo a devolver el equipo en el mismo estado en que fue recibido, en la fecha acordada o cuando la empresa lo requiera."
+            : $"El préstamo tiene carácter temporal bajo las siguientes condiciones: {mov.Observaciones}. Me comprometo a devolver el equipo en el mismo estado en que fue recibido.";
+        condiciones.Add((condicionPrestamo, false));
+        condiciones.Add(("Me comprometo a no ceder, prestar o transferir el equipo a terceros sin autorización expresa del Departamento de Tecnología.", false));
+        condiciones.Add(("Cualquier daño o pérdida ocurrida durante el período de préstamo será bajo mi responsabilidad.", false));
+        condiciones.Add(("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", false));
+        condiciones.Add(("Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", true));
+        condiciones.Add(("No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", true));
+        condiciones.Add(("En el caso de teléfonos corporativos, cualquier cargo adicional al plan asignado, incluyendo suscripciones, promociones, compras, mensajes premium o consumos no autorizados, será responsabilidad exclusiva del usuario.", true));
+        condiciones.Add(("Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", true));
+        condiciones.Add(("Finalmente, me comprometo a cuidar y hacer buen uso de los bienes asignados, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", false));
+    }
+    else
+    {
+        condiciones.Add(("Asimismo, declaro que recibo dichos bienes con sus respectivos accesorios y me comprometo a utilizarlos exclusivamente para fines laborales, así como a devolverlos en buen estado al momento que la empresa lo solicite o al finalizar mi relación laboral.", false));
+        condiciones.Add(("Cualquier daño, desperfecto, pérdida, extravío o robo que sufriere el equipo o accesorios después de su asignación será bajo mi responsabilidad, comprometiéndome a asumir el costo de la reparación correspondiente o el valor deducible necesario para la reposición del bien por uno de características similares, salvo deterioro ocasionado por uso normal o fin de vida útil del equipo.", false));
+        condiciones.Add(("En caso de identificar fallas de fábrica o desperfectos al momento de la recepción, me comprometo a reportarlos inmediatamente al Departamento de Tecnología para la validación y aplicación de garantía correspondiente. De no reportarse oportunamente, se entenderá que el equipo fue recibido a satisfacción.", false));
+        condiciones.Add(("Reconozco que la no devolución del equipo corporativo, accesorios asignados o cualquier saldo pendiente derivado de su uso podrá dar lugar a acciones administrativas o disciplinarias conforme a las políticas internas de la empresa.", false));
+        condiciones.Add(("Asimismo, manifiesto que tengo conocimiento de las siguientes disposiciones:", false));
+        condiciones.Add(("Está prohibida la instalación de software, aplicaciones o herramientas no autorizadas por el Departamento de Tecnología.", true));
+        condiciones.Add(("No está permitido realizar configuraciones que comprometan la seguridad de la información corporativa.", true));
+        condiciones.Add(("En el caso de teléfonos corporativos, cualquier cargo adicional al plan asignado, incluyendo suscripciones, promociones, compras, mensajes premium o consumos no autorizados, será responsabilidad exclusiva del usuario.", true));
+        condiciones.Add(("Me comprometo a seguir las políticas de seguridad informática y las buenas prácticas establecidas por la empresa, especialmente en el uso de redes públicas, navegación en internet y manejo de información confidencial.", true));
+        condiciones.Add(("Finalmente, me comprometo a cuidar y hacer buen uso de los bienes asignados, contribuyendo a prolongar su vida útil y garantizando su adecuada conservación.", false));
+    }
     DateTime fechaInicio = esCartaGeneral ? cg!.FechaCreacion : esPeriferico ? ep!.FechaAsignacion : mov!.FechaInicio;
     DateTime? fechaFinEstimada = esCartaGeneral ? null : esPeriferico ? ep!.FechaDevolucionEstimada : mov!.FechaFinEstimada;
     string tipoLabel = esCartaGeneral ? "Carta general de activos"
@@ -67,6 +125,12 @@
         .status { font-size: 12px; color: var(--dark-text2); }
         .status.ok { color: var(--green-text); }
         .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 7px; vertical-align: middle; }
+        .terminos-box { max-height: 200px; overflow-y: auto; border: 1px solid #dde2ec; border-radius: 8px; padding: 12px 14px; background: #fafbfd; font-size: 12.5px; line-height: 1.5; color: var(--dark-text2); margin-bottom: 12px; }
+        .terminos-box p { margin-bottom: 8px; }
+        .terminos-box p.bullet { padding-left: 14px; position: relative; }
+        .terminos-box p.bullet::before { content: "•"; position: absolute; left: 0; }
+        .chk-acepto { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; cursor: pointer; color: var(--dark-text); }
+        .chk-acepto input { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -154,6 +218,22 @@
         }
     }
 
+    <div class="card">
+        <div class="card-body">
+            <div class="form-label" style="margin-bottom:10px">Términos y condiciones</div>
+            <div class="terminos-box">
+                @foreach (var (texto, bullet) in condiciones)
+                {
+                    <p class="@(bullet ? "bullet" : "")">@texto</p>
+                }
+            </div>
+            <label class="chk-acepto">
+                <input type="checkbox" id="chkTerminos"/>
+                <span>He leído y acepto los términos y condiciones descritos arriba, los mismos que se incluyen en la carta que voy a firmar.</span>
+            </label>
+        </div>
+    </div>
+
     <div class="alert alert-info">
         <i class="bi bi-info-circle-fill"></i>
         Al firmar confirmás la recepción de todo lo detallado arriba en las condiciones indicadas por tu empresa.
@@ -170,7 +250,7 @@
             <button type="button" class="btn btn-secondary" onclick="limpiarFirma()"><i class="bi bi-eraser"></i> Limpiar</button>
             <span class="status" id="firmaStatus">Sin firma</span>
         </div>
-        <button type="submit" class="btn btn-primary" id="btnFirmar">
+        <button type="submit" class="btn btn-primary" id="btnFirmar" disabled>
             <i class="bi bi-check-lg"></i> Firmar y confirmar
         </button>
     </form>
@@ -223,11 +303,21 @@ canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true;
 canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasFirma = true; actualizarStatus(); }, { passive: false });
 canvas.addEventListener('touchend', () => drawing = false);
 
+const chkTerminos = document.getElementById('chkTerminos');
+const btnFirmar = document.getElementById('btnFirmar');
+
 function actualizarStatus() {
     const st = document.getElementById('firmaStatus');
     st.textContent = hasFirma ? '✓ Firma capturada' : 'Sin firma';
     st.className = hasFirma ? 'status ok' : 'status';
+    actualizarBoton();
 }
+
+function actualizarBoton() {
+    btnFirmar.disabled = !(hasFirma && chkTerminos.checked);
+}
+
+chkTerminos.addEventListener('change', actualizarBoton);
 
 function limpiarFirma() {
     const rect = canvas.getBoundingClientRect();
@@ -237,6 +327,11 @@ function limpiarFirma() {
 }
 
 document.getElementById('formFirma').addEventListener('submit', e => {
+    if (!chkTerminos.checked) {
+        e.preventDefault();
+        alert('Tenés que aceptar los términos y condiciones antes de continuar.');
+        return;
+    }
     if (!hasFirma) {
         e.preventDefault();
         alert('Firmá dentro del recuadro antes de continuar.');
