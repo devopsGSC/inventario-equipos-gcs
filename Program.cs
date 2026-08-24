@@ -20,6 +20,12 @@ builder.Services.AddControllersWithViews(options =>
         options.Filters.Add<NavigationTrackingFilter>();
     })
     .AddDataAnnotationsLocalization()
+    // TempData usa la sesión (no cookies): la carga/actualización masiva
+    // guarda la previsualización completa del Excel en TempData, y si viaja
+    // en una cookie el header "Cookie" puede superar el límite de Apache
+    // (proxy reverso) al confirmar, dando "Bad Request... header field
+    // exceeds server limit" con archivos de varias filas.
+    .AddSessionStateTempDataProvider()
     .AddMvcOptions(options =>
     {
         options.ModelBindingMessageProvider.SetValueMustNotBeNullAccessor(
