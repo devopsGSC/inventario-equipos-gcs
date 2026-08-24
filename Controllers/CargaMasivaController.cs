@@ -73,10 +73,11 @@ public class CargaMasivaController : BaseController
                 string marca      = row.Cell(3).GetString().Trim();
                 string modelo     = row.Cell(4).GetString().Trim();
                 string serie      = row.Cell(5).GetString().Trim();
-                string accesorios = row.Cell(6).GetString().Trim();
-                string costoStr   = row.Cell(7).GetString().Trim();
-                string fCompraStr = row.Cell(8).GetString().Trim();
-                string fGarantStr = row.Cell(9).GetString().Trim();
+                string imei       = row.Cell(6).GetString().Trim();
+                string accesorios = row.Cell(7).GetString().Trim();
+                string costoStr   = row.Cell(8).GetString().Trim();
+                string fCompraStr = row.Cell(9).GetString().Trim();
+                string fGarantStr = row.Cell(10).GetString().Trim();
 
                 var ep = new EquipoPrevio
                 {
@@ -86,6 +87,7 @@ public class CargaMasivaController : BaseController
                     Marca         = marca,
                     Modelo        = modelo,
                     NumeroSerie   = serie,
+                    IMEI          = imei,
                     Accesorios    = accesorios,
                     CostoStr      = costoStr,
                     FechaCompraStr= fCompraStr,
@@ -99,6 +101,8 @@ public class CargaMasivaController : BaseController
                 if (string.IsNullOrEmpty(marca))      errs.Add("Marca requerida");
                 if (string.IsNullOrEmpty(modelo))     errs.Add("Modelo requerido");
                 if (string.IsNullOrEmpty(serie))      errs.Add("Serie requerida");
+                if (tipoNombre.Equals("Celular", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(imei))
+                    errs.Add("IMEI requerido para celulares");
 
                 if (errs.Any())
                     ep.EstadoPreview = "Error";
@@ -195,6 +199,7 @@ public class CargaMasivaController : BaseController
                     Marca         = ep.Marca,
                     Modelo        = ep.Modelo,
                     NumeroSerie   = ep.NumeroSerie,
+                    IMEI          = string.IsNullOrEmpty(ep.IMEI) ? null : ep.IMEI,
                     Accesorios    = string.IsNullOrEmpty(ep.Accesorios) ? null : ep.Accesorios,
                     Costo         = costo,
                     FechaCompra   = TryParseDate(ep.FechaCompraStr),
@@ -278,6 +283,7 @@ public class EquipoPrevio
     public string  Marca          { get; set; } = "";
     public string  Modelo         { get; set; } = "";
     public string  NumeroSerie    { get; set; } = "";
+    public string  IMEI           { get; set; } = "";
     public string  Accesorios     { get; set; } = "";
     public string  CostoStr       { get; set; } = "";
     public string  FechaCompraStr { get; set; } = "";

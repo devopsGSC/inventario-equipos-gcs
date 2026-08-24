@@ -52,7 +52,7 @@ else
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Fila</th><th>Nombre</th><th>Tipo</th><th>Marca / Modelo</th><th>No. Serie</th><th>Estado</th><th>Detalle</th></tr>
+        <tr><th>Fila</th><th>Nombre</th><th>Tipo</th><th>Marca / Modelo</th><th>No. Serie</th><th>IMEI</th><th>Estado</th><th>Detalle</th></tr>
       </thead>
       <tbody>
         @foreach (var p in Model)
@@ -75,6 +75,7 @@ else
             <td>@p.TipoEquipo</td>
             <td class="text-muted">@p.Marca @p.Modelo</td>
             <td class="mono">@p.NumeroSerie</td>
+            <td class="mono text-muted">@p.IMEI</td>
             <td><span class="badge @badgeCls"><i class="bi @icon"></i> @estadoLabel</span></td>
             <td style="font-size:12.5px;color:var(--dark-text2)">@p.MensajePreview</td>
           </tr>
