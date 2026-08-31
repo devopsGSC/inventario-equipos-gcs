@@ -650,7 +650,7 @@ public class MovimientosController : BaseController
             Procesador     = procesador ?? "",
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Accesorio      = eq.Accesorios ?? "",
-            Sku            = eq.NumeroSerie,
+            CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
             Observaciones  = observaciones ?? "",
             TelNumero      = telNumero ?? "",
             TelMarca       = telMarca ?? "",

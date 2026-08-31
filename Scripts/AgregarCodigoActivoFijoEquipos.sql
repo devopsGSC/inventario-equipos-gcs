@@ -1,0 +1,1 @@
+ALTER TABLE Equipos ADD CodigoActivoFijo NVARCHAR(50) NULL;

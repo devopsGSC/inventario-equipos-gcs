@@ -78,6 +78,7 @@ public class CargaMasivaController : BaseController
                 string costoStr   = row.Cell(8).GetString().Trim();
                 string fCompraStr = row.Cell(9).GetString().Trim();
                 string fGarantStr = row.Cell(10).GetString().Trim();
+                string codActivo  = row.Cell(11).GetString().Trim();
 
                 var ep = new EquipoPrevio
                 {
@@ -91,7 +92,8 @@ public class CargaMasivaController : BaseController
                     Accesorios    = accesorios,
                     CostoStr      = costoStr,
                     FechaCompraStr= fCompraStr,
-                    FechaGarantStr= fGarantStr
+                    FechaGarantStr= fGarantStr,
+                    CodigoActivoFijo = codActivo
                 };
 
                 // Validaciones
@@ -201,6 +203,7 @@ public class CargaMasivaController : BaseController
                     NumeroSerie   = ep.NumeroSerie,
                     IMEI          = string.IsNullOrEmpty(ep.IMEI) ? null : ep.IMEI,
                     Accesorios    = string.IsNullOrEmpty(ep.Accesorios) ? null : ep.Accesorios,
+                    CodigoActivoFijo = string.IsNullOrEmpty(ep.CodigoActivoFijo) ? null : ep.CodigoActivoFijo,
                     Costo         = costo,
                     FechaCompra   = TryParseDate(ep.FechaCompraStr),
                     FechaGarantia = TryParseDate(ep.FechaGarantStr),
@@ -288,6 +291,7 @@ public class EquipoPrevio
     public string  CostoStr       { get; set; } = "";
     public string  FechaCompraStr { get; set; } = "";
     public string  FechaGarantStr { get; set; } = "";
+    public string  CodigoActivoFijo { get; set; } = "";
     public string  EstadoPreview  { get; set; } = ""; // Valido | Duplicado | NombreDuplicado | Error
     public string  MensajePreview { get; set; } = "";
 }

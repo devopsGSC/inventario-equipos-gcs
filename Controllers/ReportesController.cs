@@ -47,7 +47,8 @@ public class ReportesController : BaseController
                                      e.Marca.Contains(buscar) ||
                                      e.Modelo.Contains(buscar) ||
                                      (e.IMEI != null && e.IMEI.Contains(buscar)) ||
-                                     (e.NumeroCelular != null && e.NumeroCelular.Contains(buscar)));
+                                     (e.NumeroCelular != null && e.NumeroCelular.Contains(buscar)) ||
+                                     (e.CodigoActivoFijo != null && e.CodigoActivoFijo.Contains(buscar)));
         if (!string.IsNullOrEmpty(tipoEquipo))
             query = query.Where(e => e.TipoEquipo!.Nombre == tipoEquipo);
         if (!string.IsNullOrEmpty(estadoEquipo))
@@ -386,7 +387,7 @@ public class ReportesController : BaseController
     // ─── EXPORT: EQUIPOS ──────────────────────────────────────────────────────
 
     private static string[] EncabezadosEquipos => new[]
-        { "Nombre", "Tipo", "Marca", "Modelo", "Serie", "IMEI", "Número celular", "Estado",
+        { "Nombre", "Tipo", "Marca", "Modelo", "Serie", "IMEI", "Número celular", "Código activo fijo", "Estado",
           "RAM", "Procesador", "Almacenamiento", "Plan de datos",
           "Accesorios", "Responsable", "Departamento / Organización", "Sitio", "Tipo movimiento",
           "Fecha asignación", "Fecha compra", "Garantía" };
@@ -396,7 +397,7 @@ public class ReportesController : BaseController
             var m = movs.GetValueOrDefault(e.Id);
             return new[] {
                 e.NombreEquipo, e.TipoEquipo?.Nombre ?? "", e.Marca, e.Modelo,
-                e.NumeroSerie, e.IMEI ?? "", e.NumeroCelular ?? "", e.Estado,
+                e.NumeroSerie, e.IMEI ?? "", e.NumeroCelular ?? "", e.CodigoActivoFijo ?? "", e.Estado,
                 e.RAM ?? "—", e.Procesador ?? "—", e.Almacenamiento ?? "—", e.PlanData?.Nombre ?? "—",
                 e.Accesorios ?? "",
                 m?.NombreResponsable ?? "—",

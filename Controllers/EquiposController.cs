@@ -27,7 +27,8 @@ public class EquiposController : BaseController
             query = query.Where(e => e.NumeroSerie.Contains(buscar) ||
                                      e.NombreEquipo.Contains(buscar) ||
                                      e.Marca.Contains(buscar) ||
-                                     (e.IMEI != null && e.IMEI.Contains(buscar)));
+                                     (e.IMEI != null && e.IMEI.Contains(buscar)) ||
+                                     (e.CodigoActivoFijo != null && e.CodigoActivoFijo.Contains(buscar)));
         if (garantiaVencida == true)
             query = query.Where(e => e.FechaGarantia.HasValue &&
                                      e.FechaGarantia.Value < DateTime.Today &&
@@ -363,6 +364,7 @@ public class EquiposController : BaseController
         original.TipoEquipoId = equipo.TipoEquipoId;
         original.IMEI = equipo.IMEI;
         original.NumeroCelular = equipo.NumeroCelular;
+        original.CodigoActivoFijo = equipo.CodigoActivoFijo;
         original.Accesorios = equipo.Accesorios;
         original.Costo = equipo.Costo;
         original.FechaCompra = equipo.FechaCompra;

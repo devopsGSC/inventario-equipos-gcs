@@ -102,6 +102,8 @@
               { <div style="font-size:11px;color:var(--dark-text2)">IMEI: @e.IMEI</div> }
               @if (!string.IsNullOrEmpty(e.NumeroCelular))
               { <div style="font-size:11px;color:var(--dark-text2)">Cel: @e.NumeroCelular</div> }
+              @if (!string.IsNullOrEmpty(e.CodigoActivoFijo))
+              { <div style="font-size:11px;color:var(--dark-text2)">Act. Fijo: @e.CodigoActivoFijo</div> }
             </td>
             <td><partial name="_EstadoBadge" model="@e.Estado" /></td>
             <td>

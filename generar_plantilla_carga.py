@@ -16,7 +16,7 @@ thin  = Side(style='thin', color="CBD5E1")
 border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
 # Fila 1: Título
-ws.merge_cells("A1:N1")
+ws.merge_cells("A1:O1")
 ws["A1"] = "InventarioTI — Plantilla de Carga Masiva de Equipos"
 ws["A1"].font = Font(name="Arial", bold=True, size=13, color=white)
 ws["A1"].fill = PatternFill("solid", fgColor=navy)
@@ -24,7 +24,7 @@ ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
 ws.row_dimensions[1].height = 28
 
 # Fila 2: Instrucción
-ws.merge_cells("A2:N2")
+ws.merge_cells("A2:O2")
 ws["A2"] = "Complete los campos desde la fila 5. Campos con * son obligatorios. No modifique los encabezados. Descargue tipos válidos en la hoja 'Referencia'."
 ws["A2"].font = Font(name="Arial", size=9, color="92400E")
 ws["A2"].fill = PatternFill("solid", fgColor=amber)
@@ -46,6 +46,7 @@ headers = [
     ("Costo",           "H", 12),
     ("FechaCompra",     "I", 16),
     ("FechaGarantia",   "J", 16),
+    ("CodigoActivoFijo","K", 18),
 ]
 
 for i, (title, col, width) in enumerate(headers, 1):

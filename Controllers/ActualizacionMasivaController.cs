@@ -75,6 +75,7 @@ public class ActualizacionMasivaController : Controller
                 string fGarantStr  = row.Cell(10).GetString().Trim();
                 string estado      = row.Cell(11).GetString().Trim();
                 string obs         = row.Cell(12).GetString().Trim();
+                string codActivo   = row.Cell(13).GetString().Trim();
 
                 var ep = new EquipoActualizacionPrevio
                 {
@@ -90,7 +91,8 @@ public class ActualizacionMasivaController : Controller
                     FechaCompraStr= fCompraStr,
                     FechaGarantStr= fGarantStr,
                     Estado        = estado,
-                    Observaciones = obs
+                    Observaciones = obs,
+                    CodigoActivoFijo = codActivo
                 };
 
                 // Validaciones
@@ -141,6 +143,7 @@ public class ActualizacionMasivaController : Controller
                 if (!string.IsNullOrEmpty(imei)        && imei        != equipo.IMEI)                cambios.Add("IMEI");
                 if (!string.IsNullOrEmpty(accesorios)  && accesorios  != equipo.Accesorios)          cambios.Add("Accesorios");
                 if (!string.IsNullOrEmpty(estado)      && estado      != equipo.Estado)              cambios.Add($"Estado ({equipo.Estado} → {estado})");
+                if (!string.IsNullOrEmpty(codActivo)   && codActivo   != equipo.CodigoActivoFijo)    cambios.Add("Código activo fijo");
                 if (!string.IsNullOrEmpty(costoStr))    cambios.Add("Costo");
                 if (!string.IsNullOrEmpty(fCompraStr)) cambios.Add("Fecha compra");
                 if (!string.IsNullOrEmpty(fGarantStr)) cambios.Add("Fecha garantía");
@@ -229,6 +232,7 @@ public class ActualizacionMasivaController : Controller
                 if (!string.IsNullOrEmpty(p.IMEI))          equipo.IMEI          = p.IMEI;
                 if (!string.IsNullOrEmpty(p.Accesorios))    equipo.Accesorios    = p.Accesorios;
                 if (!string.IsNullOrEmpty(p.Estado))        equipo.Estado        = p.Estado;
+                if (!string.IsNullOrEmpty(p.CodigoActivoFijo)) equipo.CodigoActivoFijo = p.CodigoActivoFijo;
 
                 if (!string.IsNullOrEmpty(p.TipoEquipo))
                 {
@@ -339,6 +343,7 @@ public class EquipoActualizacionPrevio
     public string FechaGarantStr { get; set; } = "";
     public string Estado         { get; set; } = "";
     public string Observaciones  { get; set; } = "";
+    public string CodigoActivoFijo { get; set; } = "";
     public string EstadoPreview  { get; set; } = "";  // Valido | Advertencia | SinCambios | Error
     public string MensajePreview { get; set; } = "";
 }

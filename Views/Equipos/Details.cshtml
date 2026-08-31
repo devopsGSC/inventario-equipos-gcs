@@ -70,6 +70,13 @@
             <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.NumeroCelular</div>
           </div>
         }
+        @if (!string.IsNullOrEmpty(eq.CodigoActivoFijo))
+        {
+          <div>
+            <div class="form-label">Código de activo fijo</div>
+            <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace">@eq.CodigoActivoFijo</div>
+          </div>
+        }
         <div>
           <div class="form-label">Costo</div>
           <div style="font-size:14px;font-weight:500">@(eq.Costo.HasValue ? "$" + eq.Costo.Value.ToString("N2") : "—")</div>

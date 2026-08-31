@@ -277,7 +277,8 @@ public class CartasGeneralesController : BaseController
                 FechaGarantia  = m.Equipo?.FechaGarantia?.ToString("dd/MM/yyyy"),
                 Imei           = m.Equipo?.IMEI,
                 NumeroCelular  = m.Equipo?.NumeroCelular,
-                PlanDatos      = m.Equipo?.PlanData?.Nombre
+                PlanDatos      = m.Equipo?.PlanData?.Nombre,
+                CodigoActivoFijo = m.Equipo?.CodigoActivoFijo
             }).ToList(),
             perifericos.Select(ep => new PerifericoResumenItem
             {

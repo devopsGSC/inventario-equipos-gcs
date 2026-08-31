@@ -115,6 +115,11 @@
           <span asp-validation-for="Modelo" class="field-error"></span>
         </div>
         <div class="form-group">
+          <label class="form-label">Código de activo fijo</label>
+          <input asp-for="CodigoActivoFijo" class="form-control" placeholder="Ej: AF-0001" maxlength="50"/>
+          <span asp-validation-for="CodigoActivoFijo" class="field-error"></span>
+        </div>
+        <div class="form-group">
           <label class="form-label">Costo</label>
           <input asp-for="Costo" class="form-control" type="number" step="0.01" placeholder="0.00"/>
         </div>

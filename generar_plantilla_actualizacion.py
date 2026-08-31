@@ -16,7 +16,7 @@ thin  = Side(style='thin', color="CBD5E1")
 border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
 # Fila 1: Título
-ws.merge_cells("A1:L1")
+ws.merge_cells("A1:M1")
 ws["A1"] = "InventarioTI — Plantilla de Actualización Masiva de Equipos"
 ws["A1"].font = Font(name="Arial", bold=True, size=13, color=white)
 ws["A1"].fill = PatternFill("solid", fgColor=navy)
@@ -24,7 +24,7 @@ ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
 ws.row_dimensions[1].height = 28
 
 # Fila 2: Instrucción
-ws.merge_cells("A2:L2")
+ws.merge_cells("A2:M2")
 ws["A2"] = "NumeroSerie es obligatorio (identifica el equipo). Los campos vacíos NO se modifican — solo se actualizan los que tengan valor."
 ws["A2"].font = Font(name="Arial", size=9, color="92400E")
 ws["A2"].fill = PatternFill("solid", fgColor="FEF3C7")
@@ -48,6 +48,7 @@ headers = [
     ("FechaGarantia",  "J", 16),
     ("Estado",         "K", 16),
     ("Observaciones",  "L", 30),
+    ("CodigoActivoFijo","M", 18),
 ]
 
 for i, (title, col, width) in enumerate(headers, 1):
@@ -62,7 +63,7 @@ ws.row_dimensions[4].height = 22
 # Filas 5-24: Datos con formato zebra
 for row in range(5, 25):
     bg = "FFFFFF" if row % 2 == 0 else "F8FAFC"
-    for col in range(1, 13):
+    for col in range(1, 14):
         cell = ws.cell(row=row, column=col)
         cell.fill      = PatternFill("solid", fgColor=bg)
         cell.border    = border

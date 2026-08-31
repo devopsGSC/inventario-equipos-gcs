@@ -277,7 +277,7 @@ public class PdfService
             LV(19, 6,6, 7,9, "Fecha garantia:", d.FechaGarantia);
             Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
             LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
-            LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? d.TelPlan : d.Sku);
+            LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "Cod. Activo Fijo:", esCelular ? d.TelPlan : d.CodigoActivoFijo);
         }
         Box(21, 1,21, 9);
 
@@ -597,7 +597,7 @@ public class PdfService
             Disco          = eq.Almacenamiento ?? "",
             Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
-            Sku            = eq.NumeroSerie,
+            CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = movimiento.Observaciones ?? "",
             Motivo         = "renovacion",
@@ -642,7 +642,7 @@ public class PdfService
             Disco          = eq.Almacenamiento ?? "",
             Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
-            Sku            = eq.NumeroSerie,
+            CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = obs,
             Motivo         = "renovacion",
@@ -973,7 +973,6 @@ public class PdfService
             Marca          = per.Marca,
             Modelo         = per.Modelo,
             ServiceTag     = per.NumeroSerie,
-            Sku            = per.NumeroSerie,
             Observaciones  = ep.Observaciones ?? "",
             Motivo         = "renovacion",
             ReceptorNombre = nombreEmisor ?? "",
@@ -1785,7 +1784,7 @@ public class PdfService
                 y += rRow;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
                 LV(y, rRow, 1, 1, 2, 5, "Accesorio:", eq.Accesorios);
-                LV(y, rRow, 6, 6, 7, 9, esCelular ? "Plan de Datos:" : "SKU:", esCelular ? eq.PlanDatos : eq.NumeroSerie);
+                LV(y, rRow, 6, 6, 7, 9, esCelular ? "Plan de Datos:" : "Cod. Activo Fijo:", esCelular ? eq.PlanDatos : eq.CodigoActivoFijo);
                 y += rRow + 10;
             }
         }
@@ -1911,7 +1910,7 @@ public class FiniquitoData
     public string Procesador     { get; set; } = "";
     public string FechaGarantia  { get; set; } = "";
     public string Accesorio      { get; set; } = "";
-    public string Sku            { get; set; } = "";
+    public string CodigoActivoFijo { get; set; } = "";
     public string Observaciones  { get; set; } = "";
     public string TelNumero      { get; set; } = "";
     public string TelMarca       { get; set; } = "";
@@ -1965,6 +1964,7 @@ public class EquipoResumenItem
     public string? NumeroCelular { get; set; }
     public string? PlanDatos     { get; set; }
     public string? FechaGarantia { get; set; }
+    public string? CodigoActivoFijo { get; set; }
 }
 
 public class PerifericoResumenItem
