@@ -238,6 +238,32 @@ public class CartaGeneral
     public string NombreResponsable => Empleado?.Nombre ?? MiembroExterno?.Nombre ?? Grupo?.Nombre ?? "—";
 }
 
+// Registro de auditoria de cartas de autorizacion para interponer aviso o
+// denuncia ante las autoridades (PNC / FGR) por perdida, hurto o robo de
+// un equipo. El PDF se regenera al vuelo a partir de los equipos actuales
+// (via EquiposIds), igual que la Carta General; esta fila solo deja
+// constancia de quien autorizo, para que empleado y cuando.
+public class CartaAutorizacionDenuncia
+{
+    public int Id { get; set; }
+    public int EmpleadoId { get; set; }
+    public Empleado? Empleado { get; set; }
+    // Ids de los Equipo seleccionados, separados por coma (ej: "12,15,20").
+    [Required, MaxLength(200)]
+    public string EquiposIds { get; set; } = "";
+    [Required]
+    public string UsuarioAutorizaId { get; set; } = "";
+    public UsuarioApp? UsuarioAutoriza { get; set; }
+    public DateTime FechaCreacion { get; set; } = DateTime.Now;
+    public string? CreadoPorUsuarioId { get; set; }
+    public UsuarioApp? CreadoPorUsuario { get; set; }
+
+    [NotMapped]
+    public IEnumerable<int> EquipoIdsList =>
+        EquiposIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(int.Parse);
+}
+
 public class ImagenMovimiento
 {
     public int Id { get; set; }

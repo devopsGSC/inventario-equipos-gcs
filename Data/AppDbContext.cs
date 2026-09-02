@@ -31,6 +31,7 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
     public DbSet<TipoLicencia> TiposLicencia => Set<TipoLicencia>();
     public DbSet<LicenciaAsignacion> LicenciasAsignaciones => Set<LicenciaAsignacion>();
     public DbSet<CartaGeneral> CartasGenerales => Set<CartaGeneral>();
+    public DbSet<CartaAutorizacionDenuncia> CartasAutorizacionDenuncia => Set<CartaAutorizacionDenuncia>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -125,6 +126,16 @@ public class AppDbContext : IdentityDbContext<UsuarioApp>
         mb.Entity<CartaGeneral>()
             .HasOne(c => c.EntregadoPorUsuario).WithMany()
             .HasForeignKey(c => c.EntregadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
+
+        mb.Entity<CartaAutorizacionDenuncia>()
+            .HasOne(c => c.Empleado).WithMany()
+            .HasForeignKey(c => c.EmpleadoId).OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CartaAutorizacionDenuncia>()
+            .HasOne(c => c.UsuarioAutoriza).WithMany()
+            .HasForeignKey(c => c.UsuarioAutorizaId).OnDelete(DeleteBehavior.NoAction);
+        mb.Entity<CartaAutorizacionDenuncia>()
+            .HasOne(c => c.CreadoPorUsuario).WithMany()
+            .HasForeignKey(c => c.CreadoPorUsuarioId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
 
         mb.Entity<ImagenMovimiento>()
             .HasOne(i => i.Movimiento)

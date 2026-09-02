@@ -1889,6 +1889,204 @@ public class PdfService
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    //  CARTA DE AUTORIZACION PARA DENUNCIA ANTE AUTORIDADES (PNC / FGR) —
+    //  documento independiente, en prosa (sin grid de cajas): solo firma
+    //  "quien autoriza" (un usuario del sistema), nunca el empleado — es
+    //  una autorizacion, no un acuse de recibo.
+    // ─────────────────────────────────────────────────────────────────────
+    public byte[] GenerarCartaAutorizacionDenuncia(CartaAutorizacionDenunciaData d)
+    {
+        var doc = new PdfDocument();
+        double ML = 54, MR = 54, MT = 36;
+        double H = 0, TW = 0;
+
+        var fBold  = new XFont("Arial", 11, XFontStyle.Bold);
+        var fNorm  = new XFont("Arial", 11, XFontStyle.Regular);
+        var fSm    = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var gray   = XColor.FromArgb(209, 209, 209);
+
+        PdfPage page = null!;
+        XGraphics g  = null!;
+        double y = 0;
+        double leading = 16;
+        const double margenInferior = 34;
+
+        void DibujarPie()
+        {
+            g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + TW, H - 30);
+            var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+            g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+                new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
+                new XRect(ML, H - 22, TW, 12), fmtPie);
+        }
+
+        void NewPage()
+        {
+            if (page != null) DibujarPie();
+            page = doc.AddPage();
+            page.Size = PdfSharpCore.PageSize.Letter;
+            g = XGraphics.FromPdfPage(page);
+            H  = page.Height.Point;
+            TW = page.Width.Point - ML - MR;
+            y  = MT;
+        }
+
+        List<string> WordWrap(string text, XFont font, double maxW)
+        {
+            var lines  = new List<string>();
+            var words  = text.Split(' ');
+            var current = "";
+            foreach (var word in words)
+            {
+                var test = current.Length == 0 ? word : current + " " + word;
+                var size = g.MeasureString(test, font);
+                if (size.Width <= maxW)
+                    current = test;
+                else
+                {
+                    if (current.Length > 0) lines.Add(current);
+                    current = word;
+                }
+            }
+            if (current.Length > 0) lines.Add(current);
+            return lines;
+        }
+
+        void DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
+        {
+            var lines = WordWrap(text, font, TW - indentL);
+            foreach (var line in lines)
+            {
+                if (y + leading > H - margenInferior) NewPage();
+                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                y += leading;
+            }
+            y += spaceAfter;
+        }
+
+        // Etiqueta en negrita seguida de un valor en fuente normal, en la
+        // misma linea (ej: "Marca y modelo: Dell Latitude 5420").
+        void DrawLabelValue(string label, string value, double indentL = 0)
+        {
+            if (y + leading > H - margenInferior) NewPage();
+            double labelW = g.MeasureString(label, fBold).Width;
+            g.DrawString(label, fBold, XBrushes.Black, ML + indentL, y + fBold.Size);
+            g.DrawString(value, fNorm, XBrushes.Black, ML + indentL + labelW + 3, y + fNorm.Size);
+            y += leading;
+        }
+
+        NewPage();
+
+        // ── Logo ──
+        string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "gcs_logo.png");
+        if (!File.Exists(logoPath))
+            logoPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "images", "gcs_logo.png");
+        if (File.Exists(logoPath))
+        {
+            try
+            {
+                var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(logoPath)));
+                double lw = 85, lh = img.PixelHeight * (85.0 / img.PixelWidth);
+                g.DrawImage(img, ML, y, lw, lh);
+                y += lh + 30;
+            }
+            catch { y += 50; }
+        }
+        else { y += 50; }
+
+        g.DrawLine(new XPen(gray, 0.5), ML, y, ML + TW, y);
+        y += 14;
+
+        // ── Fecha ──
+        var fmtR = new XStringFormat { Alignment = XStringAlignment.Far, LineAlignment = XLineAlignment.Near };
+        g.DrawString($"Antiguo Cuscatlán, {d.Fecha:dd 'de' MMMM 'de' yyyy}", fSm, XBrushes.Black, new XRect(ML, y, TW, 12), fmtR);
+        y += 24;
+
+        bool plural = d.Equipos.Count > 1;
+        string equipoSust  = plural ? "los siguientes equipos empresariales" : "el siguiente equipo empresarial";
+        string fueAsignado = plural ? "le fueron asignados" : "le fue asignado";
+        string seDetallan  = plural ? "se detallan" : "se detalla";
+
+        DrawPara(
+            $"Yo, {d.NombreAutoriza}, mayor de edad, con Documento Único de Identidad (DUI) número {d.DuiAutoriza}, " +
+            $"en mi calidad de {d.CargoAutoriza} de Global Customs Solutions S.E.M. de C.V, por medio de la presente " +
+            $"autorizo de manera expresa a {d.NombreEmpleado}, con DUI {d.DuiEmpleado}, para que en mi nombre y " +
+            "representación de GCS interponga aviso o denuncia ante las autoridades competentes (PNC o Fiscalía " +
+            $"General de la República) respecto a la pérdida, hurto, robo o cualquier incidente relacionado con " +
+            $"{equipoSust}, que {fueAsignado} por la empresa y cuyas características {seDetallan} a continuación:",
+            fNorm);
+
+        foreach (var eq in d.Equipos)
+        {
+            DrawLabelValue("Marca y modelo: ", $"{eq.Marca} {eq.Modelo}".Trim());
+            DrawLabelValue("Número de serie: ", eq.NumeroSerie);
+            if (!string.IsNullOrWhiteSpace(eq.Imei))
+                DrawLabelValue("Número IMEI: ", eq.Imei);
+            if (!string.IsNullOrWhiteSpace(eq.NumeroCelular))
+                DrawLabelValue("Línea asignada: ", eq.NumeroCelular);
+            if (!string.IsNullOrWhiteSpace(eq.CodigoActivoFijo))
+                DrawLabelValue("Código de activo fijo: ", eq.CodigoActivoFijo);
+            y += 6;
+        }
+        y += 4;
+
+        DrawPara(
+            "Autorizo al portador de esta carta a brindar toda la información necesaria, adjuntar copias del acta " +
+            "de asignación y firmar los documentos que se requieran para efectos de interposición del aviso o denuncia.",
+            fNorm);
+
+        DrawPara(
+            $"Extiendo esta autorización para los fines legales correspondientes, en la ciudad de Antiguo Cuscatlán, " +
+            $"a los {d.Fecha:dd} días del mes de {d.Fecha:MMMM} del año {d.Fecha:yyyy}.",
+            fNorm);
+
+        // Ancla el bloque de firma al pie de la pagina cuando el contenido
+        // deja suficiente espacio libre; si el texto ya llega abajo, sigue
+        // el flujo normal (el guard de abajo maneja el salto de pagina).
+        const double altoBloqueFirma = 115;
+        double yFirmaAbajo = H - margenInferior - altoBloqueFirma;
+        if (yFirmaAbajo > y) y = yFirmaAbajo;
+
+        DrawPara("Atentamente,", fNorm, spaceAfter: 55);
+
+        // ── Firma de quien autoriza ──
+        double fw2   = TW * 0.4;
+        double fx    = ML + (TW - fw2) / 2;
+        double lineY = y;
+        if (lineY > H - margenInferior) { NewPage(); lineY = y; }
+
+        if (!string.IsNullOrEmpty(d.RutaFirmaIT))
+        {
+            try
+            {
+                string rutaFisica = Path.Combine(
+                    Directory.GetCurrentDirectory(), "wwwroot",
+                    d.RutaFirmaIT.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(rutaFisica))
+                {
+                    var firmaImg = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(rutaFisica)));
+                    double itH = 50;
+                    double ratio = Math.Min(fw2 / firmaImg.PixelWidth, itH / firmaImg.PixelHeight);
+                    double dw = firmaImg.PixelWidth  * ratio;
+                    double dh = firmaImg.PixelHeight * ratio;
+                    g.DrawImage(firmaImg, fx + (fw2 - dw) / 2, lineY - dh - 4, dw, dh);
+                }
+            }
+            catch { /* continuar sin firma si falla */ }
+        }
+
+        g.DrawLine(XPens.Black, fx, lineY, fx + fw2, lineY);
+        var lFmt = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString(d.NombreAutoriza, fBold, XBrushes.Black, new XRect(fx, lineY + 4, fw2, 12), lFmt);
+        g.DrawString($"{d.CargoAutoriza} GCS", fSm, XBrushes.Gray, new XRect(fx, lineY + 18, fw2, 12), lFmt);
+
+        DibujarPie();
+
+        using var ms = new MemoryStream();
+        doc.Save(ms, false);
+        return ms.ToArray();
+    }
 }
 
 public class FiniquitoData
@@ -1946,6 +2144,28 @@ public class CartaGeneralData
     public string? FirmaEmpleadoBase64 { get; set; }
     public List<EquipoResumenItem> Equipos { get; set; } = [];
     public List<PerifericoResumenItem> Perifericos { get; set; } = [];
+}
+
+public class CartaAutorizacionDenunciaData
+{
+    public DateTime Fecha         { get; set; } = DateTime.Now;
+    public string NombreAutoriza  { get; set; } = "";
+    public string DuiAutoriza     { get; set; } = "";
+    public string CargoAutoriza   { get; set; } = "";
+    public string? RutaFirmaIT    { get; set; }
+    public string NombreEmpleado  { get; set; } = "";
+    public string DuiEmpleado     { get; set; } = "";
+    public List<EquipoDenunciaItem> Equipos { get; set; } = [];
+}
+
+public class EquipoDenunciaItem
+{
+    public string Marca             { get; set; } = "";
+    public string Modelo            { get; set; } = "";
+    public string NumeroSerie       { get; set; } = "";
+    public string? Imei             { get; set; }
+    public string? NumeroCelular    { get; set; }
+    public string? CodigoActivoFijo { get; set; }
 }
 
 public class EquipoResumenItem

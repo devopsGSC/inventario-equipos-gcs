@@ -8,3 +8,13 @@ obj/
 .vs/
 appsettings.Development.json
 *.db
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
+*.ca-bundle
+*.p7b
+STAR.gcslatam.com_cert*/
+STAR.gcslatam.com_key*/
+.env

@@ -77,6 +77,12 @@ public class EmpleadosController : BaseController
             .OrderByDescending(ep => ep.FechaAsignacion)
             .ToListAsync();
 
+        ViewBag.CartasDenuncia = await _db.CartasAutorizacionDenuncia
+            .Include(c => c.UsuarioAutoriza)
+            .Where(c => c.EmpleadoId == id)
+            .OrderByDescending(c => c.FechaCreacion)
+            .ToListAsync();
+
         ViewBag.LicenciasActuales = await _db.LicenciasAsignaciones
             .Include(la => la.TipoLicencia)
             .Include(la => la.Equipo)

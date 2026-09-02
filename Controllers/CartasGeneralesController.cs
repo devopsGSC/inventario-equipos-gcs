@@ -15,9 +15,10 @@ public class CartasGeneralesController : BaseController
 {
     private readonly AppDbContext _db;
     private readonly PdfService _pdf;
+    private readonly PdfSigningService _pdfFirma;
     private readonly UserManager<UsuarioApp> _users;
-    public CartasGeneralesController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
-    { _db = db; _pdf = pdf; _users = users; }
+    public CartasGeneralesController(AppDbContext db, PdfService pdf, PdfSigningService pdfFirma, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
+    { _db = db; _pdf = pdf; _pdfFirma = pdfFirma; _users = users; }
 
     // Crea (o reutiliza si sigue pendiente de entrega) la carta general de
     // este empleado/miembro externo/grupo y va a su pantalla de estado.
@@ -175,7 +176,7 @@ public class CartasGeneralesController : BaseController
         await _db.SaveChangesAsync();
 
         var nombre = $"Carta_General_{SanitizarNombreArchivo(colaborador)}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(bytes, "application/pdf", nombre);
+        return File(_pdfFirma.Firmar(bytes), "application/pdf", nombre);
     }
 
     // Genera (o reutiliza si sigue vigente) un link de un solo uso para que

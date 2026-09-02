@@ -102,6 +102,7 @@ public class SeedService
             new() { ModuloId=empleados, Clave="empleados.detalle", Nombre="Ver detalle de empleado" },
             new() { ModuloId=empleados, Clave="empleados.crear",   Nombre="Registrar empleado" },
             new() { ModuloId=empleados, Clave="empleados.editar",  Nombre="Editar empleado" },
+            new() { ModuloId=empleados, Clave="empleados.cartadenuncia", Nombre="Generar carta de autorización de denuncia" },
             // Miembros Externos
             new() { ModuloId=miembrosExternos, Clave="miembrosexternos.ver",     Nombre="Ver listado de miembros externos" },
             new() { ModuloId=miembrosExternos, Clave="miembrosexternos.detalle", Nombre="Ver detalle de miembro externo" },

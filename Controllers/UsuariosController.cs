@@ -36,7 +36,7 @@ public class UsuariosController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(string nombreCompleto, string email, string password,
-        string cargo, string rol, IFormFile? firmaIT)
+        string cargo, string rol, string? dui, IFormFile? firmaIT)
     {
         ViewBag.Roles = new[] { "Administrador", "TecnicoIT", "Consulta" };
 
@@ -52,6 +52,7 @@ public class UsuariosController : Controller
             Email          = email,
             NombreCompleto = nombreCompleto,
             Cargo          = cargo,
+            DUI            = string.IsNullOrWhiteSpace(dui) ? null : dui.Trim(),
             Activo         = true,
             EmailConfirmed = true
         };
@@ -94,13 +95,14 @@ public class UsuariosController : Controller
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, string nombreCompleto, string cargo,
-        string rol, string? passwordNueva, IFormFile? firmaIT)
+        string rol, string? dui, string? passwordNueva, IFormFile? firmaIT)
     {
         var usuario = await _users.FindByIdAsync(id);
         if (usuario == null) return NotFound();
 
         usuario.NombreCompleto = nombreCompleto;
         usuario.Cargo          = cargo;
+        usuario.DUI            = string.IsNullOrWhiteSpace(dui) ? null : dui.Trim();
 
         var rolesActuales = await _users.GetRolesAsync(usuario);
         if (!rolesActuales.Contains(rol))

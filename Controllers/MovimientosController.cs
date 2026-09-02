@@ -12,9 +12,10 @@ public class MovimientosController : BaseController
 {
     private readonly AppDbContext _db;
     private readonly PdfService _pdf;
+    private readonly PdfSigningService _pdfFirma;
     private readonly UserManager<UsuarioApp> _users;
-    public MovimientosController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
-    { _db = db; _pdf = pdf; _users = users; }
+    public MovimientosController(AppDbContext db, PdfService pdf, PdfSigningService pdfFirma, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
+    { _db = db; _pdf = pdf; _pdfFirma = pdfFirma; _users = users; }
 
     private static readonly string[] ClavesMovimiento =
         ["movimientos.asignar", "movimientos.prestamo", "movimientos.devolucion", "movimientos.garantia", "equipos.baja"];
@@ -389,7 +390,7 @@ public class MovimientosController : BaseController
         // viejos sin ninguno de esos datos se usa el usuario actual.
         var usuarioActual = await _users.GetUserAsync(User);
         var usuarioEmisor = movimiento.EntregadoPorUsuario ?? movimiento.CreadoPorUsuario ?? usuarioActual;
-        var bytes = _pdf.GenerarPdfHallazgos(movimiento, usuarioEmisor?.RutaFirmaIT);
+        var bytes = _pdfFirma.Firmar(_pdf.GenerarPdfHallazgos(movimiento, usuarioEmisor?.RutaFirmaIT));
         var nombre = $"Hallazgos_{movimiento.Equipo?.NombreEquipo}_{movimiento.FechaInicio:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
@@ -547,7 +548,7 @@ public class MovimientosController : BaseController
         await _db.SaveChangesAsync();
 
         var nombre = $"Carta_{movimiento.TipoMovimiento}_{SanitizarNombreArchivo(movimiento.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(bytes, "application/pdf", nombre);
+        return File(_pdfFirma.Firmar(bytes), "application/pdf", nombre);
     }
 
     public async Task<IActionResult> Finiquito(int movimientoId)
@@ -674,6 +675,6 @@ public class MovimientosController : BaseController
         await _db.SaveChangesAsync();
 
         var nombre = $"Finiquito_TI_{SanitizarNombreArchivo(mov.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(bytes, "application/pdf", nombre);
+        return File(_pdfFirma.Firmar(bytes), "application/pdf", nombre);
     }
 }

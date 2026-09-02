@@ -13,9 +13,10 @@ public class PerifericosController : BaseController
 {
     private readonly AppDbContext _db;
     private readonly PdfService _pdf;
+    private readonly PdfSigningService _pdfFirma;
     private readonly UserManager<UsuarioApp> _users;
-    public PerifericosController(AppDbContext db, PdfService pdf, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
-    { _db = db; _pdf = pdf; _users = users; }
+    public PerifericosController(AppDbContext db, PdfService pdf, PdfSigningService pdfFirma, UserManager<UsuarioApp> users, PermisoService permisos) : base(permisos)
+    { _db = db; _pdf = pdf; _pdfFirma = pdfFirma; _users = users; }
 
     public async Task<IActionResult> Index(string? estado, string? tipo, string? buscar, int pagina = 1)
     {
@@ -495,7 +496,7 @@ public class PerifericosController : BaseController
         // quien se marcó como "entregado por" en la carta.
         var usuarioActual = await _users.GetUserAsync(User);
         var usuarioEmisor = asignacion.EntregadoPorUsuario ?? asignacion.CreadoPorUsuario ?? usuarioActual;
-        var bytes = _pdf.GenerarPdfHallazgosPeriferico(asignacion, usuarioEmisor?.RutaFirmaIT);
+        var bytes = _pdfFirma.Firmar(_pdf.GenerarPdfHallazgosPeriferico(asignacion, usuarioEmisor?.RutaFirmaIT));
         var nombre = $"Hallazgos_{asignacion.Periferico?.Marca}_{asignacion.Periferico?.Modelo}_{asignacion.FechaAsignacion:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }
@@ -523,7 +524,7 @@ public class PerifericosController : BaseController
         var usuarioEmisor = ep.EntregadoPorUsuario ?? ep.CreadoPorUsuario ?? usuarioActual;
         var rutaFirmaIT   = usuarioEmisor?.RutaFirmaIT;
 
-        var bytes = _pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioEmisor?.NombreCompleto);
+        var bytes = _pdfFirma.Firmar(_pdf.GenerarCartaCompromisoPerifericos(ep, rutaFirmaIT, usuarioEmisor?.NombreCompleto));
         var nombre = $"Carta_Periferico_{SanitizarNombreArchivo(ep.NombreResponsable)}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(bytes, "application/pdf", nombre);
     }

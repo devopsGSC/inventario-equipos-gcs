@@ -5,6 +5,7 @@
   var equipos            = ViewBag.EquiposActuales as List<Movimiento>       ?? new List<Movimiento>();
   var perifsActuales     = ViewBag.PerifsActuales as List<EquipoPeriferico> ?? new List<EquipoPeriferico>();
   var licenciasActuales  = ViewBag.LicenciasActuales as List<LicenciaAsignacion> ?? new List<LicenciaAsignacion>();
+  var cartasDenuncia     = ViewBag.CartasDenuncia as List<CartaAutorizacionDenuncia> ?? new List<CartaAutorizacionDenuncia>();
 }
 
 <div class="page-header">
@@ -20,6 +21,12 @@
     {
       <a asp-controller="CartasGenerales" asp-action="Preparar" asp-route-tipo="empleado" asp-route-id="@Model.Id" class="btn btn-secondary" title="Carta con todos los equipos y periféricos actuales">
         <i class="bi bi-file-earmark-pdf"></i> Carta general
+      </a>
+    }
+    @if (await PermisoSvc.TienePermiso(User, "empleados.cartadenuncia") && equipos.Any())
+    {
+      <a asp-controller="CartasDenuncia" asp-action="Nueva" asp-route-empleadoId="@Model.Id" class="btn btn-secondary" title="Autorización para denunciar pérdida, hurto o robo de equipo ante las autoridades">
+        <i class="bi bi-shield-exclamation"></i> Carta de denuncia
       </a>
     }
     @if (await PermisoSvc.TienePermiso(User, "empleados.editar"))
@@ -172,6 +179,41 @@
                    style="color:var(--accent);text-decoration:none;font-weight:500">@la.TipoLicencia?.Nombre</a>
               </td>
               <td>@la.FechaAsignacion.ToString("dd/MM/yyyy")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+}
+
+@if (cartasDenuncia.Any())
+{
+<div style="margin-top:20px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Cartas de autorización de denuncia generadas</div>
+      <span class="badge badge-asignado">@cartasDenuncia.Count</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Autorizó</th><th>Equipos</th><th></th></tr></thead>
+        <tbody>
+          @foreach (var c in cartasDenuncia)
+          {
+            <tr>
+              <td>@c.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+              <td>@(c.UsuarioAutoriza?.NombreCompleto ?? "—")</td>
+              <td>@c.EquipoIdsList.Count()</td>
+              <td>
+                @if (await PermisoSvc.TienePermiso(User, "empleados.cartadenuncia"))
+                {
+                  <a asp-controller="CartasDenuncia" asp-action="Redescargar" asp-route-id="@c.Id" class="btn btn-secondary btn-sm" title="Volver a descargar con los datos actuales">
+                    <i class="bi bi-download"></i>
+                  </a>
+                }
+              </td>
             </tr>
           }
         </tbody>

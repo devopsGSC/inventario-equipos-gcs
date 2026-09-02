@@ -1,0 +1,86 @@
+@using InventarioTI.Models
+@{
+  ViewData["Title"] = "Carta de autorización de denuncia";
+  var empleado     = ViewBag.Empleado as Empleado;
+  var equipos      = ViewBag.Equipos as List<Equipo> ?? new List<Equipo>();
+  var autorizantes = ViewBag.Autorizantes as List<UsuarioApp> ?? new List<UsuarioApp>();
+}
+
+<div class="page-header">
+  <div>
+    <a asp-controller="Empleados" asp-action="Details" asp-route-id="@empleado!.Id" class="text-muted" style="text-decoration:none;font-size:13px"><i class="bi bi-arrow-left"></i> @empleado.Nombre</a>
+    <div class="page-title" style="margin-top:4px">Carta de autorización de denuncia</div>
+  </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger" style="margin-bottom:16px"><i class="bi bi-x-circle-fill"></i> @TempData["Error"]</div>
+}
+
+<div class="alert alert-warning" style="margin-bottom:20px">
+  <i class="bi bi-info-circle-fill"></i>
+  Autoriza a <strong>@empleado.Nombre</strong> a interponer aviso o denuncia ante la PNC o la Fiscalía por pérdida, hurto o robo de los equipos que selecciones.
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form asp-action="Generar" method="post">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="empleadoId" value="@empleado.Id"/>
+
+      <div class="form-group">
+        <label class="form-label">Equipos a incluir en la carta</label>
+        @if (!equipos.Any())
+        {
+          <div class="empty-state" style="padding:16px"><i class="bi bi-laptop"></i>Este empleado no tiene equipos asignados actualmente.</div>
+        }
+        else
+        {
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+            @foreach (var eq in equipos)
+            {
+              <label style="display:flex;align-items:center;gap:10px;border:1px solid #dde2ec;border-radius:8px;padding:10px 12px;cursor:pointer">
+                <input type="checkbox" name="equipoIds" value="@eq.Id" checked/>
+                <div>
+                  <div style="font-weight:500;font-size:13.5px">@eq.NombreEquipo — @eq.Marca @eq.Modelo</div>
+                  <div class="text-muted mono" style="font-size:12px">
+                    @eq.TipoEquipo?.Nombre · Serie: @eq.NumeroSerie
+                    @if (!string.IsNullOrEmpty(eq.IMEI)) { <text> · IMEI: @eq.IMEI</text> }
+                    @if (!string.IsNullOrEmpty(eq.NumeroCelular)) { <text> · Línea: @eq.NumeroCelular</text> }
+                  </div>
+                </div>
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group" style="margin-top:18px">
+        <label class="form-label">Quién autoriza (firma que se imprimirá en la carta)</label>
+        <select name="usuarioAutorizaId" class="form-control" required>
+          <option value="">-- Selecciona --</option>
+          @foreach (var u in autorizantes)
+          {
+            <option value="@u.Id">@u.NombreCompleto — @u.Cargo</option>
+          }
+        </select>
+        @if (!autorizantes.Any())
+        {
+          <div class="input-note" style="color:var(--red-text)">Ningún usuario activo tiene firma cargada. Súbela primero en Usuarios.</div>
+        }
+        else
+        {
+          <div class="input-note">Solo aparecen usuarios activos con firma cargada. El DUI del usuario debe estar completo en su perfil.</div>
+        }
+      </div>
+
+      <div class="gap-2" style="margin-top:20px">
+        <button type="submit" class="btn btn-primary" disabled="@(equipos.Any() && autorizantes.Any() ? null : "disabled")">
+          <i class="bi bi-file-earmark-pdf"></i> Generar y descargar carta
+        </button>
+        <a asp-controller="Empleados" asp-action="Details" asp-route-id="@empleado.Id" class="btn btn-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>

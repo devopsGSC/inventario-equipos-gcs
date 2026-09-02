@@ -63,6 +63,7 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlServer(connectionString));
 builder.Services.AddScoped<PdfService>();
+builder.Services.AddSingleton<PdfSigningService>();
 builder.Services.AddScoped<ExcelService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddMemoryCache();
