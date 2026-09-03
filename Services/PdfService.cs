@@ -1030,11 +1030,29 @@ public class PdfService
             return lines;
         }
 
+        void DrawJustifiedLine(string line, XFont font, double x, double yBase, double maxW)
+        {
+            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1) { g.DrawString(line, font, XBrushes.Black, x, yBase); return; }
+            double wordsW = words.Sum(w => g.MeasureString(w, font).Width);
+            double gap = (maxW - wordsW) / (words.Length - 1);
+            double cx = x;
+            foreach (var w in words)
+            {
+                g.DrawString(w, font, XBrushes.Black, cx, yBase);
+                cx += g.MeasureString(w, font).Width + gap;
+            }
+        }
+
         double DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
         {
-            foreach (var line in WordWrap(text, font, TW - indentL))
+            var lines = WordWrap(text, font, TW - indentL);
+            for (int i = 0; i < lines.Count; i++)
             {
-                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                if (i == lines.Count - 1)
+                    g.DrawString(lines[i], font, XBrushes.Black, ML + indentL, y + font.Size);
+                else
+                    DrawJustifiedLine(lines[i], font, ML + indentL, y + font.Size, TW - indentL);
                 y += leading;
             }
             y += spaceAfter;
@@ -1204,14 +1222,31 @@ public class PdfService
             return lines;
         }
 
-        // Dibuja un párrafo con word wrap, paginando si no cabe
+        void DrawJustifiedLine(string line, XFont font, double x, double yBase, double maxW)
+        {
+            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1) { g.DrawString(line, font, XBrushes.Black, x, yBase); return; }
+            double wordsW = words.Sum(w => g.MeasureString(w, font).Width);
+            double gap = (maxW - wordsW) / (words.Length - 1);
+            double cx = x;
+            foreach (var w in words)
+            {
+                g.DrawString(w, font, XBrushes.Black, cx, yBase);
+                cx += g.MeasureString(w, font).Width + gap;
+            }
+        }
+
+        // Dibuja un párrafo con word wrap y justificado, paginando si no cabe
         double DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
         {
             var lines = WordWrap(text, font, TW - indentL);
-            foreach (var line in lines)
+            for (int i = 0; i < lines.Count; i++)
             {
                 if (y + leading > H - margenInferior) NewPage();
-                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                if (i == lines.Count - 1)
+                    g.DrawString(lines[i], font, XBrushes.Black, ML + indentL, y + font.Size);
+                else
+                    DrawJustifiedLine(lines[i], font, ML + indentL, y + font.Size, TW - indentL);
                 y += leading;
             }
             y += spaceAfter;
@@ -1478,13 +1513,30 @@ public class PdfService
             return lines;
         }
 
+        void DrawJustifiedLine(string line, XFont font, double x, double yBase, double maxW)
+        {
+            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1) { g.DrawString(line, font, XBrushes.Black, x, yBase); return; }
+            double wordsW = words.Sum(w => g.MeasureString(w, font).Width);
+            double gap = (maxW - wordsW) / (words.Length - 1);
+            double cx = x;
+            foreach (var w in words)
+            {
+                g.DrawString(w, font, XBrushes.Black, cx, yBase);
+                cx += g.MeasureString(w, font).Width + gap;
+            }
+        }
+
         void DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
         {
             var lines = WordWrap(text, font, TW - indentL);
-            foreach (var line in lines)
+            for (int i = 0; i < lines.Count; i++)
             {
                 if (y + leading > H - margenInferior) NewPage();
-                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                if (i == lines.Count - 1)
+                    g.DrawString(lines[i], font, XBrushes.Black, ML + indentL, y + font.Size);
+                else
+                    DrawJustifiedLine(lines[i], font, ML + indentL, y + font.Size, TW - indentL);
                 y += leading;
             }
             y += spaceAfter;
@@ -1953,13 +2005,30 @@ public class PdfService
             return lines;
         }
 
+        void DrawJustifiedLine(string line, XFont font, double x, double yBase, double maxW)
+        {
+            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1) { g.DrawString(line, font, XBrushes.Black, x, yBase); return; }
+            double wordsW = words.Sum(w => g.MeasureString(w, font).Width);
+            double gap = (maxW - wordsW) / (words.Length - 1);
+            double cx = x;
+            foreach (var w in words)
+            {
+                g.DrawString(w, font, XBrushes.Black, cx, yBase);
+                cx += g.MeasureString(w, font).Width + gap;
+            }
+        }
+
         void DrawPara(string text, XFont font, double indentL = 0, double spaceAfter = 10)
         {
             var lines = WordWrap(text, font, TW - indentL);
-            foreach (var line in lines)
+            for (int i = 0; i < lines.Count; i++)
             {
                 if (y + leading > H - margenInferior) NewPage();
-                g.DrawString(line, font, XBrushes.Black, ML + indentL, y + font.Size);
+                if (i == lines.Count - 1)
+                    g.DrawString(lines[i], font, XBrushes.Black, ML + indentL, y + font.Size);
+                else
+                    DrawJustifiedLine(lines[i], font, ML + indentL, y + font.Size, TW - indentL);
                 y += leading;
             }
             y += spaceAfter;
