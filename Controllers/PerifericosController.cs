@@ -174,7 +174,7 @@ public class PerifericosController : BaseController
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> DarDeBaja(int id)
+    public async Task<IActionResult> DarDeBaja(int id, string? comentario)
     {
         if (!await Puede("perifericos.baja")) return AccesoDenegado();
 
@@ -186,6 +186,11 @@ public class PerifericosController : BaseController
             return RedirectToAction(nameof(Details), new { id });
         }
         p.Estado = "Baja";
+        var nota = "Periférico dado de baja del inventario.";
+        if (!string.IsNullOrWhiteSpace(comentario))
+            nota += " Justificación: " + comentario.Trim();
+        var observaciones = string.IsNullOrWhiteSpace(p.Observaciones) ? nota : p.Observaciones + " | " + nota;
+        p.Observaciones = observaciones.Length > 500 ? observaciones[..500] : observaciones;
         await _db.SaveChangesAsync();
         TempData["OK"] = "Periférico dado de baja.";
         return RedirectToAction(nameof(Index));

@@ -380,7 +380,7 @@ public class EquiposController : BaseController
 
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Dar_De_Baja(int id)
+    public async Task<IActionResult> Dar_De_Baja(int id, string? comentario)
     {
         if (!await Puede("equipos.baja")) return AccesoDenegado();
 
@@ -392,10 +392,14 @@ public class EquiposController : BaseController
             return RedirectToAction(nameof(Details), new { id });
         }
         equipo.Estado = "Baja";
+        var observaciones = "Equipo dado de baja del inventario.";
+        if (!string.IsNullOrWhiteSpace(comentario))
+            observaciones += " Justificación: " + comentario.Trim();
+        if (observaciones.Length > 2000) observaciones = observaciones[..2000];
         _db.Movimientos.Add(new Movimiento
         {
             EquipoId = id, TipoMovimiento = "Baja", FechaInicio = DateTime.Now,
-            Observaciones = "Equipo dado de baja del inventario.",
+            Observaciones = observaciones,
             CreadoPorUsuarioId = UsuarioActualId
         });
         await _db.SaveChangesAsync();

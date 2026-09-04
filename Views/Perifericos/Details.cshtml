@@ -71,18 +71,24 @@
       @if (Model.Estado == "Disponible" && (await PermisoSvc.TienePermiso(User, "perifericos.asignar") ||
                                              await PermisoSvc.TienePermiso(User, "perifericos.baja")))
       {
-        <div style="margin-top:16px;border-top:1px solid #f0f3f8;padding-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <div style="margin-top:16px;border-top:1px solid #f0f3f8;padding-top:14px">
           @if (await PermisoSvc.TienePermiso(User, "perifericos.asignar"))
           {
-            <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="periferico" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar este periférico (y equipo/licencias) a alguien">
-              <i class="bi bi-person-check"></i> Asignación
-            </a>
+            <div style="margin-bottom:10px">
+              <a asp-controller="Asignaciones" asp-action="Nueva" asp-route-tipo="periferico" asp-route-id="@Model.Id" class="btn btn-primary btn-sm" title="Asignar este periférico (y equipo/licencias) a alguien">
+                <i class="bi bi-person-check"></i> Asignación
+              </a>
+            </div>
           }
           @if (await PermisoSvc.TienePermiso(User, "perifericos.baja"))
           {
             <form asp-action="DarDeBaja" asp-route-id="@Model.Id" method="post"
                   onsubmit="return confirmarSubmit(event, '¿Dar de baja este periférico?')">
               @Html.AntiForgeryToken()
+              <div class="form-group" style="margin-bottom:10px">
+                <label class="form-label">Comentario / Justificación <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+                <textarea name="comentario" class="form-control" rows="2" maxlength="500" placeholder="Motivo de la baja..."></textarea>
+              </div>
               <button type="submit" class="btn btn-danger btn-sm">
                 <i class="bi bi-x-circle"></i> Dar de baja
               </button>

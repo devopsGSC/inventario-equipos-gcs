@@ -150,6 +150,10 @@
       <div class="card-body" style="border-top:1px solid #f0f3f8;padding-top:14px">
         <form asp-action="Dar_De_Baja" asp-route-id="@eq.Id" method="post" onsubmit="return confirmarSubmit(event, '¿Dar de baja este equipo?')">
           @Html.AntiForgeryToken()
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Comentario / Justificación <span class="text-muted" style="font-weight:400">(opcional)</span></label>
+            <textarea name="comentario" class="form-control" rows="2" maxlength="2000" placeholder="Motivo de la baja..."></textarea>
+          </div>
           <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle"></i> Dar de baja</button>
         </form>
       </div>
