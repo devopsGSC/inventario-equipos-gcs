@@ -14,7 +14,7 @@ public class PdfService
         {1,15},{2,15},{3,15},{4,15},{5,15},
         {6,3.65},{7,13.9},{8,16.15},{9,4.15},
         {10,13.9},{11,13.9},{12,13.9},{13,9.0},{14,16.15},{15,3.0},
-        {16,13.9},{17,13.9},{18,13.9},{19,13.9},{20,13.9},{21,8.5},
+        {16,13.9},{17,13.9},{18,13.9},{19,13.9},{20,13.9},{21,13.9},
         // Periféricos — reducido al mínimo (header + 5 filas + spacers pequeños)
         {22,16.15},{23,3.5},{24,13.9},{25,13.9},{26,13.9},{27,13.9},{28,13.9},{29,3.5},{30,3.5},
         {31,16.15},{32,3.5},{33,13.9},{34,13.9},{35,3.5},{36,0.1},{37,0.1},
@@ -278,8 +278,13 @@ public class PdfService
             Box(20, 1,20, 1); Box(20, 2,20, 5); Box(20, 6,20, 6); Box(20, 7,20, 9);
             LV(20, 1,1, 2,5, "Accesorio:", d.Accesorio);
             LV(20, 6,6, 7,9, esCelular ? "Plan de Datos:" : "Cod. Activo Fijo:", esCelular ? d.TelPlan : d.CodigoActivoFijo);
+            Box(21, 1,21, 1); Box(21, 2,21, 5); Box(21, 6,21, 6); Box(21, 7,21, 9);
+            LV(21, 1,1, 2,5, "Costo:", d.Costo.HasValue ? "$" + d.Costo.Value.ToString("N2") : "");
         }
-        Box(21, 1,21, 9);
+        else
+        {
+            Box(21, 1,21, 9);
+        }
 
         // ══ PERIFÉRICOS ══ (no aplica cuando el documento ES de un periferico)
         if (!esPeriferico)
@@ -598,6 +603,7 @@ public class PdfService
             Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
             CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
+            Costo          = eq.Costo,
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = movimiento.Observaciones ?? "",
             Motivo         = "renovacion",
@@ -643,6 +649,7 @@ public class PdfService
             Procesador     = eq.Procesador ?? "",
             Accesorio      = eq.Accesorios ?? "",
             CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
+            Costo          = eq.Costo,
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Observaciones  = obs,
             Motivo         = "renovacion",
@@ -1816,7 +1823,7 @@ public class PdfService
             foreach (var eq in d.Equipos)
             {
                 bool esCelular = string.Equals(eq.Tipo, "Celular", StringComparison.OrdinalIgnoreCase);
-                SaltarSiFalta(rSec + rRow * 5);
+                SaltarSiFalta(rSec + rRow * 6);
                 Sec(y, rSec, "Especificaciones del Equipo"); y += rSec;
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
                 LV(y, rRow, 1, 1, 2, 5, "Tipo:", eq.Tipo);
@@ -1837,6 +1844,9 @@ public class PdfService
                 Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
                 LV(y, rRow, 1, 1, 2, 5, "Accesorio:", eq.Accesorios);
                 LV(y, rRow, 6, 6, 7, 9, esCelular ? "Plan de Datos:" : "Cod. Activo Fijo:", esCelular ? eq.PlanDatos : eq.CodigoActivoFijo);
+                y += rRow;
+                Box(y, rRow, 1, 1); Box(y, rRow, 2, 5); Box(y, rRow, 6, 6); Box(y, rRow, 7, 9);
+                LV(y, rRow, 1, 1, 2, 5, "Costo:", eq.Costo.HasValue ? "$" + eq.Costo.Value.ToString("N2") : "");
                 y += rRow + 10;
             }
         }
@@ -2178,6 +2188,7 @@ public class FiniquitoData
     public string FechaGarantia  { get; set; } = "";
     public string Accesorio      { get; set; } = "";
     public string CodigoActivoFijo { get; set; } = "";
+    public decimal? Costo        { get; set; }
     public string Observaciones  { get; set; } = "";
     public string TelNumero      { get; set; } = "";
     public string TelMarca       { get; set; } = "";
@@ -2254,6 +2265,7 @@ public class EquipoResumenItem
     public string? PlanDatos     { get; set; }
     public string? FechaGarantia { get; set; }
     public string? CodigoActivoFijo { get; set; }
+    public decimal? Costo        { get; set; }
 }
 
 public class PerifericoResumenItem

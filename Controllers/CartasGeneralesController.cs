@@ -279,7 +279,8 @@ public class CartasGeneralesController : BaseController
                 Imei           = m.Equipo?.IMEI,
                 NumeroCelular  = m.Equipo?.NumeroCelular,
                 PlanDatos      = m.Equipo?.PlanData?.Nombre,
-                CodigoActivoFijo = m.Equipo?.CodigoActivoFijo
+                CodigoActivoFijo = m.Equipo?.CodigoActivoFijo,
+                Costo          = m.Equipo?.Costo
             }).ToList(),
             perifericos.Select(ep => new PerifericoResumenItem
             {

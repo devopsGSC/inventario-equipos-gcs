@@ -652,6 +652,7 @@ public class MovimientosController : BaseController
             FechaGarantia  = eq.FechaGarantia?.ToString("dd/MM/yyyy") ?? "",
             Accesorio      = eq.Accesorios ?? "",
             CodigoActivoFijo = eq.CodigoActivoFijo ?? "",
+            Costo          = eq.Costo,
             Observaciones  = observaciones ?? "",
             TelNumero      = telNumero ?? "",
             TelMarca       = telMarca ?? "",
