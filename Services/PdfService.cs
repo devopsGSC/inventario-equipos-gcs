@@ -97,7 +97,8 @@ public class PdfService
         // Escalar alturas para ocupar toda la página
         double H        = page.Height.Point;
         double totalRaw = Enumerable.Range(1, 53).Sum(r => RawH(r) * 0.75);
-        double available = H - TOP - 10; // 10pt margen inferior
+        const double footerH = 16; // espacio reservado para el pie de pagina
+        double available = H - TOP - 10 - footerH;
         double scale    = available / totalRaw;
 
         var rowTop = new Dictionary<int, double>();
@@ -316,7 +317,10 @@ public class PdfService
                 for (int r = 24; r <= 28; r++) Box(r, 1,r, 9);
                 Txt(24, 24, 1, 9, "Sin perifericos adjuntos", fNorm);
             }
-            Box(29, 1,29, 9); Box(30, 1,30, 9);
+            // Espaciador antes de la siguiente seccion: una sola franja (en
+            // vez de dos filas separadas de la mitad de alto) para que no se
+            // vea como dos renglones angostos del mismo cuadro de la tabla.
+            Box(29, 1,30, 9);
         }
 
         // ══ TELÉFONO MÓVIL ══ (solo en el finiquito; nunca en la carta de asignación/préstamo)
@@ -448,6 +452,12 @@ public class PdfService
             }
             catch { /* continuar sin firma IT si falla */ }
         }
+
+        // ══ PIE DE PÁGINA ══
+        var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+        g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+            new XFont("Arial", 6.5, XFontStyle.Regular), XBrushes.Gray,
+            new XRect(ML, H - footerH + 2, usable, 12), fmtPie);
     } // fin DibujarPaginaDetalle
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1673,6 +1683,11 @@ public class PdfService
         var gray    = XColor.FromArgb(209, 209, 209);
         const double rSec  = 16;
         const double rRow  = 15;
+        // Espacio que ocupa el pie de pagina (linea + texto) al fondo de
+        // cada pagina — hay que reservarlo tambien al calcular donde entra
+        // el bloque de firmas, si no el pie termina superpuesto con las
+        // etiquetas "Firma de..." en la ultima pagina.
+        const double footerReserve = 30;
 
         PdfPage page = null!;
         XGraphics g  = null!;
@@ -1725,8 +1740,22 @@ public class PdfService
             Txt(top, h, 1, 9, text, fBold9, XStringAlignment.Center);
         }
 
+        // Se redibuja en TODAS las paginas (no solo en la ultima) para que
+        // nunca desaparezca, sin importar cuanto contenido empuje hacia
+        // paginas siguientes.
+        void DibujarPie()
+        {
+            double H = page.Height.Point;
+            g.DrawLine(new XPen(gray, 0.5), ML, H - 30, ML + usable, H - 30);
+            var fmtPie = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Near };
+            g.DrawString("Global Customs Solutions S.E.M. de C.V.  |  Departamento de Tecnología  |  Documento confidencial",
+                new XFont("Arial", 7, XFontStyle.Regular), XBrushes.Gray,
+                new XRect(ML, H - 22, usable, 12), fmtPie);
+        }
+
         void NewPage()
         {
+            if (page != null) DibujarPie();
             page = doc.AddPage();
             page.Size = PdfSharpCore.PageSize.Letter;
             g = XGraphics.FromPdfPage(page);
@@ -1741,7 +1770,7 @@ public class PdfService
         // ultima pagina; si no alcanza, salta de pagina.
         bool SaltarSiFalta(double alto, string? tituloContinuacion = null)
         {
-            if (y + alto <= page.Height.Point - 110) return false;
+            if (y + alto <= page.Height.Point - 110 - footerReserve) return false;
             NewPage();
             if (tituloContinuacion != null) { Sec(y, rSec, tituloContinuacion); y += rSec; }
             return true;
@@ -1895,7 +1924,7 @@ public class PdfService
         // porque este resumen no esta atado a una sola captura digital)
         // Se ancla cerca del pie de pagina, como en la carta de siempre,
         // en vez de quedar pegada justo debajo de la ultima tabla.
-        double yFirmaAnchor = page.Height.Point - 110;
+        double yFirmaAnchor = page.Height.Point - 110 - footerReserve;
         if (y > yFirmaAnchor) NewPage();
         y = Math.Max(y, yFirmaAnchor);
         y += 20;
@@ -1949,6 +1978,8 @@ public class PdfService
             }
             catch { /* continuar sin firma IT si falla */ }
         }
+
+        DibujarPie();
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -2121,11 +2152,20 @@ public class PdfService
             fNorm);
 
         // Ancla el bloque de firma al pie de la pagina cuando el contenido
-        // deja suficiente espacio libre; si el texto ya llega abajo, sigue
-        // el flujo normal (el guard de abajo maneja el salto de pagina).
+        // deja suficiente espacio libre; si el texto ya llega abajo, salta
+        // de pagina ANTES de dibujar "Atentamente" y la firma, para que las
+        // dos etiquetas que van debajo de la linea (nombre y cargo, ~30pt)
+        // no terminen encimadas con el pie de pagina.
         const double altoBloqueFirma = 115;
-        double yFirmaAbajo = H - margenInferior - altoBloqueFirma;
-        if (yFirmaAbajo > y) y = yFirmaAbajo;
+        if (y + altoBloqueFirma > H - margenInferior)
+        {
+            NewPage();
+        }
+        else
+        {
+            double yFirmaAbajo = H - margenInferior - altoBloqueFirma;
+            if (yFirmaAbajo > y) y = yFirmaAbajo;
+        }
 
         DrawPara("Atentamente,", fNorm, spaceAfter: 55);
 
@@ -2133,7 +2173,6 @@ public class PdfService
         double fw2   = TW * 0.4;
         double fx    = ML + (TW - fw2) / 2;
         double lineY = y;
-        if (lineY > H - margenInferior) { NewPage(); lineY = y; }
 
         if (!string.IsNullOrEmpty(d.RutaFirmaIT))
         {
