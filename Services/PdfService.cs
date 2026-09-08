@@ -90,7 +90,12 @@ public class PdfService
             // Un periférico no tiene RAM, disco, procesador ni accesorios —
             // esas filas son propias del grid de equipo, así que se ocultan
             // (si no, quedan etiquetas en blanco sin ningún valor al lado).
-            (esPeriferico && r is 18 or 19 or 20)
+            (esPeriferico && r is 18 or 19 or 20) ||
+            // Espaciador previo a la siguiente seccion: se elimina (altura 0)
+            // en vez de dibujarse como una fila angosta, para que se vea
+            // igual que el resto del documento, donde una seccion empieza
+            // justo despues de la anterior sin un divisor de por medio.
+            r is 29 or 30
                 ? 0 : (RowHxl.TryGetValue(r, out var hx) ? hx : 13.9);
 
         // Precalcular top de cada fila desde arriba (Y=0 es ARRIBA en PdfSharpCore)
@@ -317,10 +322,6 @@ public class PdfService
                 for (int r = 24; r <= 28; r++) Box(r, 1,r, 9);
                 Txt(24, 24, 1, 9, "Sin perifericos adjuntos", fNorm);
             }
-            // Espaciador antes de la siguiente seccion: una sola franja (en
-            // vez de dos filas separadas de la mitad de alto) para que no se
-            // vea como dos renglones angostos del mismo cuadro de la tabla.
-            Box(29, 1,30, 9);
         }
 
         // ══ TELÉFONO MÓVIL ══ (solo en el finiquito; nunca en la carta de asignación/préstamo)
